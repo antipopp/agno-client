@@ -1,6 +1,6 @@
 # Agno Client Libraries
 
-Independent open-source client libraries for [Agno](https://www.agno.dev) agents with streaming support.
+Independent open-source client libraries for [Agno](https://www.agno.com) agents with streaming support.
 
 ## 📦 Packages
 
