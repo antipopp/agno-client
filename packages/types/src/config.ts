@@ -86,4 +86,19 @@ export interface ClientState {
    * Available sessions
    */
   sessions: import('./api').SessionEntry[];
+
+  /**
+   * Whether the run is paused (HITL)
+   */
+  isPaused: boolean;
+
+  /**
+   * Current paused run ID
+   */
+  pausedRunId?: string;
+
+  /**
+   * Tools awaiting external execution
+   */
+  toolsAwaitingExecution?: import('./messages').ToolCall[];
 }

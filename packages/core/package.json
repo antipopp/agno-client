@@ -1,9 +1,23 @@
 {
   "name": "@antipopp/agno-client",
   "version": "0.1.0",
-  "description": "Core client library for Agno agents with streaming support",
+  "description": "Core client library for Agno agents with streaming support and HITL frontend tool execution",
   "author": "antipopp",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antipopp/agno-client.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "agno",
+    "agent",
+    "ai",
+    "client",
+    "streaming",
+    "hitl",
+    "tool-execution"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -15,7 +29,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",

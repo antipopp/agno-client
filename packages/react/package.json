@@ -1,9 +1,24 @@
 {
   "name": "@antipopp/agno-react",
   "version": "0.1.0",
-  "description": "React hooks for Agno client",
+  "description": "React hooks for Agno client with frontend tool execution (HITL) support",
   "author": "antipopp",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antipopp/agno-client.git",
+    "directory": "packages/react"
+  },
+  "keywords": [
+    "agno",
+    "agent",
+    "ai",
+    "react",
+    "hooks",
+    "hitl",
+    "tool-execution",
+    "streaming"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -15,7 +30,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --external react",

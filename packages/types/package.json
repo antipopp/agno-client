@@ -4,6 +4,18 @@
   "description": "TypeScript types for Agno client libraries",
   "author": "antipopp",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antipopp/agno-client.git",
+    "directory": "packages/types"
+  },
+  "keywords": [
+    "agno",
+    "agent",
+    "ai",
+    "typescript",
+    "types"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -15,7 +27,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
