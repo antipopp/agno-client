@@ -1,0 +1,19 @@
+# Source files
+src/
+tsconfig.json
+
+# Development files
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+
+# Tests
+*.test.ts
+*.spec.ts
+__tests__/
+test/
+tests/
+
+# Build artifacts (only dist/ should be published)
+node_modules/

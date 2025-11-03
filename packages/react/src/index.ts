@@ -11,6 +11,8 @@ export type { AgnoProviderProps } from './context/AgnoContext';
 export { useAgnoChat } from './hooks/useAgnoChat';
 export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
+export { useAgnoToolExecution } from './hooks/useAgnoToolExecution';
+export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 
 // Re-export types from dependencies
 export type {

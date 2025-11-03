@@ -219,6 +219,11 @@ export class EventProcessor {
         // No-op for now
         break;
 
+      case RunEventEnum.RunPaused:
+        // Run paused for HITL - handled at client level
+        // Don't update the message, just let the client emit run:paused event
+        break;
+
       case RunEventEnum.RunError:
       case RunEventEnum.TeamRunError:
       case RunEventEnum.TeamRunCancelled:

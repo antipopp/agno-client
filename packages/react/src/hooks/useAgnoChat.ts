@@ -83,6 +83,7 @@ export function useAgnoChat() {
     sendMessage,
     clearMessages,
     isStreaming: state.isStreaming,
+    isPaused: state.isPaused,
     error,
     state,
   };

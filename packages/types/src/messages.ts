@@ -17,6 +17,12 @@ export interface ToolCall {
   tool_call_error: boolean;
   metrics: ToolMetrics;
   created_at: number;
+  // HITL fields
+  external_execution?: boolean;
+  requires_confirmation?: boolean;
+  requires_user_input?: boolean;
+  confirmed?: boolean;
+  result?: any;
 }
 
 /**
