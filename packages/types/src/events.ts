@@ -45,4 +45,6 @@ export type ClientEvent =
   | 'stream:start'
   | 'stream:end'
   | 'state:change'
-  | 'config:change';
+  | 'config:change'
+  | 'run:paused'
+  | 'run:continued';

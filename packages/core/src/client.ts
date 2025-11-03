@@ -7,6 +7,7 @@ import type {
   AgentDetails,
   TeamDetails,
   ClientState,
+  ToolCall,
 } from '@antipopp/agno-types';
 import { RunEvent } from '@antipopp/agno-types';
 import { MessageStore } from './stores/message-store';
@@ -58,6 +59,9 @@ export class AgnoClient extends EventEmitter {
       agents: [],
       teams: [],
       sessions: [],
+      isPaused: false,
+      pausedRunId: undefined,
+      toolsAwaitingExecution: undefined,
     };
   }
 
@@ -236,6 +240,27 @@ export class AgnoClient extends EventEmitter {
       }
     }
 
+    // Handle pause for HITL
+    if (event === RunEvent.RunPaused) {
+      this.state.isStreaming = false;
+      this.state.isPaused = true;
+      this.state.pausedRunId = chunk.run_id;
+      this.state.toolsAwaitingExecution =
+        chunk.tools_awaiting_external_execution ||
+        chunk.tools_requiring_confirmation ||
+        chunk.tools_requiring_user_input ||
+        chunk.tools ||
+        [];
+
+      this.emit('run:paused', {
+        runId: chunk.run_id,
+        sessionId: chunk.session_id,
+        tools: this.state.toolsAwaitingExecution,
+      });
+      this.emit('state:change', this.getState());
+      return;
+    }
+
     // Handle errors
     if (
       event === RunEvent.RunError ||
@@ -405,6 +430,73 @@ export class AgnoClient extends EventEmitter {
     }
 
     this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Continue a paused run after executing external tools
+   */
+  async continueRun(
+    tools: ToolCall[],
+    options?: { headers?: Record<string, string> }
+  ): Promise<void> {
+    if (!this.state.isPaused || !this.state.pausedRunId) {
+      throw new Error('No paused run to continue');
+    }
+
+    const runUrl = this.configManager.getRunUrl();
+    if (!runUrl) {
+      throw new Error('No agent or team selected');
+    }
+
+    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
+    const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
+
+    this.state.isPaused = false;
+    this.state.isStreaming = true;
+    this.emit('run:continued', { runId: this.state.pausedRunId });
+    this.emit('state:change', this.getState());
+
+    const formData = new FormData();
+    formData.append('tools', JSON.stringify(tools));
+    formData.append('stream', 'true');
+
+    const currentSessionId = this.configManager.getSessionId();
+    if (currentSessionId) {
+      formData.append('session_id', currentSessionId);
+    }
+
+    const headers: Record<string, string> = { ...options?.headers };
+    const authToken = this.configManager.getAuthToken();
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    try {
+      await streamResponse({
+        apiUrl: continueUrl,
+        headers,
+        requestBody: formData,
+        onChunk: (chunk: RunResponse) => {
+          this.handleChunk(chunk, currentSessionId, '');
+        },
+        onError: (error) => {
+          this.handleError(error, currentSessionId);
+        },
+        onComplete: () => {
+          this.state.isStreaming = false;
+          this.state.pausedRunId = undefined;
+          this.state.toolsAwaitingExecution = undefined;
+          this.emit('stream:end');
+          this.emit('message:complete', this.messageStore.getMessages());
+          this.emit('state:change', this.getState());
+        },
+      });
+    } catch (error) {
+      this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        currentSessionId
+      );
+    }
   }
 
   /**

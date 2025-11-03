@@ -1,6 +1,6 @@
 # Agno Client Libraries
 
-Independent open-source client libraries for [Agno](https://www.agno.dev) agents with streaming support.
+Independent open-source client libraries for [Agno](https://www.agno.com) agents with streaming support.
 
 ## 📦 Packages
 
@@ -138,11 +138,54 @@ agno-client/
 └── package.json       # Monorepo root
 ```
 
+## ✨ Features
+
+### Frontend Tool Execution (HITL)
+
+The library includes built-in support for Human-in-the-Loop (HITL) frontend tool execution, allowing your Agno agents to delegate tools to the browser:
+
+- **UI Automation**: Navigate pages, fill forms, click buttons
+- **Browser APIs**: Access geolocation, notifications, local storage
+- **User Confirmation**: Get user approval for sensitive operations
+- **External Integrations**: Call APIs not accessible from the backend
+
+See [Frontend Tool Execution Guide](./FRONTEND_TOOL_EXECUTION.md) for detailed usage instructions.
+
+### Quick Example: Frontend Tools
+
+```tsx
+import { useAgnoToolExecution } from '@antipopp/agno-react';
+
+function ChatComponent() {
+  const toolHandlers = {
+    navigate_to_page: async (args: { url: string }) => {
+      window.location.href = args.url;
+      return { success: true };
+    },
+    get_location: async () => {
+      const position = await new Promise((resolve) =>
+        navigator.geolocation.getCurrentPosition(resolve)
+      );
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    },
+  };
+
+  const { isPaused, isExecuting, pendingTools } =
+    useAgnoToolExecution(toolHandlers);
+
+  // Tools execute automatically when agent requests them
+}
+```
+
 ## 📚 Documentation
 
 - [Core Client API](./packages/core/README.md)
 - [React Hooks API](./packages/react/README.md)
 - [Type Definitions](./packages/types/README.md)
+- [Frontend Tool Execution (HITL)](./FRONTEND_TOOL_EXECUTION.md)
 
 ## 🤝 Contributing
 
