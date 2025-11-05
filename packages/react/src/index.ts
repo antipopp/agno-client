@@ -6,6 +6,8 @@
 // Context and Provider
 export { AgnoProvider, useAgnoClient } from './context/AgnoContext';
 export type { AgnoProviderProps } from './context/AgnoContext';
+export { ToolHandlerProvider, useToolHandlers } from './context/ToolHandlerContext';
+export type { ToolHandlerProviderProps, ToolHandlerContextValue } from './context/ToolHandlerContext';
 
 // Hooks
 export { useAgnoChat } from './hooks/useAgnoChat';
