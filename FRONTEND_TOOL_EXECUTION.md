@@ -355,6 +355,228 @@ const interactionTools = {
 };
 ```
 
+### Pattern 4: React Router Navigation + Form Filling
+
+This pattern is useful for AI-assisted form filling across different routes in a React Router application. It combines global tool handlers for navigation with page-specific handlers for form manipulation.
+
+#### Architecture Overview
+
+```
+GlobalToolHandlers (navigation-aware)
+├── Stores data in sessionStorage
+├── Navigates using React Router (no page refresh)
+└── Delegates to page-specific handler if already on page
+
+Page Component (with react-hook-form)
+├── Reads sessionStorage on mount
+├── Applies data using form.reset()
+├── Provides local handler for direct updates
+└── Uses form.setValue() for field updates
+```
+
+#### Implementation
+
+**1. Global Tool Handler with React Router Navigation:**
+
+```tsx
+// GlobalToolHandlers.tsx
+import { type ReactNode, useMemo } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { ToolHandlerProvider, type ToolHandler } from '@antipopp/agno-react'
+
+export function GlobalToolHandlers({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const globalToolHandlers: Record<string, ToolHandler> = useMemo(
+    () => ({
+      fill_report_form: async (args: Record<string, any>) => {
+        // Parse YAML args if needed (some agents send string format)
+        let parsedArgs: any = args
+        if (typeof args === 'string') {
+          const pairs = (args as string).split(', ')
+          parsedArgs = {}
+          for (const pair of pairs) {
+            const [key, ...valueParts] = pair.split(': ')
+            parsedArgs[key.trim()] = valueParts.join(': ').trim()
+          }
+        }
+
+        // Store data for the page to pick up
+        sessionStorage.setItem('pendingReportData', JSON.stringify(parsedArgs))
+
+        // Navigate using React Router (preserves app state)
+        if (!location.pathname.includes('/reports/new')) {
+          navigate('/reports/new')
+          return { success: true, message: 'Navigating to report form...', navigated: true }
+        }
+
+        return { success: true, message: 'Form data ready to be applied', ...parsedArgs }
+      },
+    }),
+    [navigate, location.pathname]
+  )
+
+  return <ToolHandlerProvider handlers={globalToolHandlers}>{children}</ToolHandlerProvider>
+}
+```
+
+**2. Form Component with React Hook Form:**
+
+```tsx
+// NewReport.tsx
+import { useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { useAgnoToolExecution, type ToolHandler } from '@antipopp/agno-react'
+
+const formSchema = z.object({
+  name: z.string().min(1, 'Report name is required'),
+  description: z.string().optional(),
+  category: z.enum(['financial', 'sales', 'marketing', 'customer', 'product']),
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
+})
+
+type FormValues = z.infer<typeof formSchema>
+
+export function NewReport() {
+  const navigate = useNavigate()
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      category: undefined,
+      startDate: '',
+      endDate: '',
+    },
+  })
+
+  // Apply data from sessionStorage (set by global handler during navigation)
+  useEffect(() => {
+    const pendingData = sessionStorage.getItem('pendingReportData')
+    if (pendingData) {
+      try {
+        const data = JSON.parse(pendingData)
+        sessionStorage.removeItem('pendingReportData') // Clear to prevent re-application
+
+        // Use form.reset() to apply all fields atomically
+        form.reset({
+          name: data.name || '',
+          description: data.description || '',
+          category: data.category || undefined,
+          startDate: data.start_date || '',
+          endDate: data.end_date || '',
+        })
+      } catch (error) {
+        console.error('Failed to apply pending report data:', error)
+      }
+    }
+  }, [form])
+
+  // Local tool handler (overrides global when on this page)
+  const toolHandlers: Record<string, ToolHandler> = useMemo(() => ({
+    fill_report_form: async (args: Record<string, any>) => {
+      try {
+        // Use form.setValue() for individual field updates
+        if (args.name) form.setValue('name', args.name)
+        if (args.description) form.setValue('description', args.description)
+        if (args.category) form.setValue('category', args.category)
+        if (args.start_date) form.setValue('startDate', args.start_date)
+        if (args.end_date) form.setValue('endDate', args.end_date)
+
+        return {
+          success: true,
+          message: 'Form filled successfully',
+          filled_fields: Object.keys(args),
+        }
+      } catch (error: any) {
+        return { success: false, error: error.message || 'Failed to fill form' }
+      }
+    },
+  }), [form])
+
+  // Enable auto-execution
+  const { isPaused, isExecuting, pendingTools } = useAgnoToolExecution(toolHandlers, true)
+
+  const onSubmit = (_data: FormValues) => {
+    navigate('/reports')
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      {/* Tool execution status indicator */}
+      {(isPaused || isExecuting) && (
+        <div className="execution-status">
+          {isExecuting
+            ? `AI is filling the form (${pendingTools.length} tool(s))...`
+            : 'AI Assistant Ready'
+          }
+        </div>
+      )}
+
+      {/* Form fields using Controller */}
+      <Controller
+        name="name"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <div>
+            <label>Report Name</label>
+            <input {...field} aria-invalid={fieldState.invalid} />
+            {fieldState.error && <p>{fieldState.error.message}</p>}
+          </div>
+        )}
+      />
+
+      {/* ... other fields ... */}
+
+      <button type="submit">Create Report</button>
+    </form>
+  )
+}
+```
+
+**3. App Setup:**
+
+```tsx
+// main.tsx
+import { BrowserRouter } from 'react-router-dom'
+import { AgnoProvider } from '@antipopp/agno-react'
+import { GlobalToolHandlers } from './components/GlobalToolHandlers'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <GlobalToolHandlers>
+        <AgnoProvider config={{ endpoint: 'http://localhost:7777', mode: 'agent', agentId: 'my-agent' }}>
+          <App />
+        </AgnoProvider>
+      </GlobalToolHandlers>
+    </BrowserRouter>
+  </StrictMode>
+)
+```
+
+#### Why This Pattern Works
+
+1. **No Page Refresh**: React Router's `navigate()` preserves chat context and app state
+2. **React Strict Mode Safe**: `form.reset()` handles React 18's double-render correctly
+3. **Handler Priority**: Page-specific handlers override global handlers when active
+4. **Type Safety**: Zod schema provides runtime validation and TypeScript types
+5. **Reliable State**: React Hook Form's internal state is resilient to re-renders
+
+#### Key Differences from Basic Pattern
+
+- **Global + Local Handlers**: Global handles navigation, local handles direct updates
+- **SessionStorage Bridge**: Transfers data across route changes without URL params
+- **React Hook Form**: More reliable than useState for complex forms
+- **Form Methods**: Use `form.reset()` for bulk updates, `form.setValue()` for individual fields
+
 ## API Compatibility
 
 This implementation is compatible with Agno's HITL API:

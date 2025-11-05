@@ -1,126 +1,96 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Agno Client libraries will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2025-11-03
+## [0.2.0] - 2025-11-05
 
 ### Added
 
-#### Core Library (@antipopp/agno-client)
-- Initial release of the core Agno client library
-- Stateful client with EventEmitter architecture
-- Real-time streaming support with incremental JSON parsing
-- Message store with immutable state management
-- Configuration manager for endpoint, auth, and mode settings
-- Session manager for fetching and converting session history
-- Event processor for handling RunEvent types
-- Support for both agent and team modes
-- Request cancellation with AbortController
-- Secure logging with automatic token sanitization
-- URL encoding for entity IDs
-- Timestamp validation with bounds checking
-- **Frontend tool execution (HITL)** support via `continueRun()` method
-- `RunPaused` and `RunContinued` event handling
+#### @antipopp/agno-react
+- **ToolHandlerProvider**: New context provider for managing global tool handlers across the application
+  - Allows defining tool handlers at any level of the component tree
+  - Page-specific handlers automatically override global handlers when active
+  - Enables navigation-aware handlers using React Router hooks
+- **Enhanced useAgnoToolExecution**: Hook now consumes handlers from ToolHandlerProvider context
+  - Supports both context-provided handlers and directly passed handlers
+  - Merges page-specific handlers with global handlers (page-specific takes priority)
+  - Maintains backward compatibility with existing usage patterns
 
-#### React Package (@antipopp/agno-react)
-- Initial release of React hooks adapter
-- `AgnoProvider` component for client context
-- `useAgnoClient()` - Access the core client instance
-- `useAgnoChat()` - Message management and streaming
-- `useAgnoSession()` - Session loading and management
-- `useAgnoActions()` - Initialization and helper actions
-- **`useAgnoToolExecution()`** - Frontend tool execution hook with auto-execution and manual confirmation modes
-- Event synchronization between core client and React state
-- Single client instance pattern with useRef
+#### Documentation
+- **Pattern 4 in FRONTEND_TOOL_EXECUTION.md**: Comprehensive guide for React Router Navigation + Form Filling
+  - Global tool handler pattern with React Router integration
+  - React Hook Form integration for robust form state management
+  - SessionStorage-based cross-page data transfer
+  - Complete working examples with TypeScript
+  - Architecture diagrams and best practices
 
-#### Types Package (@antipopp/agno-types)
-- Initial release of TypeScript types
-- Full type coverage for Agno API specification
-- RunEvent enum with all event types (including RunPaused, RunContinued)
-- ChatMessage, ToolCall, ReasoningSteps types
-- API response types (RunResponse, SessionEntry, AgentDetails, TeamDetails)
+#### Examples
+- **SaaS App Example**: Updated to demonstrate the new ToolHandlerProvider pattern
+  - GlobalToolHandlers component for app-wide navigation and data transfer
+  - NewReport page with React Hook Form integration
+  - AI-powered form filling that works across route navigation
+  - Clean separation between global and page-specific handlers
+
+### Changed
+
+#### @antipopp/agno-react
+- Improved tool execution flow to support hierarchical handler resolution
+- Enhanced type safety for ToolHandler function signatures
+- Better error handling in tool execution pipeline
+
+## [0.1.0] - 2025-10-28
+
+### Added
+
+#### @antipopp/agno-types
+- Initial TypeScript types for Agno API
+- RunEvent types (RunStarted, RunPaused, RunContinued, etc.)
+- ChatMessage and ToolCall types
+- API response types (RunResponse, SessionEntry, AgentDetails)
 - Configuration and state types
-- Client event types
 
-### Features
+#### @antipopp/agno-client
+- Core AgnoClient with EventEmitter pattern
+- MessageStore for immutable message state management
+- ConfigManager for centralized configuration
+- SessionManager for session history management
+- EventProcessor for processing streaming RunEvents
+- StreamParser for incremental JSON parsing
+- Frontend tool execution (HITL) support with continueRun() method
+- Support for both agent and team modes
 
-- **Streaming Support**: Real-time streaming with incremental JSON parsing
-- **Event-Driven Architecture**: EventEmitter pattern for decoupled communication
-- **Frontend Tool Execution**: Human-in-the-Loop (HITL) support for delegating tools to the frontend
-  - Auto-execution mode for seamless tool handling
-  - Manual confirmation mode for sensitive operations
-  - Error handling and result processing
-- **Security First**: Built-in security features including token sanitization, URL encoding, and request cancellation
-- **Framework Agnostic**: Core library works with any JavaScript/TypeScript framework
-- **React Integration**: Purpose-built hooks for React applications
-- **Type Safety**: Full TypeScript support with comprehensive type definitions
-- **Session Management**: Load, create, and delete sessions
-- **Agent & Team Support**: Works with both agent and team modes
+#### @antipopp/agno-react
+- AgnoProvider component for React integration
+- useAgnoClient hook for accessing client instance
+- useAgnoChat hook for message management and streaming
+- useAgnoSession hook for session loading/management
+- useAgnoActions hook for initialization and helpers
+- useAgnoToolExecution hook for frontend tool execution (HITL)
+- Auto-execution and manual confirmation modes
 
-### Documentation
+#### Documentation
+- FRONTEND_TOOL_EXECUTION.md with comprehensive HITL guide
+- CLAUDE.md with development guidelines
+- README files for all packages
+- TypeScript examples and API reference
 
-- Comprehensive README.md with quick start guides
-- FRONTEND_TOOL_EXECUTION.md with detailed HITL implementation guide
-- CLAUDE.md for development guidelines and architecture overview
-- Per-package README files
-- Inline code documentation and JSDoc comments
+#### Examples
+- React example with basic chat interface
+- SaaS app example with AI-powered form filling
+- Python backend examples with external_execution tools
 
-## [Unreleased]
+### Technical Highlights
+- Full TypeScript support with strict types
+- Framework-agnostic core library
+- React hooks adapter with clean separation
+- Event-driven architecture for real-time updates
+- Streaming support with incremental JSON parsing
+- Session management with automatic conversion
+- Tool execution with HITL pattern
+- pnpm workspace monorepo structure
 
-### Planned
-- Additional React hooks for advanced use cases
-- WebSocket support for real-time updates
-- Offline support with local caching
-- More comprehensive error handling
-- Additional examples and demos
-- Additional framework adapters (Vue, Angular, etc.)
-
----
-
-## Release Notes
-
-### 0.1.0 - First Public Release
-
-This is the first public release of the Agno Client libraries. The project provides a complete, production-ready solution for integrating Agno agents into JavaScript/TypeScript applications.
-
-**Key Highlights:**
-- Framework-agnostic core library with React adapter
-- Full streaming support with real-time updates
-- Human-in-the-Loop (HITL) frontend tool execution
-- Production-ready security features
-- Comprehensive TypeScript support
-- Complete documentation
-
-**Getting Started:**
-```bash
-npm install @antipopp/agno-react
-```
-
-See the [README.md](./README.md) for quick start guides and examples.
-
-**Frontend Tool Execution:**
-The standout feature of this release is the HITL frontend tool execution support. This allows Agno agents to delegate specific tools to the browser, enabling:
-- UI automation (navigate, fill forms, click buttons)
-- Browser API access (geolocation, notifications, storage)
-- User confirmation flows for sensitive operations
-- External integrations not accessible from the backend
-
-See [FRONTEND_TOOL_EXECUTION.md](./FRONTEND_TOOL_EXECUTION.md) for detailed usage instructions.
-
-**Package Versions:**
-- @antipopp/agno-types: 0.1.0
-- @antipopp/agno-client: 0.1.0
-- @antipopp/agno-react: 0.1.0
-
----
-
-## Contributing
-
-This is an independent open-source project. Contributions are welcome! Please read the [README.md](./README.md) for development setup and guidelines.
-
-## License
-
-MIT License - See [LICENSE](./LICENSE) for details.
+[0.2.0]: https://github.com/antipopp/agno-client/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/antipopp/agno-client/releases/tag/v0.1.0

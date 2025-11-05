@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ToolCall } from '@antipopp/agno-types';
 import { useAgnoClient } from '../context/AgnoContext';
+import { useToolHandlers } from '../context/ToolHandlerContext';
 
 /**
  * Tool handler function type
@@ -19,7 +20,7 @@ export interface ToolExecutionEvent {
 /**
  * Hook for handling frontend tool execution (HITL)
  *
- * @param handlers - Map of tool names to handler functions
+ * @param handlers - Map of tool names to handler functions (local handlers)
  * @param autoExecute - Whether to automatically execute tools when paused (default: true)
  *
  * @example
@@ -39,10 +40,18 @@ export interface ToolExecutionEvent {
  * ```
  */
 export function useAgnoToolExecution(
-  handlers: Record<string, ToolHandler>,
+  handlers: Record<string, ToolHandler> = {},
   autoExecute: boolean = true
 ) {
   const client = useAgnoClient();
+  const toolHandlerContext = useToolHandlers();
+
+  // Merge global handlers with local handlers (local takes precedence)
+  const mergedHandlers = useMemo(() => {
+    const globalHandlers = toolHandlerContext?.handlers || {};
+    return { ...globalHandlers, ...handlers };
+  }, [toolHandlerContext?.handlers, handlers]);
+
   const [pendingTools, setPendingTools] = useState<ToolCall[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -51,7 +60,18 @@ export function useAgnoToolExecution(
   // Listen for run:paused events
   useEffect(() => {
     const handleRunPaused = (event: ToolExecutionEvent) => {
-      console.log('[useAgnoToolExecution] Run paused, tools:', event.tools);
+      console.log('[useAgnoToolExecution] Run paused event received');
+      console.log('[useAgnoToolExecution] Event:', event);
+      console.log('[useAgnoToolExecution] Tools:', event.tools);
+      console.log('[useAgnoToolExecution] Number of tools:', event.tools?.length);
+      event.tools?.forEach((tool, idx) => {
+        console.log(`[useAgnoToolExecution] Tool ${idx}:`, {
+          name: tool.tool_name,
+          id: tool.tool_call_id,
+          args_type: typeof tool.tool_args,
+          args: tool.tool_args,
+        });
+      });
       setIsPaused(true);
       setPendingTools(event.tools);
       setExecutionError(undefined);
@@ -92,7 +112,7 @@ export function useAgnoToolExecution(
       // Execute each tool
       const updatedTools = await Promise.all(
         pendingTools.map(async (tool) => {
-          const handler = handlers[tool.tool_name];
+          const handler = mergedHandlers[tool.tool_name];
 
           if (!handler) {
             console.warn(`[useAgnoToolExecution] No handler for tool: ${tool.tool_name}`);
@@ -134,7 +154,7 @@ export function useAgnoToolExecution(
       setIsExecuting(false);
       throw error;
     }
-  }, [client, handlers, isPaused, pendingTools]);
+  }, [client, mergedHandlers, isPaused, pendingTools]);
 
   /**
    * Execute tools manually (for user confirmation flows)
@@ -144,7 +164,7 @@ export function useAgnoToolExecution(
     async (tools: ToolCall[]): Promise<ToolCall[]> => {
       return Promise.all(
         tools.map(async (tool) => {
-          const handler = handlers[tool.tool_name];
+          const handler = mergedHandlers[tool.tool_name];
           if (!handler) return tool;
 
           try {
@@ -164,7 +184,7 @@ export function useAgnoToolExecution(
         })
       );
     },
-    [handlers]
+    [mergedHandlers]
   );
 
   /**

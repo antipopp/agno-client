@@ -242,6 +242,13 @@ export class AgnoClient extends EventEmitter {
 
     // Handle pause for HITL
     if (event === RunEvent.RunPaused) {
+      console.log('[AgnoClient] RunPaused event detected');
+      console.log('[AgnoClient] Chunk:', chunk);
+      console.log('[AgnoClient] tools_awaiting_external_execution:', chunk.tools_awaiting_external_execution);
+      console.log('[AgnoClient] tools_requiring_confirmation:', chunk.tools_requiring_confirmation);
+      console.log('[AgnoClient] tools_requiring_user_input:', chunk.tools_requiring_user_input);
+      console.log('[AgnoClient] tools:', chunk.tools);
+
       this.state.isStreaming = false;
       this.state.isPaused = true;
       this.state.pausedRunId = chunk.run_id;
@@ -251,6 +258,9 @@ export class AgnoClient extends EventEmitter {
         chunk.tools_requiring_user_input ||
         chunk.tools ||
         [];
+
+      console.log('[AgnoClient] toolsAwaitingExecution:', this.state.toolsAwaitingExecution);
+      console.log('[AgnoClient] Emitting run:paused event');
 
       this.emit('run:paused', {
         runId: chunk.run_id,
