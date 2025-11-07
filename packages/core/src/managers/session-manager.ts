@@ -137,9 +137,7 @@ export class SessionManager {
   convertSessionToMessages(
     runs: Array<RunSchema | TeamRunSchema>
   ): ChatMessage[] {
-    console.log('[SessionManager] convertSessionToMessages received:', runs.length, 'runs');
     const messages = this.convertRunsToMessages(runs);
-    console.log('[SessionManager] Converted to messages:', messages.length, 'messages');
     return messages;
   }
 
@@ -169,11 +167,12 @@ export class SessionManager {
 
       // Extract tool calls from tools array
       const toolCalls: ToolCall[] = [];
+
       if (run.tools && Array.isArray(run.tools)) {
         for (const tool of run.tools) {
           const toolObj = tool as Record<string, unknown>;
-          toolCalls.push({
-            role: 'tool',
+          const toolCall = {
+            role: 'tool' as const,
             content: (toolObj.content as string) ?? '',
             tool_call_id: (toolObj.tool_call_id as string) ?? '',
             tool_name: (toolObj.tool_name as string) ?? '',
@@ -181,7 +180,9 @@ export class SessionManager {
             tool_call_error: (toolObj.tool_call_error as boolean) ?? false,
             metrics: (toolObj.metrics as { time: number }) ?? { time: 0 },
             created_at: timestamp,
-          });
+          };
+
+          toolCalls.push(toolCall);
         }
       }
 

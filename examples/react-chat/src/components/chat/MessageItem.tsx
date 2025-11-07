@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { ChatMessage } from '@antipopp/agno-types'
 import { AlertCircle, FileText, Image as ImageIcon, Lightbulb, Music, Video } from 'lucide-react'
+import { GenerativeUIRenderer } from '@antipopp/agno-react'
+import { Artifact } from '@/components/ai-elements/artifact'
 
 interface MessageItemProps {
   message: ChatMessage
@@ -21,10 +23,13 @@ export function MessageItem({ message }: MessageItemProps) {
     return tool.tool_call_error ? 'output-error' : 'output-available'
   }
 
+  // Extract tool calls with UI components for prominent rendering
+  const toolsWithUI = message.tool_calls?.filter((tool) => (tool as any).ui_component) || []
+
   return (
     <Message from={isUser ? 'user' : 'assistant'} className={cn(hasError && 'opacity-80')}>
       {/* Message Content */}
-      <MessageContent variant="flat" className="space-y-3">
+      <MessageContent variant="flat" className={cn("space-y-4", !isUser && 'w-full')}>
         {/* Header: Role Badge and Timestamp */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <Badge variant={isUser ? 'default' : 'secondary'} className="text-xs">
@@ -40,6 +45,32 @@ export function MessageItem({ message }: MessageItemProps) {
             {new Date(message.created_at).toLocaleTimeString()}
           </span>
         </div>
+
+        {/* Rendered UI Components (from tool calls) - Prominently displayed before content */}
+        {toolsWithUI.length > 0 && (
+          <div className="space-y-4">
+            {toolsWithUI.map((tool) => {
+              const uiComponent = (tool as any).ui_component
+              return (
+                <div key={tool.tool_call_id}>
+                  {uiComponent.layout === 'artifact' ? (
+                    <Artifact>
+                      <GenerativeUIRenderer
+                        spec={uiComponent}
+                        className="w-full p-2"
+                      />
+                    </Artifact>
+                  ) : (
+                    <GenerativeUIRenderer
+                      spec={uiComponent}
+                      className="w-full"
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Main Content with Markdown Support */}
         {message.content && (
@@ -62,6 +93,8 @@ export function MessageItem({ message }: MessageItemProps) {
                   />
                   <ToolContent>
                     <ToolInput input={tool.tool_args} />
+
+                    {/* Show text output if available (UI components are rendered prominently above) */}
                     {tool.content && (
                       <ToolOutput
                         output={tool.content}

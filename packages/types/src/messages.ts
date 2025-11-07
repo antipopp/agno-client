@@ -23,6 +23,8 @@ export interface ToolCall {
   requires_user_input?: boolean;
   confirmed?: boolean;
   result?: any;
+  // Generative UI field (serializable component spec only)
+  ui_component?: any; // UIComponentSpec - imported dynamically to avoid circular deps
 }
 
 /**

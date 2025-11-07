@@ -5,15 +5,16 @@ import { toast } from 'sonner'
 import { ChatInput } from './ChatInput'
 import { MessageItem } from './MessageItem'
 import { StreamingIndicator } from './StreamingIndicator'
+import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
 
 export function ChatInterface() {
   const { messages, sendMessage, isStreaming, error } = useAgnoChat()
 
-  // Define tool handlers for frontend execution
+  // Combine example generative tools with other tool handlers
   const toolHandlers: Record<string, ToolHandler> = {
+    // Example: show alert (legacy tool)
     show_alert: async (args: Record<string, any>) => {
       const content = args.content as string
-      console.log('[ChatInterface] Executing show_alert tool:', args)
 
       // Also show as toast notification
       toast.info('Alert from Agent', {
@@ -26,6 +27,9 @@ export function ChatInterface() {
         content: content,
       }
     },
+
+    // Add all generative UI example tools
+    ...EXAMPLE_GENERATIVE_TOOLS,
   }
 
   // Use tool execution hook with auto-execution enabled
@@ -43,8 +47,6 @@ export function ChatInterface() {
       toast.error(`Failed to send message: ${error || err}`)
     }
   }
-
-  console.log(messages)
 
   return (
     <div className="h-full flex flex-col">

@@ -47,4 +47,8 @@ export type ClientEvent =
   | 'state:change'
   | 'config:change'
   | 'run:paused'
-  | 'run:continued';
+  | 'run:continued'
+  // Generative UI events
+  | 'ui:update'       // Emitted when UI component data updates (streaming)
+  | 'ui:complete'     // Emitted when UI component is finalized
+  | 'ui:render';      // Emitted when a new UI component should be rendered

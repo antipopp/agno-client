@@ -47,6 +47,27 @@ export class MessageStore {
   }
 
   /**
+   * Update a specific message by index
+   */
+  updateMessage(
+    index: number,
+    updater: (message: ChatMessage) => ChatMessage
+  ): ChatMessage | undefined {
+    if (index < 0 || index >= this.messages.length) return undefined;
+
+    const message = this.messages[index];
+    const updatedMessage = updater(message);
+
+    this.messages = [
+      ...this.messages.slice(0, index),
+      updatedMessage,
+      ...this.messages.slice(index + 1),
+    ];
+
+    return updatedMessage;
+  }
+
+  /**
    * Remove last N messages
    */
   removeLastMessages(count: number): void {

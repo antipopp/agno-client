@@ -46,6 +46,7 @@ export class AgnoClient extends EventEmitter {
   private sessionManager: SessionManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
+  private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -53,6 +54,7 @@ export class AgnoClient extends EventEmitter {
     this.configManager = new ConfigManager(config);
     this.sessionManager = new SessionManager();
     this.eventProcessor = new EventProcessor();
+    this.pendingUISpecs = new Map();
     this.state = {
       isStreaming: false,
       isEndpointActive: false,
@@ -100,6 +102,7 @@ export class AgnoClient extends EventEmitter {
   clearMessages(): void {
     this.messageStore.clear();
     this.configManager.setSessionId(undefined);
+    this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
     this.emit('message:update', this.messageStore.getMessages());
     this.emit('state:change', this.getState());
   }
@@ -242,13 +245,6 @@ export class AgnoClient extends EventEmitter {
 
     // Handle pause for HITL
     if (event === RunEvent.RunPaused) {
-      console.log('[AgnoClient] RunPaused event detected');
-      console.log('[AgnoClient] Chunk:', chunk);
-      console.log('[AgnoClient] tools_awaiting_external_execution:', chunk.tools_awaiting_external_execution);
-      console.log('[AgnoClient] tools_requiring_confirmation:', chunk.tools_requiring_confirmation);
-      console.log('[AgnoClient] tools_requiring_user_input:', chunk.tools_requiring_user_input);
-      console.log('[AgnoClient] tools:', chunk.tools);
-
       this.state.isStreaming = false;
       this.state.isPaused = true;
       this.state.pausedRunId = chunk.run_id;
@@ -258,9 +254,6 @@ export class AgnoClient extends EventEmitter {
         chunk.tools_requiring_user_input ||
         chunk.tools ||
         [];
-
-      console.log('[AgnoClient] toolsAwaitingExecution:', this.state.toolsAwaitingExecution);
-      console.log('[AgnoClient] Emitting run:paused event');
 
       this.emit('run:paused', {
         runId: chunk.run_id,
@@ -303,6 +296,9 @@ export class AgnoClient extends EventEmitter {
       const updated = this.eventProcessor.processChunk(chunk, lastMessage);
       return updated || lastMessage;
     });
+
+    // Apply any pending UI specs to newly arrived tool calls
+    this.applyPendingUISpecs();
 
     this.emit('message:update', this.messageStore.getMessages());
   }
@@ -443,6 +439,133 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
+   * Add tool calls to the last message
+   * Used by frontend execution to add tool calls that were executed locally
+   */
+  addToolCallsToLastMessage(toolCalls: ToolCall[]): void {
+    const lastMessage = this.messageStore.getLastMessage();
+    if (!lastMessage || lastMessage.role !== 'agent') {
+      return;
+    }
+
+    const existingToolCalls = lastMessage.tool_calls || [];
+    const existingIds = new Set(existingToolCalls.map(t => t.tool_call_id));
+
+    // Only add tool calls that don't already exist
+    const newToolCalls = toolCalls.filter(t => !existingIds.has(t.tool_call_id));
+
+    if (newToolCalls.length > 0) {
+      this.messageStore.updateLastMessage((msg) => ({
+        ...msg,
+        tool_calls: [...existingToolCalls, ...newToolCalls],
+      }));
+
+      this.emit('message:update', this.messageStore.getMessages());
+    }
+  }
+
+  /**
+   * Hydrate a specific tool call with its UI component
+   * If tool call doesn't exist yet, stores UI spec as pending
+   */
+  hydrateToolCallUI(toolCallId: string, uiSpec: any): void {
+    // Find the message containing this tool call and update it
+    const messages = this.messageStore.getMessages();
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+
+      if (message.tool_calls) {
+        const toolIndex = message.tool_calls.findIndex(
+          t => t.tool_call_id === toolCallId
+        );
+
+        if (toolIndex !== -1) {
+          // Update this specific message
+          this.messageStore.updateMessage(i, (msg) => {
+            const updatedToolCalls = [...(msg.tool_calls || [])];
+            updatedToolCalls[toolIndex] = {
+              ...updatedToolCalls[toolIndex],
+              ui_component: uiSpec,
+            };
+
+            return {
+              ...msg,
+              tool_calls: updatedToolCalls,
+            };
+          });
+
+          // Remove from pending if it was there
+          this.pendingUISpecs.delete(toolCallId);
+
+          // Emit event to sync with React state
+          this.emit('message:update', this.messageStore.getMessages());
+          return;
+        }
+      }
+    }
+
+    // Tool call not found yet - store UI spec as pending
+    this.pendingUISpecs.set(toolCallId, uiSpec);
+  }
+
+  /**
+   * Apply any pending UI specs to tool calls that have just been added
+   * Called after message updates to attach UI to newly arrived tool calls
+   * Batches all updates to emit only one message:update event
+   */
+  private applyPendingUISpecs(): void {
+    if (this.pendingUISpecs.size === 0) return;
+
+    const messages = this.messageStore.getMessages();
+    const updatedMessages: { index: number; message: ChatMessage }[] = [];
+
+    // Collect all updates first (batching)
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+
+      if (message.tool_calls) {
+        let messageUpdated = false;
+        const updatedToolCalls = [...message.tool_calls];
+
+        for (let j = 0; j < updatedToolCalls.length; j++) {
+          const toolCall = updatedToolCalls[j];
+          const pendingUI = this.pendingUISpecs.get(toolCall.tool_call_id);
+
+          if (pendingUI && !(toolCall as any).ui_component) {
+            updatedToolCalls[j] = {
+              ...updatedToolCalls[j],
+              ui_component: pendingUI,
+            };
+
+            this.pendingUISpecs.delete(toolCall.tool_call_id);
+            messageUpdated = true;
+          }
+        }
+
+        if (messageUpdated) {
+          updatedMessages.push({
+            index: i,
+            message: {
+              ...message,
+              tool_calls: updatedToolCalls,
+            },
+          });
+        }
+      }
+    }
+
+    // Apply all updates at once
+    if (updatedMessages.length > 0) {
+      updatedMessages.forEach(({ index, message }) => {
+        this.messageStore.updateMessage(index, () => message);
+      });
+
+      this.emit('message:update', this.messageStore.getMessages());
+    }
+  }
+
+  /**
    * Continue a paused run after executing external tools
    */
   async continueRun(
@@ -466,8 +589,14 @@ export class AgnoClient extends EventEmitter {
     this.emit('run:continued', { runId: this.state.pausedRunId });
     this.emit('state:change', this.getState());
 
+    // Clean tools before sending to backend (remove UI-specific fields)
+    const cleanedTools = tools.map(tool => {
+      const { ui_component, ...backendTool } = tool as any;
+      return backendTool;
+    });
+
     const formData = new FormData();
-    formData.append('tools', JSON.stringify(tools));
+    formData.append('tools', JSON.stringify(cleanedTools));
     formData.append('stream', 'true');
 
     const currentSessionId = this.configManager.getSessionId();

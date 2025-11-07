@@ -5,10 +5,11 @@ import { ConfigPanel } from '@/components/config/ConfigPanel'
 import { ChatInterface } from '@/components/chat/ChatInterface'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { StateInspector } from '@/components/debug/StateInspector'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { registerGenerativeUIComponents } from '@/components/generative-ui'
 
 /**
  * Validate mode from environment variable
@@ -36,9 +37,13 @@ const INITIAL_CONFIG: AgnoClientConfig = {
 }
 
 function App() {
-
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
   const [showConfigPanel, setShowConfigPanel] = useState(false)
+
+  // Register generative UI components on mount
+  useEffect(() => {
+    registerGenerativeUIComponents()
+  }, [])
 
   return (
     <AgnoProvider config={INITIAL_CONFIG}>

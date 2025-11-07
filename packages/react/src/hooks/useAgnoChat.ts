@@ -15,32 +15,40 @@ export function useAgnoChat() {
   // Listen to client events and update React state
   useEffect(() => {
     const handleMessageUpdate = (updatedMessages: ChatMessage[]) => {
-      console.log('[useAgnoChat] message:update event received, messages:', updatedMessages.length);
       setMessages(updatedMessages);
     };
 
     const handleMessageComplete = (updatedMessages: ChatMessage[]) => {
-      console.log('[useAgnoChat] message:complete event received, messages:', updatedMessages.length);
       setMessages(updatedMessages);
     };
 
     const handleMessageError = (errorMessage: string) => {
-      console.log('[useAgnoChat] message:error event received:', errorMessage);
       setError(errorMessage);
     };
 
     const handleStateChange = (newState: ClientState) => {
-      console.log('[useAgnoChat] state:change event received');
       setState(newState);
+    };
+
+    // Handle UI render event from frontend tool execution
+    const handleUIRender = (event: any) => {
+      const { tools } = event;
+
+      // Update each tool call with its UI component
+      for (const tool of tools) {
+        if ((tool as any).ui_component) {
+          client.hydrateToolCallUI(tool.tool_call_id, (tool as any).ui_component);
+        }
+      }
     };
 
     client.on('message:update', handleMessageUpdate);
     client.on('message:complete', handleMessageComplete);
     client.on('message:error', handleMessageError);
     client.on('state:change', handleStateChange);
+    client.on('ui:render', handleUIRender);
 
     // Initialize state
-    console.log('[useAgnoChat] Initializing with messages:', client.getMessages().length);
     setMessages(client.getMessages());
     setState(client.getState());
 
@@ -49,6 +57,7 @@ export function useAgnoChat() {
       client.off('message:complete', handleMessageComplete);
       client.off('message:error', handleMessageError);
       client.off('state:change', handleStateChange);
+      client.off('ui:render', handleUIRender);
     };
   }, [client]);
 

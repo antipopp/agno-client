@@ -49,3 +49,22 @@ export type {
   StreamOptions,
   ClientState,
 } from './config';
+
+// UI
+export type {
+  BaseUIComponentSpec,
+  ChartSeries,
+  ChartComponentSpec,
+  CardData,
+  CardGridComponentSpec,
+  TableColumn,
+  TableComponentSpec,
+  MarkdownComponentSpec,
+  CustomComponentSpec,
+  ArtifactComponentSpec,
+  UIComponentSpec,
+  GenerativeUIData,
+  ToolHandlerResult,
+  CustomRenderFunction,
+  GenerativeToolHandlerReturn,
+} from './ui';

@@ -1,62 +1,83 @@
+# Frontend Tool Execution & Generative UI
+
+This guide shows how to use frontend tool execution (HITL - Human-in-the-Loop) and generative UI features in the Agno Client libraries.
+
+---
+
+## Table of Contents
+
+1. [Frontend Tool Execution (HITL)](#frontend-tool-execution-hitl)
+2. [Generative UI](#generative-ui)
+3. [Advanced Patterns](#advanced-patterns)
+
+---
+
 # Frontend Tool Execution (HITL)
 
-This guide shows how to use the Human-in-the-Loop (HITL) frontend tool execution feature in the Agno Client.
+Frontend tool execution allows your Agno agents to delegate specific tools to the frontend application for execution.
 
-## Overview
+## Use Cases
 
-Frontend tool execution allows your Agno agents to delegate specific tools to the frontend application. This is useful for:
-
-- **UI Automation**: Navigate pages, fill forms, click buttons
 - **Browser APIs**: Geolocation, notifications, local storage
-- **User Confirmation**: Show dialogs and get user approval
-- **External Integrations**: Call APIs not accessible from the backend
+- **UI Automation**: Navigate pages, fill forms, interact with DOM
+- **User Confirmation**: Show dialogs and get user approval before actions
+- **External Integrations**: Call APIs not accessible from backend
 
 ## How It Works
 
-1. Agent calls a tool marked with `external_execution=True` on the backend
-2. The run **pauses** and emits a `RunPaused` event with tools awaiting execution
-3. Frontend executes the tools using your custom handlers
-4. Frontend calls `continueRun()` with tool results
-5. Agent continues with the results
+1. Backend agent calls a tool marked with `external_execution=True`
+2. Agent run **pauses** and emits a `RunPaused` event
+3. Frontend receives the event with tools awaiting execution
+4. Frontend executes tools using your custom handlers
+5. Frontend calls `continueRun()` with results
+6. Agent run continues with the results
 
-## Basic Example
+## Basic Setup
 
-### 1. Define Tool Handlers
+### 1. Define Backend Tools (Python)
+
+```python
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools import tool
+
+@tool(external_execution=True)
+def navigate_to_page(url: str) -> str:
+    """Navigate to a specific page in the browser.
+
+    Args:
+        url: The URL to navigate to
+
+    Returns:
+        Result from the frontend execution
+    """
+    # Function body won't execute - it's handled by frontend
+
+@tool(external_execution=True)
+def get_user_location() -> str:
+    """Get the user's current location using browser geolocation API."""
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-4o-mini"),
+    tools=[navigate_to_page, get_user_location],
+    instructions=["You can interact with the user's browser."],
+)
+```
+
+### 2. Create Frontend Tool Handlers
 
 ```tsx
-import { useAgnoToolExecution, ToolHandler } from '@antipopp/agno-react';
+import { useAgnoToolExecution, type ToolHandler } from '@antipopp/agno-react';
 
 function ChatComponent() {
   // Define handlers for frontend-executable tools
   const toolHandlers: Record<string, ToolHandler> = {
-    // Navigate to a page
     navigate_to_page: async (args: { url: string }) => {
       window.location.href = args.url;
       return { success: true, url: args.url };
     },
 
-    // Fill a form field
-    fill_form: async (args: { selector: string; value: string }) => {
-      const element = document.querySelector(args.selector) as HTMLInputElement;
-      if (element) {
-        element.value = args.value;
-        return { success: true, filled: args.value };
-      }
-      return { success: false, error: 'Element not found' };
-    },
-
-    // Click an element
-    click_button: async (args: { selector: string }) => {
-      const element = document.querySelector(args.selector);
-      if (element) {
-        (element as HTMLElement).click();
-        return { success: true };
-      }
-      return { success: false, error: 'Button not found' };
-    },
-
-    // Get user location
-    get_location: async () => {
+    get_user_location: async () => {
       return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -71,21 +92,9 @@ function ChatComponent() {
         );
       });
     },
-
-    // Show notification
-    show_notification: async (args: { title: string; body: string }) => {
-      if ('Notification' in window) {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          new Notification(args.title, { body: args.body });
-          return { success: true };
-        }
-      }
-      return { success: false, error: 'Notifications not supported' };
-    },
   };
 
-  // Auto-execute tools when the agent requests them
+  // Auto-execute tools when agent requests them
   const { isPaused, isExecuting, pendingTools, executionError } =
     useAgnoToolExecution(toolHandlers);
 
@@ -100,8 +109,8 @@ function ChatComponent() {
       </div>
 
       {isPaused && (
-        <div className="tool-execution-status">
-          ⚙️ Executing {pendingTools.length} tools...
+        <div className="status">
+          ⚙️ Executing {pendingTools.length} tool(s)...
         </div>
       )}
 
@@ -126,13 +135,13 @@ function ChatComponent() {
 
 ## Manual Execution (User Confirmation)
 
-For sensitive operations, you may want manual approval:
+For sensitive operations, disable auto-execution and require manual approval:
 
 ```tsx
 function ChatWithConfirmation() {
   const toolHandlers: Record<string, ToolHandler> = {
     delete_data: async (args: { table: string; count: number }) => {
-      // This will be executed only after user confirms
+      // Only executes after user confirms
       await fetch('/api/delete', {
         method: 'POST',
         body: JSON.stringify(args),
@@ -141,7 +150,7 @@ function ChatWithConfirmation() {
     },
   };
 
-  // Disable auto-execution
+  // Set autoExecute to false
   const {
     isPaused,
     pendingTools,
@@ -154,18 +163,15 @@ function ChatWithConfirmation() {
   };
 
   const handleReject = async () => {
-    // Continue with rejection results
     const rejectedTools = pendingTools.map(tool => ({
       ...tool,
-      result: JSON.stringify({ rejected: true, reason: 'User declined' })
+      content: JSON.stringify({ rejected: true, reason: 'User declined' })
     }));
     await continueWithResults(rejectedTools);
   };
 
   return (
     <div>
-      {/* ... messages ... */}
-
       {isPaused && (
         <div className="confirmation-dialog">
           <h3>Agent wants to execute:</h3>
@@ -184,414 +190,721 @@ function ChatWithConfirmation() {
 }
 ```
 
-## Backend Setup (Python)
-
-Define tools with `external_execution=True`:
-
-```python
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
-from agno.tools import tool
-
-@tool(external_execution=True)
-def navigate_to_page(url: str) -> str:
-    """Navigate to a specific page in the browser.
-
-    Args:
-        url: The URL to navigate to
-
-    Returns:
-        str: Result from the frontend
-    """
-    # This function body won't execute - it's just for documentation
-    return ""
-
-@tool(external_execution=True)
-def fill_form(selector: str, value: str) -> str:
-    """Fill a form field in the browser.
-
-    Args:
-        selector: CSS selector for the form field
-        value: Value to fill
-
-    Returns:
-        str: Result from the frontend
-    """
-    return ""
-
-agent = Agent(
-    model=OpenAIChat(id="gpt-4o-mini"),
-    tools=[navigate_to_page, fill_form],
-    instructions=[
-        "You can interact with the user's browser.",
-        "Use navigate_to_page to navigate.",
-        "Use fill_form to fill forms."
-    ],
-)
-```
-
-## Advanced: Custom Tool Result Processing
-
-```tsx
-function AdvancedToolExecution() {
-  const toolHandlers: Record<string, ToolHandler> = {
-    complex_operation: async (args) => {
-      // Execute multiple steps
-      const step1 = await doSomething(args);
-      const step2 = await doSomethingElse(step1);
-
-      return {
-        success: true,
-        steps: [step1, step2],
-        timestamp: Date.now(),
-      };
-    },
-  };
-
-  const { executeTools, continueWithResults } = useAgnoToolExecution(
-    toolHandlers,
-    false
-  );
-
-  const handleCustomExecution = async (tools: ToolCall[]) => {
-    // Execute tools manually
-    const executedTools = await executeTools(tools);
-
-    // Post-process results
-    const processedTools = executedTools.map(tool => ({
-      ...tool,
-      result: JSON.stringify({
-        ...JSON.parse(tool.result || '{}'),
-        processed_at: new Date().toISOString(),
-      }),
-    }));
-
-    // Continue with processed results
-    await continueWithResults(processedTools);
-  };
-
-  // ... rest of component
-}
-```
-
 ## Hook API Reference
 
 ### `useAgnoToolExecution(handlers, autoExecute?)`
 
 **Parameters:**
-- `handlers`: Record of tool names to handler functions
-- `autoExecute`: Whether to automatically execute tools (default: `true`)
+- `handlers`: `Record<string, ToolHandler>` - Map of tool names to handler functions
+- `autoExecute`: `boolean` - Whether to automatically execute tools (default: `true`)
 
 **Returns:**
-- `isPaused`: Whether the run is paused awaiting execution
-- `isExecuting`: Whether tools are currently being executed
-- `pendingTools`: Array of tools awaiting execution
-- `executeAndContinue`: Execute all pending tools and continue the run
-- `executeTools`: Execute specific tools without continuing (for manual processing)
-- `continueWithResults`: Continue the run with manually provided tool results
-- `executionError`: Error message if execution failed
+- `isPaused`: `boolean` - Whether the run is paused awaiting execution
+- `isExecuting`: `boolean` - Whether tools are currently being executed
+- `pendingTools`: `ToolCall[]` - Array of tools awaiting execution
+- `executeAndContinue`: `() => Promise<void>` - Execute all pending tools and continue
+- `executeTools`: `(tools: ToolCall[]) => Promise<ToolCall[]>` - Execute specific tools without continuing
+- `continueWithResults`: `(tools: ToolCall[]) => Promise<void>` - Continue run with manually provided results
+- `executionError`: `string | undefined` - Error message if execution failed
 
-## Tool Result Format
+## Global Tool Handlers
 
-Tool results should be stringified JSON. The result can be:
+Use `ToolHandlerProvider` to define handlers available across your entire app:
+
+```tsx
+import { ToolHandlerProvider, type ToolHandler } from '@antipopp/agno-react';
+
+function App() {
+  const globalHandlers: Record<string, ToolHandler> = {
+    navigate_to_page: async (args) => { /* ... */ },
+    show_notification: async (args) => { /* ... */ },
+  };
+
+  return (
+    <ToolHandlerProvider handlers={globalHandlers}>
+      <YourAppComponents />
+    </ToolHandlerProvider>
+  );
+}
+```
+
+Local handlers (in `useAgnoToolExecution`) override global handlers when both define the same tool.
+
+## Best Practices
+
+1. **Error Handling**: Always wrap tool logic in try/catch and return error objects
+   ```tsx
+   try {
+     const result = await doSomething(args);
+     return { success: true, result };
+   } catch (error) {
+     return { success: false, error: error.message };
+   }
+   ```
+
+2. **Validation**: Validate arguments before execution
+   ```tsx
+   if (!args.url || !args.url.startsWith('https://')) {
+     return { error: 'Invalid URL' };
+   }
+   ```
+
+3. **Security**: Only expose safe operations as frontend tools. Never trust user input blindly.
+
+4. **User Feedback**: Show loading states when `isExecuting` is true
+
+5. **Timeout Handling**: Add timeouts for long-running operations
+
+---
+
+# Generative UI
+
+Generative UI allows your agent to return rich, interactive UI components (charts, cards, tables) instead of just text.
+
+## Overview
+
+- **Agent-Driven**: The agent decides what to visualize based on context
+- **Interactive**: Users can interact with rendered components
+- **Flexible**: Supports predefined components and custom renders
+- **Persistent**: UI components survive page refreshes (except custom renders)
+
+## Architecture
+
+UI components are stored directly in the `tool_calls` array within chat messages:
 
 ```typescript
-// Simple string
-tool.result = "Operation completed successfully";
+{
+  role: 'agent',
+  content: "Here's your revenue data...",
+  tool_calls: [
+    {
+      tool_name: 'render_revenue_chart',
+      tool_args: { period: 'monthly' },
+      content: '{"revenue": [...]}'
+      ui_component: {  // ← UI component attached here
+        type: 'chart',
+        component: 'BarChart',
+        props: { data: [...], xKey: 'month', bars: [...] }
+      }
+    }
+  ]
+}
+```
 
-// JSON object (will be stringified)
-tool.result = JSON.stringify({ success: true, data: {...} });
+## Quick Start
 
-// Error
-tool.result = JSON.stringify({ error: "Something went wrong" });
+### 1. Backend Tool Definition
+
+```python
+from agno.agent import Agent
+from agno.tools import tool
+
+@tool(external_execution=True)
+def render_revenue_chart(period: str = "monthly"):
+    """Render a revenue chart for the specified period."""
+    return {"period": period}
+
+agent = Agent(tools=[render_revenue_chart])
+```
+
+### 2. Frontend Tool Handler with UI
+
+```tsx
+import { resultWithBarChart, type ToolHandler } from '@antipopp/agno-react';
+
+const toolHandlers: Record<string, ToolHandler> = {
+  render_revenue_chart: async (args: { period: string }) => {
+    // Fetch data
+    const data = await fetchRevenueData(args.period);
+    // Example: [
+    //   { month: 'Jan', revenue: 45000, expenses: 32000 },
+    //   { month: 'Feb', revenue: 52000, expenses: 34000 },
+    // ]
+
+    // Return data + UI specification
+    return resultWithBarChart(
+      data,
+      'month', // x-axis key
+      [
+        { key: 'revenue', label: 'Revenue', color: 'hsl(var(--chart-1))' },
+        { key: 'expenses', label: 'Expenses', color: 'hsl(var(--chart-2))' },
+      ],
+      {
+        title: `Revenue vs Expenses - ${args.period}`,
+        description: 'Monthly financial overview',
+        layout: 'artifact', // Display in artifact container
+      }
+    );
+  },
+};
+
+useAgnoToolExecution(toolHandlers);
+```
+
+### 3. Register UI Components (One-time Setup)
+
+```tsx
+import { registerGenerativeUIComponents } from '@/components/generative-ui';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    registerGenerativeUIComponents();
+  }, []);
+
+  return <YourChatInterface />;
+}
+```
+
+That's it! When the agent calls `render_revenue_chart`, the chart appears in the chat.
+
+## Available UI Components
+
+### Charts
+
+Create charts using the `resultWith*` helpers or manual `create*` functions:
+
+```tsx
+import {
+  resultWithBarChart,
+  resultWithSmartChart,
+  createBarChart,
+  createLineChart,
+  createPieChart,
+  createAreaChart,
+  createToolResult,
+} from '@antipopp/agno-react';
+
+// Option 1: Use resultWith* helper (returns ToolHandlerResult)
+return resultWithBarChart(data, 'month', [
+  { key: 'sales', label: 'Sales', color: '#8884d8' },
+]);
+
+// Option 2: Manually create chart + wrap in result
+const chartSpec = createLineChart(data, 'date', [
+  { key: 'value', label: 'Value', color: '#82ca9d' },
+]);
+return createToolResult(data, chartSpec);
+
+// Option 3: Smart chart (auto-detects best type)
+return resultWithSmartChart(data, {
+  title: 'Sales Analysis',
+  preferredType: 'line', // or let it auto-detect
+});
+```
+
+#### Chart Types
+
+- **Bar Chart**: `createBarChart(data, xKey, bars, options?)`
+- **Line Chart**: `createLineChart(data, xKey, lines, options?)`
+- **Pie Chart**: `createPieChart(data, dataKey, nameKey, options?)`
+- **Area Chart**: `createAreaChart(data, xKey, areas, options?)`
+- **Smart Chart**: `createSmartChart(data, options?)` - Auto-detects best type
+
+### Card Grids
+
+Display items as a responsive grid of cards:
+
+```tsx
+import { resultWithCardGrid, createCard } from '@antipopp/agno-react';
+
+const cars = [
+  createCard('car-1', 'Tesla Model 3', 'Electric sedan with autopilot', {
+    image: 'https://example.com/tesla.jpg',
+    metadata: {
+      Price: '$89/day',
+      Seats: '5',
+      Type: 'Electric',
+    },
+    actions: [
+      { label: 'Book Now', variant: 'default', onClick: 'book_car:car-1' },
+      { label: 'Details', variant: 'outline', onClick: 'view_details:car-1' },
+    ],
+  }),
+  // ... more cards
+];
+
+return resultWithCardGrid(cars, {
+  title: 'Available Rental Cars',
+  columns: { default: 1, md: 2, lg: 3 }, // Responsive columns
+  variant: 'elevated', // or 'flat', 'outlined'
+});
+```
+
+### Tables
+
+Create sortable, filterable tables:
+
+```tsx
+import { resultWithTable, createColumn } from '@antipopp/agno-react';
+
+const data = [
+  { name: 'MacBook Pro', price: 2499, ram: '32GB', rating: 4.8 },
+  { name: 'Dell XPS 15', price: 1899, ram: '32GB', rating: 4.6 },
+];
+
+const columns = [
+  createColumn('name', 'Product', { sortable: true }),
+  createColumn('price', 'Price', {
+    sortable: true,
+    cellType: 'number',
+    format: { type: 'currency', currency: 'USD' },
+  }),
+  createColumn('ram', 'RAM'),
+  createColumn('rating', 'Rating', {
+    sortable: true,
+    cellType: 'number',
+  }),
+];
+
+return resultWithTable(data, columns, {
+  title: 'Product Comparison',
+  sortable: true,
+});
+```
+
+## Tool Handler Result Format
+
+Tool handlers can return three formats:
+
+### 1. ToolHandlerResult (Recommended)
+
+```tsx
+import type { ToolHandlerResult } from '@antipopp/agno-react';
+
+return {
+  data: { revenue: 50000, expenses: 32000 }, // Sent back to agent
+  ui: chartSpec, // UI component to render
+};
+```
+
+### 2. Direct UI Spec
+
+```tsx
+// Just return the UI spec - data extracted from spec
+return {
+  type: 'chart',
+  component: 'BarChart',
+  props: { data: [...] },
+};
+```
+
+### 3. Plain Data (Legacy)
+
+```tsx
+// No UI - just data as string or object
+return { success: true, result: '...' };
+```
+
+## Layout Options
+
+Control where UI components appear:
+
+```tsx
+{
+  layout: 'inline',    // Appears directly in message flow
+  // or
+  layout: 'artifact',  // Appears in bordered artifact container (recommended for charts/tables)
+}
+```
+
+## Custom Render Functions
+
+For one-off complex UI, use custom render functions:
+
+```tsx
+return {
+  data: myData,
+  ui: {
+    type: 'custom',
+    render: () => (
+      <div className="custom-dashboard">
+        <h3>Custom Dashboard</h3>
+        {/* Your custom JSX */}
+      </div>
+    ),
+  },
+};
+```
+
+**⚠️ Important:** Custom renders don't persist across page refreshes (not serializable). Use predefined components when possible.
+
+## Complete Example
+
+```tsx
+// Backend (Python)
+from agno.agent import Agent
+from agno.tools import tool
+
+@tool(external_execution=True)
+def analyze_sales(period: str, visualization: str = "auto"):
+    """Analyze sales data and visualize it."""
+    return {"period": period, "visualization": visualization}
+
+agent = Agent(tools=[analyze_sales])
+
+// Frontend (React)
+import {
+  resultWithBarChart,
+  resultWithTable,
+  createColumn,
+  type ToolHandler,
+} from '@antipopp/agno-react';
+
+const toolHandlers: Record<string, ToolHandler> = {
+  analyze_sales: async (args: { period: string; visualization: string }) => {
+    // Fetch sales data
+    const data = await fetchSalesData(args.period);
+
+    // Agent decides visualization type
+    if (args.visualization === 'chart') {
+      return resultWithBarChart(
+        data,
+        'month',
+        [
+          { key: 'sales', label: 'Sales', color: 'hsl(var(--chart-1))' },
+          { key: 'target', label: 'Target', color: 'hsl(var(--chart-2))' },
+        ],
+        {
+          title: `Sales Performance - ${args.period}`,
+          description: 'Actual vs Target',
+          layout: 'artifact',
+        }
+      );
+    }
+
+    // Default: table view
+    return resultWithTable(
+      data,
+      [
+        createColumn('month', 'Month', { sortable: true }),
+        createColumn('sales', 'Sales', {
+          sortable: true,
+          cellType: 'number',
+          format: { type: 'currency', currency: 'USD' },
+        }),
+        createColumn('target', 'Target', {
+          sortable: true,
+          cellType: 'number',
+          format: { type: 'currency', currency: 'USD' },
+        }),
+      ],
+      {
+        title: `Sales Data - ${args.period}`,
+        sortable: true,
+        layout: 'artifact',
+      }
+    );
+  },
+};
+
+function ChatInterface() {
+  useAgnoToolExecution(toolHandlers);
+  return <YourChatUI />;
+}
 ```
 
 ## Best Practices
 
-1. **Error Handling**: Always catch errors in tool handlers and return error objects
-2. **Validation**: Validate tool arguments before execution
-3. **Security**: Only expose safe operations as frontend tools
-4. **Feedback**: Show UI feedback when tools are executing (loading states)
-5. **Logging**: Log tool executions for debugging
+### 1. Let the Agent Decide
 
-## Debugging
+Give the agent parameters to choose the best visualization:
 
-Enable debug logs:
-
-```typescript
-// The hook logs to console automatically
-// Check browser console for:
-// [useAgnoToolExecution] Run paused, tools: [...]
-// [useAgnoToolExecution] Executing tool: tool_name
-// [useAgnoToolExecution] Tool result: {...}
+```python
+@tool(external_execution=True)
+def visualize(data_type: str, time_range: str):
+    """
+    Visualize data based on type.
+    - 'trend': Use line chart for time-series
+    - 'comparison': Use bar chart for categories
+    - 'distribution': Use pie chart for proportions
+    """
+    return {"data_type": data_type, "time_range": time_range}
 ```
 
-## Common Patterns
+### 2. Use Smart Charts
 
-### Pattern 1: UI Automation
-```typescript
-const uiTools = {
-  click: async (args) => { /* click element */ },
-  type: async (args) => { /* type text */ },
-  scroll: async (args) => { /* scroll page */ },
-};
-```
-
-### Pattern 2: Browser APIs
-```typescript
-const browserTools = {
-  get_location: async () => { /* geolocation */ },
-  save_to_storage: async (args) => { /* localStorage */ },
-  take_screenshot: async () => { /* capture screen */ },
-};
-```
-
-### Pattern 3: User Interaction
-```typescript
-const interactionTools = {
-  ask_confirmation: async (args) => { /* show dialog */ },
-  get_user_input: async (args) => { /* prompt user */ },
-  show_alert: async (args) => { /* display alert */ },
-};
-```
-
-### Pattern 4: React Router Navigation + Form Filling
-
-This pattern is useful for AI-assisted form filling across different routes in a React Router application. It combines global tool handlers for navigation with page-specific handlers for form manipulation.
-
-#### Architecture Overview
-
-```
-GlobalToolHandlers (navigation-aware)
-├── Stores data in sessionStorage
-├── Navigates using React Router (no page refresh)
-└── Delegates to page-specific handler if already on page
-
-Page Component (with react-hook-form)
-├── Reads sessionStorage on mount
-├── Applies data using form.reset()
-├── Provides local handler for direct updates
-└── Uses form.setValue() for field updates
-```
-
-#### Implementation
-
-**1. Global Tool Handler with React Router Navigation:**
+When unsure, use `resultWithSmartChart` - it auto-detects the best chart type:
 
 ```tsx
-// GlobalToolHandlers.tsx
-import { type ReactNode, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { ToolHandlerProvider, type ToolHandler } from '@antipopp/agno-react'
+return resultWithSmartChart(data, {
+  title: 'Data Analysis',
+  // Automatically chooses bar/line/pie based on data structure
+});
+```
 
-export function GlobalToolHandlers({ children }: { children: ReactNode }) {
-  const navigate = useNavigate()
-  const location = useLocation()
+### 3. Provide Context
 
-  const globalToolHandlers: Record<string, ToolHandler> = useMemo(
-    () => ({
-      fill_report_form: async (args: Record<string, any>) => {
-        // Parse YAML args if needed (some agents send string format)
-        let parsedArgs: any = args
-        if (typeof args === 'string') {
-          const pairs = (args as string).split(', ')
-          parsedArgs = {}
-          for (const pair of pairs) {
-            const [key, ...valueParts] = pair.split(': ')
-            parsedArgs[key.trim()] = valueParts.join(': ').trim()
-          }
-        }
+Always include titles and descriptions:
 
-        // Store data for the page to pick up
-        sessionStorage.setItem('pendingReportData', JSON.stringify(parsedArgs))
-
-        // Navigate using React Router (preserves app state)
-        if (!location.pathname.includes('/reports/new')) {
-          navigate('/reports/new')
-          return { success: true, message: 'Navigating to report form...', navigated: true }
-        }
-
-        return { success: true, message: 'Form data ready to be applied', ...parsedArgs }
-      },
-    }),
-    [navigate, location.pathname]
-  )
-
-  return <ToolHandlerProvider handlers={globalToolHandlers}>{children}</ToolHandlerProvider>
+```tsx
+{
+  title: 'Q1 Revenue Performance',
+  description: 'Compared to Q1 2023',
 }
 ```
 
-**2. Form Component with React Hook Form:**
+### 4. Use Artifact Layout for Complex Visuals
+
+Charts and tables look better in artifact containers:
 
 ```tsx
-// NewReport.tsx
-import { useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { useAgnoToolExecution, type ToolHandler } from '@antipopp/agno-react'
+{
+  layout: 'artifact', // Bordered container with shadow
+}
+```
 
-const formSchema = z.object({
-  name: z.string().min(1, 'Report name is required'),
-  description: z.string().optional(),
-  category: z.enum(['financial', 'sales', 'marketing', 'customer', 'product']),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
-})
+### 5. Handle Errors Gracefully
 
-type FormValues = z.infer<typeof formSchema>
+```tsx
+try {
+  const data = await fetchData(args);
+  return resultWithBarChart(data, 'x', [{ key: 'y' }]);
+} catch (error) {
+  return {
+    data: { error: error.message },
+    // No UI - agent will receive error data
+  };
+}
+```
 
-export function NewReport() {
-  const navigate = useNavigate()
+---
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      category: undefined,
-      startDate: '',
-      endDate: '',
-    },
-  })
+# Advanced Patterns
 
-  // Apply data from sessionStorage (set by global handler during navigation)
-  useEffect(() => {
-    const pendingData = sessionStorage.getItem('pendingReportData')
-    if (pendingData) {
-      try {
-        const data = JSON.parse(pendingData)
-        sessionStorage.removeItem('pendingReportData') // Clear to prevent re-application
+## Pattern 1: React Router Navigation + Form Filling
 
-        // Use form.reset() to apply all fields atomically
-        form.reset({
-          name: data.name || '',
-          description: data.description || '',
-          category: data.category || undefined,
-          startDate: data.start_date || '',
-          endDate: data.end_date || '',
-        })
-      } catch (error) {
-        console.error('Failed to apply pending report data:', error)
-      }
-    }
-  }, [form])
+Combine navigation with form filling across routes without page refreshes:
 
-  // Local tool handler (overrides global when on this page)
-  const toolHandlers: Record<string, ToolHandler> = useMemo(() => ({
+```tsx
+// Global handler (navigation-aware)
+import { useNavigate, useLocation } from 'react-router-dom';
+
+function GlobalToolHandlers({ children }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const globalHandlers = {
     fill_report_form: async (args: Record<string, any>) => {
-      try {
-        // Use form.setValue() for individual field updates
-        if (args.name) form.setValue('name', args.name)
-        if (args.description) form.setValue('description', args.description)
-        if (args.category) form.setValue('category', args.category)
-        if (args.start_date) form.setValue('startDate', args.start_date)
-        if (args.end_date) form.setValue('endDate', args.end_date)
+      // Store data for page to pick up
+      sessionStorage.setItem('pendingReportData', JSON.stringify(args));
 
-        return {
-          success: true,
-          message: 'Form filled successfully',
-          filled_fields: Object.keys(args),
-        }
-      } catch (error: any) {
-        return { success: false, error: error.message || 'Failed to fill form' }
+      // Navigate using React Router (no page refresh)
+      if (!location.pathname.includes('/reports/new')) {
+        navigate('/reports/new');
+        return { success: true, navigated: true };
       }
+
+      return { success: true, ...args };
     },
-  }), [form])
+  };
 
-  // Enable auto-execution
-  const { isPaused, isExecuting, pendingTools } = useAgnoToolExecution(toolHandlers, true)
+  return <ToolHandlerProvider handlers={globalHandlers}>{children}</ToolHandlerProvider>;
+}
 
-  const onSubmit = (_data: FormValues) => {
-    navigate('/reports')
+// Form component (with react-hook-form)
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+
+function NewReportForm() {
+  const form = useForm();
+
+  // Apply data from sessionStorage on mount
+  useEffect(() => {
+    const pendingData = sessionStorage.getItem('pendingReportData');
+    if (pendingData) {
+      const data = JSON.parse(pendingData);
+      sessionStorage.removeItem('pendingReportData');
+
+      // Use form.reset() for bulk updates
+      form.reset({
+        name: data.name || '',
+        description: data.description || '',
+        category: data.category || undefined,
+      });
+    }
+  }, [form]);
+
+  // Local handler (overrides global when on this page)
+  const toolHandlers = {
+    fill_report_form: async (args) => {
+      // Use form.setValue() for individual field updates
+      if (args.name) form.setValue('name', args.name);
+      if (args.description) form.setValue('description', args.description);
+      return { success: true };
+    },
+  };
+
+  useAgnoToolExecution(toolHandlers, true);
+
+  return <form>{/* form fields */}</form>;
+}
+```
+
+**Why this works:**
+- React Router's `navigate()` preserves app state (no page refresh)
+- SessionStorage bridges data across route changes
+- Local handlers override global handlers when active
+- React Hook Form provides reliable state management
+
+## Pattern 2: Agent-Driven Chart Selection
+
+```tsx
+async function visualize_data(args: { query: string }) {
+  const data = await fetchData(args);
+
+  // Agent reasoning: "over time" → line chart
+  if (args.query.includes('over time') || args.query.includes('trend')) {
+    return resultWithSmartChart(data, {
+      title: 'Trend Analysis',
+      preferredType: 'line',
+    });
   }
 
-  return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      {/* Tool execution status indicator */}
-      {(isPaused || isExecuting) && (
-        <div className="execution-status">
-          {isExecuting
-            ? `AI is filling the form (${pendingTools.length} tool(s))...`
-            : 'AI Assistant Ready'
-          }
-        </div>
-      )}
+  // Agent reasoning: "breakdown" → pie chart
+  if (args.query.includes('breakdown')) {
+    const pieData = createPieChart(
+      data,
+      'value',
+      'category',
+      { title: 'Distribution' }
+    );
+    return createToolResult(data, pieData);
+  }
 
-      {/* Form fields using Controller */}
-      <Controller
-        name="name"
-        control={form.control}
-        render={({ field, fieldState }) => (
-          <div>
-            <label>Report Name</label>
-            <input {...field} aria-invalid={fieldState.invalid} />
-            {fieldState.error && <p>{fieldState.error.message}</p>}
-          </div>
-        )}
-      />
-
-      {/* ... other fields ... */}
-
-      <button type="submit">Create Report</button>
-    </form>
-  )
+  // Default: let smart chart decide
+  return resultWithSmartChart(data, { title: args.query });
 }
 ```
 
-**3. App Setup:**
+## Pattern 3: Multi-Step Tool Execution
 
 ```tsx
-// main.tsx
-import { BrowserRouter } from 'react-router-dom'
-import { AgnoProvider } from '@antipopp/agno-react'
-import { GlobalToolHandlers } from './components/GlobalToolHandlers'
-import App from './App'
+const toolHandlers = {
+  complex_workflow: async (args) => {
+    // Step 1: Fetch data
+    const rawData = await fetchData(args);
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <GlobalToolHandlers>
-        <AgnoProvider config={{ endpoint: 'http://localhost:7777', mode: 'agent', agentId: 'my-agent' }}>
-          <App />
-        </AgnoProvider>
-      </GlobalToolHandlers>
-    </BrowserRouter>
-  </StrictMode>
-)
+    // Step 2: Process data
+    const processed = processData(rawData);
+
+    // Step 3: Create visualization
+    return resultWithBarChart(processed, 'category', [
+      { key: 'value', label: 'Result' },
+    ]);
+  },
+};
 ```
 
-#### Why This Pattern Works
+## Pattern 4: Conditional Visualization
 
-1. **No Page Refresh**: React Router's `navigate()` preserves chat context and app state
-2. **React Strict Mode Safe**: `form.reset()` handles React 18's double-render correctly
-3. **Handler Priority**: Page-specific handlers override global handlers when active
-4. **Type Safety**: Zod schema provides runtime validation and TypeScript types
-5. **Reliable State**: React Hook Form's internal state is resilient to re-renders
+```tsx
+const toolHandlers = {
+  show_analysis: async (args: { format: 'chart' | 'table' | 'both' }) => {
+    const data = await fetchData(args);
 
-#### Key Differences from Basic Pattern
+    if (args.format === 'chart') {
+      return resultWithBarChart(data, 'x', [{ key: 'y' }]);
+    }
 
-- **Global + Local Handlers**: Global handles navigation, local handles direct updates
-- **SessionStorage Bridge**: Transfers data across route changes without URL params
-- **React Hook Form**: More reliable than useState for complex forms
-- **Form Methods**: Use `form.reset()` for bulk updates, `form.setValue()` for individual fields
+    if (args.format === 'table') {
+      return resultWithTable(data, [
+        createColumn('x', 'X'),
+        createColumn('y', 'Y'),
+      ]);
+    }
 
-## API Compatibility
+    // Format: 'both' - return data, agent can request both separately
+    return { success: true, data };
+  },
+};
+```
 
-This implementation is compatible with Agno's HITL API:
+---
 
-- ✅ `external_execution=True` tools
-- ✅ `requires_confirmation=True` tools
-- ✅ `requires_user_input=True` tools
-- ✅ Continue endpoint: `POST /agents/{id}/runs/{run_id}/continue`
-- ✅ Tool result format: `tool.result` field
+## API Reference
+
+### Helper Functions
+
+**Result Helpers (return `ToolHandlerResult`):**
+- `resultWithBarChart(data, xKey, bars, options?)`
+- `resultWithSmartChart(data, options?)`
+- `resultWithCardGrid(cards, options?)`
+- `resultWithTable(data, columns, options?)`
+
+**Chart Creation Functions (return UI spec):**
+- `createBarChart(data, xKey, bars, options?)`
+- `createLineChart(data, xKey, lines, options?)`
+- `createPieChart(data, dataKey, nameKey, options?)`
+- `createAreaChart(data, xKey, areas, options?)`
+- `createSmartChart(data, options?)`
+
+**Other Helpers:**
+- `createCard(id, title, description, options?)`
+- `createColumn(key, label, options?)`
+- `createToolResult(data, uiSpec)` - Wrap UI spec in result
+- `getCustomRender(key)` - Retrieve custom render function
+
+### TypeScript Types
+
+```tsx
+import type {
+  UIComponentSpec,
+  ChartComponentSpec,
+  CardGridComponentSpec,
+  TableComponentSpec,
+  ToolHandlerResult,
+  ChartHelperOptions,
+  ToolHandler,
+} from '@antipopp/agno-react';
+```
+
+---
+
+## Troubleshooting
+
+### Chart Not Appearing
+
+1. Check `registerGenerativeUIComponents()` is called on app mount
+2. Verify handler returns `ToolHandlerResult` with `ui` field
+3. Check browser console for errors
+
+### Type Errors
+
+```tsx
+// ✅ Correct
+return resultWithBarChart(data, 'x', [{ key: 'y' }]);
+
+// ❌ Wrong - missing data wrapper
+return createBarChart(data, 'x', [{ key: 'y' }]);
+```
+
+### Custom Renders Lost on Refresh
+
+Custom render functions can't be serialized. Use predefined components (`chart`, `card`, `table`) for persistent UI.
+
+### Tool Not Executing
+
+1. Verify backend tool has `external_execution=True`
+2. Check tool name matches handler key exactly
+3. Ensure `useAgnoToolExecution` is called in component
+4. Check for JavaScript errors in handler function
+
+---
+
+## Examples
+
+See `/examples/react-chat/src/tools/` for complete working examples:
+- `exampleGenerativeTools.tsx` - Generative UI examples
+- `exampleBrowserTools.tsx` - Browser API tools
+
+---
 
 ## Next Steps
 
-1. Define your frontend-executable tools on the backend
-2. Create corresponding handlers in your React component
-3. Use `useAgnoToolExecution` hook to handle tool execution
-4. Test the flow with your agent
+1. Define backend tools with `external_execution=True`
+2. Create frontend handlers using `useAgnoToolExecution`
+3. Use `resultWith*` helpers for generative UI
+4. Test your tools with the agent
 
-For more examples, see the AGUI documentation on frontend tool execution.
+For questions or feedback, please file an issue on GitHub.
