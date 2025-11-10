@@ -179,6 +179,43 @@ Backend tool call → RunPaused event → AgnoClient state update
 - Always handle errors gracefully and return error objects
 - Consider using manual confirmation for destructive operations
 
+## User ID Tracking
+
+The client libraries support linking sessions to specific users via the `userId` configuration parameter. This matches the official Agno API's `user_id` parameter.
+
+**How it works:**
+
+1. Set `userId` in the `AgnoClientConfig` (via constructor or `updateConfig()`)
+2. The client automatically includes `user_id` in:
+   - `POST /agents/{id}/runs` and `POST /teams/{id}/runs` (when sending messages)
+   - `POST /agents/{id}/runs/{runId}/continue` and `POST /teams/{id}/runs/{runId}/continue` (when continuing paused runs)
+3. Backend links the session to the specified user
+
+**Usage:**
+
+```typescript
+// Core client
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  mode: 'agent',
+  agentId: 'agent-123',
+  userId: 'user-456' // Links all sessions to this user
+});
+
+// Or update dynamically
+client.updateConfig({ userId: 'user-789' });
+
+// React
+<AgnoProvider config={{ endpoint: '...', agentId: '...', userId: 'user-123' }}>
+  {/* Your app */}
+</AgnoProvider>
+```
+
+**Key files:**
+- `packages/types/src/config.ts` - `AgnoClientConfig.userId` field
+- `packages/core/src/managers/config-manager.ts` - `getUserId()` and `setUserId()` methods
+- `packages/core/src/client.ts` - `sendMessage()` and `continueRun()` include `user_id` in FormData
+
 ## Type Safety and Official Types
 
 All types in `@antipopp/agno-types` are based on the **official Agno API specification** provided by the Agno team. When making changes:

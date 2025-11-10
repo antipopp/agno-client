@@ -28,6 +28,7 @@ const client = new AgnoClient({
   mode: 'agent',
   agentId: 'your-agent-id',
   authToken: 'optional-auth-token',
+  userId: 'user-123', // Optional: Link sessions to a user
 });
 
 // Listen to message updates
@@ -66,6 +67,7 @@ new AgnoClient(config: AgnoClientConfig)
 - `teamId` (string, optional) - Team ID (required if mode is 'team')
 - `dbId` (string, optional) - Database ID
 - `sessionId` (string, optional) - Current session ID
+- `userId` (string, optional) - User ID to link sessions to a specific user
 
 ### Methods
 
@@ -136,6 +138,7 @@ Update client configuration.
 client.updateConfig({
   agentId: 'new-agent-id',
   authToken: 'new-token',
+  userId: 'user-456', // Update user ID
 });
 ```
 

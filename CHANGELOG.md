@@ -5,6 +5,36 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-10
+
+### Added
+
+#### @antipopp/agno-types
+- **User ID Support**: New `userId` field in `AgnoClientConfig` for linking sessions to specific users
+  - Optional string field to track which user is interacting with the agent
+  - Matches official Agno API's `user_id` parameter specification
+
+#### @antipopp/agno-client
+- **User ID Tracking**: Automatic inclusion of `user_id` in API requests
+  - `sendMessage()` now includes `user_id` in FormData when configured
+  - `continueRun()` now includes `user_id` in FormData when continuing paused runs
+  - New `getUserId()` and `setUserId()` methods in ConfigManager
+  - Seamless integration with backend user tracking
+
+#### Documentation
+- **CLAUDE.md**: Added comprehensive User ID Tracking section
+  - How it works explanation
+  - Usage examples for core client and React
+  - Key files reference
+- **README updates**: Added userId usage examples across package documentation
+
+### Technical Highlights
+- Full backward compatibility - userId is optional
+- Automatically included in all agent/team run requests when configured
+- Can be set at initialization or updated dynamically via `updateConfig()`
+- Works with both agent and team modes
+- Supports HITL frontend tool execution with user context
+
 ## [0.3.0] - 2025-11-07
 
 ### Added
@@ -213,6 +243,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.4.0]: https://github.com/antipopp/agno-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/antipopp/agno-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/antipopp/agno-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/antipopp/agno-client/releases/tag/v0.1.0

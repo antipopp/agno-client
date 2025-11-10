@@ -133,6 +133,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get user ID
+   */
+  getUserId(): string | undefined {
+    return this.config.userId;
+  }
+
+  /**
+   * Set user ID
+   */
+  setUserId(userId: string | undefined): void {
+    this.updateField('userId', userId);
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {

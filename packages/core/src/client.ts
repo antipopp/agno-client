@@ -169,6 +169,12 @@ export class AgnoClient extends EventEmitter {
       formData.append('stream', 'true');
       formData.append('session_id', newSessionId ?? '');
 
+      // Add user_id if configured
+      const userId = this.configManager.getUserId();
+      if (userId) {
+        formData.append('user_id', userId);
+      }
+
       const headers: Record<string, string> = { ...options?.headers };
       const authToken = this.configManager.getAuthToken();
       if (authToken) {
@@ -602,6 +608,12 @@ export class AgnoClient extends EventEmitter {
     const currentSessionId = this.configManager.getSessionId();
     if (currentSessionId) {
       formData.append('session_id', currentSessionId);
+    }
+
+    // Add user_id if configured
+    const userId = this.configManager.getUserId();
+    if (userId) {
+      formData.append('user_id', userId);
     }
 
     const headers: Record<string, string> = { ...options?.headers };

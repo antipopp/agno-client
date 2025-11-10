@@ -32,6 +32,7 @@ function App() {
         endpoint: 'http://localhost:7777',
         mode: 'agent',
         agentId: 'your-agent-id',
+        userId: 'user-123', // Optional: Link sessions to a user
       }}
     >
       <YourComponents />

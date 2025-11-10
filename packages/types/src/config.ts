@@ -36,6 +36,11 @@ export interface AgnoClientConfig {
    * Current session ID
    */
   sessionId?: string;
+
+  /**
+   * User ID to link the session to a specific user
+   */
+  userId?: string;
 }
 
 /**
