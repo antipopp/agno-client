@@ -363,17 +363,43 @@ export function createSmartChart(
   const numericKeys = keys.filter(k => k !== xKey && typeof firstItem[k] === 'number');
   const yKeys = options?.yKeys || numericKeys;
 
+  // Respect explicit preferredType first
+  if (options?.preferredType) {
+    switch (options.preferredType) {
+      case 'bar':
+        return createBarChart(
+          data,
+          xKey,
+          yKeys.map(key => ({ key })),
+          options
+        );
+      case 'line':
+        return createLineChart(
+          data,
+          xKey,
+          yKeys.map(key => ({ key })),
+          options
+        );
+      case 'area':
+        return createAreaChart(
+          data,
+          xKey,
+          yKeys.map(key => ({ key })),
+          options
+        );
+      case 'pie':
+        return createPieChart(data, yKeys[0], xKey, options);
+    }
+  }
+
+  // Auto-detect based on data characteristics
   // If only one value key and non-numeric xKey, consider pie chart
-  if (
-    (options?.preferredType === 'pie' || yKeys.length === 1) &&
-    typeof firstItem[xKey] === 'string'
-  ) {
+  if (yKeys.length === 1 && typeof firstItem[xKey] === 'string') {
     return createPieChart(data, yKeys[0], xKey, options);
   }
 
   // If xKey looks like a date/time, prefer line chart
   if (
-    options?.preferredType === 'line' ||
     xKey.toLowerCase().includes('date') ||
     xKey.toLowerCase().includes('time') ||
     xKey.toLowerCase().includes('month') ||
