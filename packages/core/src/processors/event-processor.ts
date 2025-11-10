@@ -136,34 +136,8 @@ export class EventProcessor {
           };
         }
 
-        // Handle generative UI data (streaming updates)
-        if (chunk.extra_data?.generated_ui) {
-          const existingUI = updatedMessage.extra_data?.generated_ui ?? [];
-          const incomingUI = chunk.extra_data.generated_ui;
-
-          // Merge UI data by tool_call_id
-          const mergedUI = [...existingUI];
-          for (const uiData of incomingUI) {
-            const existingIndex = mergedUI.findIndex(
-              (ui: any) => ui.tool_call_id === uiData.tool_call_id
-            );
-            if (existingIndex >= 0) {
-              // Update existing UI data
-              mergedUI[existingIndex] = {
-                ...mergedUI[existingIndex],
-                ...uiData,
-              };
-            } else {
-              // Add new UI data
-              mergedUI.push(uiData);
-            }
-          }
-
-          updatedMessage.extra_data = {
-            ...updatedMessage.extra_data,
-            generated_ui: mergedUI,
-          };
-        }
+        // Note: UI components are now stored in tool_calls array, not extra_data
+        // This section is preserved for backward compatibility but doesn't update extra_data
 
         updatedMessage.created_at = chunk.created_at ?? lastMessage.created_at;
 
@@ -239,8 +213,6 @@ export class EventProcessor {
             lastMessage.extra_data?.reasoning_steps,
           references:
             chunk.extra_data?.references ?? lastMessage.extra_data?.references,
-          generated_ui:
-            chunk.extra_data?.generated_ui ?? lastMessage.extra_data?.generated_ui,
         };
         break;
 
