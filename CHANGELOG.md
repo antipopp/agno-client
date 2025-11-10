@@ -5,6 +5,22 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-11-10
+
+### Fixed
+
+#### @antipopp/agno-react
+- **createSmartChart()**: Fixed `preferredType` option being ignored during chart type selection
+  - The function now respects explicit `preferredType` setting (bar, line, area, pie) before auto-detection
+  - Previously, auto-detection logic could override the user's explicit preference
+  - Improved auto-detection logic to only trigger when no preferred type is specified
+  - Location: `packages/react/src/utils/ui-helpers.ts:363`
+
+### Technical Details
+- When `options.preferredType` is provided, the function now immediately creates the requested chart type
+- Auto-detection based on data characteristics (pie for single value, line for temporal data) only runs when no preference is set
+- Ensures predictable behavior when developers explicitly specify chart type
+
 ## [0.4.0] - 2025-11-10
 
 ### Added
@@ -243,6 +259,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.5.0]: https://github.com/antipopp/agno-client/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/antipopp/agno-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/antipopp/agno-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/antipopp/agno-client/compare/v0.1.0...v0.2.0
