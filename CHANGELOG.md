@@ -5,6 +5,13 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-11-11
+
+### Fixed
+
+#### @antipopp/agno-react
+- **AgnoProvider config synchronization**: Fixed critical issue where config updates (especially `userId`) were not synced to the client instance
+
 ## [0.5.0] - 2025-11-10
 
 ### Fixed
@@ -259,6 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.5.1]: https://github.com/antipopp/agno-client/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/antipopp/agno-client/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/antipopp/agno-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/antipopp/agno-client/compare/v0.2.0...v0.3.0
