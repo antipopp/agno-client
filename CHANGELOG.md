@@ -5,6 +5,81 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-11-26
+
+### Breaking Changes
+
+#### @antipopp/agno-client
+- **Team HITL Removed**: Teams no longer support HITL (Human-in-the-Loop) frontend tool execution
+  - `continueRun()` now throws an error when called with `mode: 'team'`
+  - Error message: "HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. Only agents support the continue endpoint."
+  - Reason: AgentOS API does not provide a `/teams/{id}/runs/{runId}/continue` endpoint
+  - Location: `packages/core/src/client.ts:574-607`
+  - **Migration**: If you need frontend tool execution, use agent mode instead of team mode
+
+#### @antipopp/agno-react
+- **useAgnoToolExecution**: Hook now logs warning and no-ops when used with team mode
+  - Prevents event listeners from being registered for teams
+  - Console warning: "HITL (Human-in-the-Loop) frontend tool execution is not supported for teams..."
+  - Location: `packages/react/src/hooks/useAgnoToolExecution.ts:147-205`
+  - **Migration**: Use this hook only with agents, not teams
+
+### Removed
+
+#### @antipopp/agno-client (Session Manager)
+- **deleteTeamSession()**: Removed deprecated method for team session deletion
+  - The unified `deleteSession()` method now handles both agents and teams
+  - Uses the standard `/sessions/{id}` endpoint with `db_id` query parameter
+  - **Migration**: Use `deleteSession(sessionId)` instead of `deleteTeamSession(teamId, sessionId)`
+
+### Fixed
+
+#### @antipopp/agno-client (Session Manager)
+- **Team Session Deletion**: Fixed broken endpoint with double-slash typo
+  - Previous URL: `DELETE /v1//teams/{teamId}/sessions/{sessionId}` (with double slashes)
+  - New URL: `DELETE /sessions/{sessionId}?db_id={dbId}` (unified endpoint)
+  - Now consistent with agent session deletion
+  - Location: `packages/core/src/managers/session-manager.ts`
+
+### Documentation
+
+#### CLAUDE.md
+- Removed unsupported `/teams/{id}/runs/{runId}/continue` endpoint from API list
+- Removed broken `/v1//teams/{teamId}/sessions/{sessionId}` endpoint
+- Added warning: "Teams do not support the `/continue` endpoint. HITL is only available for agents."
+- Updated session deletion documentation to reflect unified approach
+
+#### FRONTEND_TOOL_EXECUTION.md
+- Added prominent warning: "Frontend tool execution (HITL) is **only supported for agents**, not teams"
+- Clarified that `continueRun()` and `useAgnoToolExecution` will error with team mode
+
+### API Compatibility
+
+All endpoints now align with AgentOS OpenAPI specification:
+- ✅ `GET /health` - Health check
+- ✅ `GET /agents` - List agents
+- ✅ `GET /teams` - List teams
+- ✅ `POST /agents/{id}/runs` - Run agent (streaming)
+- ✅ `POST /teams/{id}/runs` - Run team (streaming)
+- ✅ `POST /agents/{id}/runs/{runId}/continue` - Continue paused agent run (agent only)
+- ✅ `GET /sessions` - List sessions
+- ✅ `GET /sessions/{id}/runs` - Get session history
+- ✅ `DELETE /sessions/{id}` - Delete session (unified for agents and teams)
+
+### Technical Details
+
+**Build & Test:**
+- ✅ All packages build successfully
+- ✅ All TypeScript type checks pass
+- ✅ No unintended breaking changes to public API
+
+**Affected Files:**
+- `packages/core/src/client.ts` - Added team mode validation to `continueRun()`
+- `packages/core/src/managers/session-manager.ts` - Removed `deleteTeamSession()`, fixed endpoint
+- `packages/react/src/hooks/useAgnoToolExecution.ts` - Added team mode validation and warnings
+- `CLAUDE.md` - Updated endpoint documentation
+- `FRONTEND_TOOL_EXECUTION.md` - Added agent-only warnings
+
 ## [0.5.1] - 2025-11-11
 
 ### Fixed

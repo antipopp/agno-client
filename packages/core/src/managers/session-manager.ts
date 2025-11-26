@@ -104,32 +104,6 @@ export class SessionManager {
     }
   }
 
-  /**
-   * Delete a team session
-   * Note: The API route has a typo with double slashes (/v1//teams), keeping it as-is for compatibility
-   */
-  async deleteTeamSession(
-    endpoint: string,
-    teamId: string,
-    sessionId: string,
-    authToken?: string
-  ): Promise<void> {
-    const url = `${endpoint}/v1//teams/${teamId}/sessions/${sessionId}`;
-
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete team session: ${response.statusText}`);
-    }
-  }
 
   /**
    * Convert session runs array to chat messages

@@ -143,6 +143,8 @@ The `SessionManager` converts the API's session format (with nested `message`/`r
 
 The library supports **Human-in-the-Loop (HITL)** frontend tool execution through the `useAgnoToolExecution` hook in the React package. This allows agents to delegate specific tools to the frontend for execution.
 
+**⚠️ Important:** HITL is only supported for agents, not teams. Teams do not have a `/continue` endpoint in the AgentOS API.
+
 **How it works:**
 
 1. Agent calls a tool marked with `external_execution=True` on the backend
@@ -151,7 +153,7 @@ The library supports **Human-in-the-Loop (HITL)** frontend tool execution throug
 4. Client emits `run:paused` event with tool details
 5. React hook (`useAgnoToolExecution`) listens to `run:paused` event
 6. Hook executes tools using user-defined handlers
-7. Hook calls `client.continueRun(toolResults)` to resume the agent
+7. Hook calls `client.continueRun(toolResults)` to resume the agent (will throw error if mode is 'team')
 8. Backend continues processing with the results
 
 **Event flow for paused runs:**
@@ -257,12 +259,12 @@ The client expects these Agno API endpoints:
 - `GET /teams` - List teams
 - `POST /agents/{id}/runs` - Run agent (streaming)
 - `POST /teams/{id}/runs` - Run team (streaming)
-- `POST /agents/{id}/runs/{runId}/continue` - Continue paused agent run (HITL)
-- `POST /teams/{id}/runs/{runId}/continue` - Continue paused team run (HITL)
+- `POST /agents/{id}/runs/{runId}/continue` - Continue paused agent run (HITL) - **Agent only**
 - `GET /sessions?type={type}&component_id={id}&db_id={dbId}` - List sessions
 - `GET /sessions/{id}/runs?type={type}&db_id={dbId}` - Get session
-- `DELETE /sessions/{id}?db_id={dbId}` - Delete session
-- `DELETE /v1//teams/{teamId}/sessions/{sessionId}` - Delete team session
+- `DELETE /sessions/{id}?db_id={dbId}` - Delete session (unified for both agents and teams)
+
+**Important:** Teams do not support the `/continue` endpoint. HITL (Human-in-the-Loop) frontend tool execution is only available for agents.
 
 ## Working with Frontend Tool Execution
 

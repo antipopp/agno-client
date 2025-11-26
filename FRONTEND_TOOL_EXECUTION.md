@@ -14,6 +14,8 @@ This guide shows how to use frontend tool execution (HITL - Human-in-the-Loop) a
 
 # Frontend Tool Execution (HITL)
 
+> **⚠️ Important:** Frontend tool execution (HITL) is **only supported for agents**, not teams. Teams do not have a `/continue` endpoint in the AgentOS API. If you attempt to use `continueRun()` or `useAgnoToolExecution` with team mode, you will receive an error.
+
 Frontend tool execution allows your Agno agents to delegate specific tools to the frontend application for execution.
 
 ## Use Cases

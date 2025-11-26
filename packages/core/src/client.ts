@@ -418,31 +418,6 @@ export class AgnoClient extends EventEmitter {
     this.emit('state:change', this.getState());
   }
 
-  /**
-   * Delete a team session
-   */
-  async deleteTeamSession(teamId: string, sessionId: string): Promise<void> {
-    const config = this.configManager.getConfig();
-
-    await this.sessionManager.deleteTeamSession(
-      config.endpoint,
-      teamId,
-      sessionId,
-      config.authToken
-    );
-
-    // Remove from state
-    this.state.sessions = this.state.sessions.filter(
-      (s) => s.session_id !== sessionId
-    );
-
-    // Clear messages if this was the current session
-    if (this.configManager.getSessionId() === sessionId) {
-      this.clearMessages();
-    }
-
-    this.emit('state:change', this.getState());
-  }
 
   /**
    * Add tool calls to the last message
@@ -572,12 +547,28 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
-   * Continue a paused run after executing external tools
+   * Continue a paused run with tool execution results.
+   *
+   * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
+   * Teams do not support the continue endpoint.
+   *
+   * @param tools - Array of tool calls with execution results
+   * @param options - Optional request headers
+   * @throws Error if no paused run exists
+   * @throws Error if called with team mode (teams don't support HITL)
    */
   async continueRun(
     tools: ToolCall[],
     options?: { headers?: Record<string, string> }
   ): Promise<void> {
+    // Validate that we're not in team mode (teams don't support continue endpoint)
+    if (this.configManager.getMode() === 'team') {
+      throw new Error(
+        'HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. ' +
+        'Only agents support the continue endpoint.'
+      );
+    }
+
     if (!this.state.isPaused || !this.state.pausedRunId) {
       throw new Error('No paused run to continue');
     }
