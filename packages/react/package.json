@@ -1,6 +1,6 @@
 {
   "name": "@antipopp/agno-react",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "React hooks for Agno client with frontend tool execution (HITL) support",
   "author": "antipopp",
   "license": "MIT",
@@ -43,11 +43,11 @@
     "@antipopp/agno-types": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^18.0.0"
+    "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.45",
-    "react": "^18.2.0",
+    "@types/react": "^18.3.3",
+    "react": "^19.2.1",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"
   }
