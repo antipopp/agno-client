@@ -41,6 +41,13 @@ export interface AgnoClientConfig {
    * User ID to link the session to a specific user
    */
   userId?: string;
+
+  /**
+   * Global custom headers to include in all API requests.
+   * These headers are applied before per-request headers.
+   * Note: Authorization header from authToken will override any Authorization header set here.
+   */
+  headers?: Record<string, string>;
 }
 
 /**

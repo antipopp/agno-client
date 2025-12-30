@@ -5,6 +5,101 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-12-30
+
+### Added
+
+#### @antipopp/agno-types
+- **Global Custom Headers**: New `headers` field in `AgnoClientConfig` for setting custom HTTP headers
+  - Optional `Record<string, string>` field for defining headers that apply to all API requests
+  - Fully documented with JSDoc explaining header merge precedence
+  - Backward compatible - existing code works without changes
+
+#### @antipopp/agno-client
+- **Centralized Header Management**: All API requests now support global custom headers
+  - New `getHeaders()` and `setHeaders()` methods in ConfigManager
+  - New `buildRequestHeaders()` method that intelligently merges headers with proper precedence
+  - Headers applied to ALL requests: streaming (sendMessage, continueRun), session management (fetchSessions, loadSession, deleteSession), and utility methods (fetchAgents, fetchTeams, checkStatus)
+  - **Header Merge Order** (lowest to highest precedence):
+    1. Global headers from `config.headers`
+    2. Per-request headers from `options.headers`
+    3. Authorization header from `authToken` (always wins)
+  - SessionManager methods updated to accept pre-built headers instead of individual authToken parameter
+
+#### @antipopp/agno-react
+- **Automatic Header Support**: React hooks automatically support global headers through config forwarding
+  - `AgnoProvider` now accepts `headers` in config prop
+  - `updateConfig({ headers: {...} })` enables dynamic header updates at runtime
+  - `useAgnoChat.sendMessage()` continues to support per-request header overrides
+  - No code changes required - existing config synchronization handles new field
+
+### Changed
+
+#### @antipopp/agno-client (Internal API)
+- **SessionManager Method Signatures**: Changed from `authToken?: string` to `headers: Record<string, string>`
+  - Affects: `fetchSessions()`, `fetchSession()`, `deleteSession()`
+  - Internal change only - not exposed in public API
+  - Enables cleaner header management and removes duplicate authorization logic
+
+### Technical Highlights
+- **Type-Safe**: Full TypeScript support with `Record<string, string>` enforcement
+- **Mutable**: Headers can be updated dynamically via `updateConfig()`
+- **Centralized**: All header building logic in one place (`ConfigManager.buildRequestHeaders()`)
+- **Security First**: Authorization header from `authToken` always takes precedence
+- **Backward Compatible**: `headers` field is optional, existing code unchanged
+- **Applied Everywhere**: Consistent header behavior across all API operations
+
+### Usage Examples
+
+**Global Headers in React:**
+```typescript
+<AgnoProvider
+  config={{
+    endpoint: 'http://localhost:7777',
+    agentId: 'agent-123',
+    headers: {
+      'X-API-Key': 'my-api-key',
+      'X-Custom-Header': 'value',
+    },
+  }}
+>
+  <App />
+</AgnoProvider>
+```
+
+**Dynamic Updates:**
+```typescript
+const { updateConfig } = useAgnoActions();
+updateConfig({
+  headers: { 'X-API-Key': 'new-key' },
+});
+```
+
+**Per-Request Override:**
+```typescript
+const { sendMessage } = useAgnoChat();
+await sendMessage('Hello', {
+  headers: { 'X-Request-ID': crypto.randomUUID() },
+});
+```
+
+**Core Client Usage:**
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  headers: {
+    'X-API-Key': 'my-api-key',
+  },
+});
+```
+
+### Affected Files
+- `packages/types/src/config.ts` - Added `headers` field to `AgnoClientConfig`
+- `packages/core/src/managers/config-manager.ts` - Added header management methods
+- `packages/core/src/client.ts` - Updated 8 methods to use centralized header builder
+- `packages/core/src/managers/session-manager.ts` - Updated 3 method signatures
+
 ## [0.6.0] - 2025-11-26
 
 ### Breaking Changes
@@ -341,6 +436,9 @@ All endpoints now align with AgentOS OpenAPI specification:
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.7.0]: https://github.com/antipopp/agno-client/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/antipopp/agno-client/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/antipopp/agno-client/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/antipopp/agno-client/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/antipopp/agno-client/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/antipopp/agno-client/compare/v0.3.0...v0.4.0

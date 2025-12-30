@@ -19,17 +19,12 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     entityId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>
   ): Promise<SessionEntry[]> {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set('type', entityType);
     url.searchParams.set('component_id', entityId);
     url.searchParams.set('db_id', dbId);
-
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-    }
 
     const response = await fetch(url.toString(), { headers });
 
@@ -53,17 +48,12 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     sessionId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>
   ): Promise<Array<RunSchema | TeamRunSchema>> {
     const url = new URL(`${endpoint}/sessions/${sessionId}/runs`);
     url.searchParams.set('type', entityType);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
-    }
-
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
     }
 
     const response = await fetch(url.toString(), { headers });
@@ -82,16 +72,11 @@ export class SessionManager {
     endpoint: string,
     sessionId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>
   ): Promise<void> {
     const url = new URL(`${endpoint}/sessions/${sessionId}`);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
-    }
-
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
     }
 
     const response = await fetch(url.toString(), {

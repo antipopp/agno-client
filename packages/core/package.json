@@ -1,6 +1,6 @@
 {
   "name": "@antipopp/agno-client",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Core client library for Agno agents with streaming support and HITL frontend tool execution",
   "author": "antipopp",
   "license": "MIT",

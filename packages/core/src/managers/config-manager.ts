@@ -147,6 +147,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get custom headers
+   */
+  getHeaders(): Record<string, string> | undefined {
+    return this.config.headers;
+  }
+
+  /**
+   * Set custom headers
+   */
+  setHeaders(headers: Record<string, string> | undefined): void {
+    this.updateField('headers', headers);
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {
@@ -171,5 +185,38 @@ export class ConfigManager {
     } else {
       return `${endpoint}/agents/${encodedEntityId}/runs`;
     }
+  }
+
+  /**
+   * Build request headers by merging global headers, per-request headers, and auth token.
+   * Merge order (lowest to highest precedence):
+   * 1. Global headers from config
+   * 2. Per-request headers (overrides global)
+   * 3. Authorization header from authToken (overrides all)
+   *
+   * @param perRequestHeaders - Optional headers for this specific request
+   * @returns Merged headers object ready for fetch
+   */
+  buildRequestHeaders(perRequestHeaders?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {};
+
+    // 1. Apply global headers from config
+    const globalHeaders = this.getHeaders();
+    if (globalHeaders) {
+      Object.assign(headers, globalHeaders);
+    }
+
+    // 2. Apply per-request headers (overrides global)
+    if (perRequestHeaders) {
+      Object.assign(headers, perRequestHeaders);
+    }
+
+    // 3. Apply Authorization from authToken (overrides all)
+    const authToken = this.getAuthToken();
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    return headers;
   }
 }

@@ -175,11 +175,7 @@ export class AgnoClient extends EventEmitter {
         formData.append('user_id', userId);
       }
 
-      const headers: Record<string, string> = { ...options?.headers };
-      const authToken = this.configManager.getAuthToken();
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
+      const headers = this.configManager.buildRequestHeaders(options?.headers);
 
       await streamResponse({
         apiUrl: runUrl,
@@ -342,12 +338,13 @@ export class AgnoClient extends EventEmitter {
     const dbId = this.configManager.getDbId() || '';
     Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId });
 
+    const headers = this.configManager.buildRequestHeaders();
     const response = await this.sessionManager.fetchSession(
       config.endpoint,
       entityType,
       sessionId,
       dbId,
-      config.authToken
+      headers
     );
 
     const messages = this.sessionManager.convertSessionToMessages(response);
@@ -377,12 +374,13 @@ export class AgnoClient extends EventEmitter {
       throw new Error('Entity ID must be configured');
     }
 
+    const headers = this.configManager.buildRequestHeaders();
     const sessions = await this.sessionManager.fetchSessions(
       config.endpoint,
       entityType,
       entityId,
       dbId,
-      config.authToken
+      headers
     );
 
     this.state.sessions = sessions;
@@ -398,11 +396,12 @@ export class AgnoClient extends EventEmitter {
     const config = this.configManager.getConfig();
     const dbId = this.configManager.getDbId() || '';
 
+    const headers = this.configManager.buildRequestHeaders();
     await this.sessionManager.deleteSession(
       config.endpoint,
       sessionId,
       dbId,
-      config.authToken
+      headers
     );
 
     // Remove from state
@@ -607,11 +606,7 @@ export class AgnoClient extends EventEmitter {
       formData.append('user_id', userId);
     }
 
-    const headers: Record<string, string> = { ...options?.headers };
-    const authToken = this.configManager.getAuthToken();
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-    }
+    const headers = this.configManager.buildRequestHeaders(options?.headers);
 
     try {
       await streamResponse({
@@ -646,7 +641,8 @@ export class AgnoClient extends EventEmitter {
    */
   async checkStatus(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.configManager.getEndpoint()}/health`);
+      const headers = this.configManager.buildRequestHeaders();
+      const response = await fetch(`${this.configManager.getEndpoint()}/health`, { headers });
       const isActive = response.ok;
       this.state.isEndpointActive = isActive;
       this.emit('state:change', this.getState());
@@ -662,13 +658,8 @@ export class AgnoClient extends EventEmitter {
    * Fetch agents from endpoint
    */
   async fetchAgents(): Promise<AgentDetails[]> {
-    const config = this.configManager.getConfig();
-    const headers: Record<string, string> = {};
-    if (config.authToken) {
-      headers['Authorization'] = `Bearer ${config.authToken}`;
-    }
-
-    const response = await fetch(`${config.endpoint}/agents`, { headers });
+    const headers = this.configManager.buildRequestHeaders();
+    const response = await fetch(`${this.configManager.getEndpoint()}/agents`, { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch agents');
     }
@@ -684,13 +675,8 @@ export class AgnoClient extends EventEmitter {
    * Fetch teams from endpoint
    */
   async fetchTeams(): Promise<TeamDetails[]> {
-    const config = this.configManager.getConfig();
-    const headers: Record<string, string> = {};
-    if (config.authToken) {
-      headers['Authorization'] = `Bearer ${config.authToken}`;
-    }
-
-    const response = await fetch(`${config.endpoint}/teams`, { headers });
+    const headers = this.configManager.buildRequestHeaders();
+    const response = await fetch(`${this.configManager.getEndpoint()}/teams`, { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch teams');
     }
