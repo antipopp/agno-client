@@ -75,6 +75,11 @@ export interface ClientState {
   isStreaming: boolean;
 
   /**
+   * Whether a session refresh is in progress
+   */
+  isRefreshing: boolean;
+
+  /**
    * Current error message (if any)
    */
   errorMessage?: string;

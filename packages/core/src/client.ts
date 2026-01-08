@@ -47,6 +47,7 @@ export class AgnoClient extends EventEmitter {
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
+  private runCompletedSuccessfully: boolean = false;
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -57,6 +58,7 @@ export class AgnoClient extends EventEmitter {
     this.pendingUISpecs = new Map();
     this.state = {
       isStreaming: false,
+      isRefreshing: false,
       isEndpointActive: false,
       agents: [],
       teams: [],
@@ -117,6 +119,9 @@ export class AgnoClient extends EventEmitter {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
     }
+
+    // Reset completion flag for new message
+    this.runCompletedSuccessfully = false;
 
     const runUrl = this.configManager.getRunUrl();
     if (!runUrl) {
@@ -199,11 +204,17 @@ export class AgnoClient extends EventEmitter {
         onError: (error) => {
           this.handleError(error, newSessionId);
         },
-        onComplete: () => {
+        onComplete: async () => {
           this.state.isStreaming = false;
           this.emit('stream:end');
           this.emit('message:complete', this.messageStore.getMessages());
           this.emit('state:change', this.getState());
+
+          // Trigger refresh if run completed successfully
+          if (this.runCompletedSuccessfully) {
+            this.runCompletedSuccessfully = false;
+            await this.refreshSessionMessages();
+          }
         },
       });
     } catch (error) {
@@ -302,6 +313,11 @@ export class AgnoClient extends EventEmitter {
     // Apply any pending UI specs to newly arrived tool calls
     this.applyPendingUISpecs();
 
+    // Track if run completed successfully for post-stream refresh
+    if (event === RunEvent.RunCompleted || event === RunEvent.TeamRunCompleted) {
+      this.runCompletedSuccessfully = true;
+    }
+
     this.emit('message:update', this.messageStore.getMessages());
   }
 
@@ -329,6 +345,83 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
+   * Refresh messages from the session API after run completion.
+   * Replaces streamed messages with authoritative session data.
+   * Preserves client-side properties like ui_component that aren't stored on the server.
+   * @private
+   */
+  private async refreshSessionMessages(): Promise<void> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) {
+      Logger.debug('[AgnoClient] Cannot refresh: no session ID');
+      return;
+    }
+
+    this.state.isRefreshing = true;
+    this.emit('state:change', this.getState());
+
+    try {
+      // Preserve ui_component properties from existing tool calls before refresh
+      // The API doesn't store these - they're added client-side during HITL execution
+      const existingUIComponents = new Map<string, any>();
+      for (const message of this.messageStore.getMessages()) {
+        if (message.tool_calls) {
+          for (const toolCall of message.tool_calls) {
+            if ((toolCall as any).ui_component) {
+              existingUIComponents.set(toolCall.tool_call_id, (toolCall as any).ui_component);
+            }
+          }
+        }
+      }
+
+      const config = this.configManager.getConfig();
+      const entityType = this.configManager.getMode();
+      const dbId = this.configManager.getDbId() || '';
+      const userId = this.configManager.getUserId();
+      const headers = this.configManager.buildRequestHeaders();
+
+      const response = await this.sessionManager.fetchSession(
+        config.endpoint,
+        entityType,
+        sessionId,
+        dbId,
+        headers,
+        userId
+      );
+
+      const messages = this.sessionManager.convertSessionToMessages(response);
+
+      // Re-apply preserved ui_component properties to matching tool calls
+      if (existingUIComponents.size > 0) {
+        for (const message of messages) {
+          if (message.tool_calls) {
+            for (let i = 0; i < message.tool_calls.length; i++) {
+              const toolCall = message.tool_calls[i];
+              const uiComponent = existingUIComponents.get(toolCall.tool_call_id);
+              if (uiComponent) {
+                (message.tool_calls[i] as any).ui_component = uiComponent;
+              }
+            }
+          }
+        }
+      }
+
+      this.messageStore.setMessages(messages);
+
+      Logger.debug('[AgnoClient] Session refreshed:', `${messages.length} messages`);
+
+      this.emit('message:refreshed', messages);
+      this.emit('message:update', messages);
+    } catch (error) {
+      Logger.error('[AgnoClient] Failed to refresh session:', error);
+      this.emit('message:error', `Session refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.state.isRefreshing = false;
+      this.emit('state:change', this.getState());
+    }
+  }
+
+  /**
    * Load a session
    */
   async loadSession(sessionId: string): Promise<ChatMessage[]> {
@@ -336,7 +429,8 @@ export class AgnoClient extends EventEmitter {
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
     const dbId = this.configManager.getDbId() || '';
-    Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId });
+    const userId = this.configManager.getUserId();
+    Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId, userId });
 
     const headers = this.configManager.buildRequestHeaders();
     const response = await this.sessionManager.fetchSession(
@@ -344,7 +438,8 @@ export class AgnoClient extends EventEmitter {
       entityType,
       sessionId,
       dbId,
-      headers
+      headers,
+      userId
     );
 
     const messages = this.sessionManager.convertSessionToMessages(response);
@@ -619,13 +714,19 @@ export class AgnoClient extends EventEmitter {
         onError: (error) => {
           this.handleError(error, currentSessionId);
         },
-        onComplete: () => {
+        onComplete: async () => {
           this.state.isStreaming = false;
           this.state.pausedRunId = undefined;
           this.state.toolsAwaitingExecution = undefined;
           this.emit('stream:end');
           this.emit('message:complete', this.messageStore.getMessages());
           this.emit('state:change', this.getState());
+
+          // Trigger refresh if run completed successfully
+          if (this.runCompletedSuccessfully) {
+            this.runCompletedSuccessfully = false;
+            await this.refreshSessionMessages();
+          }
         },
       });
     } catch (error) {

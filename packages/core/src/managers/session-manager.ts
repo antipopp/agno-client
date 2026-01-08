@@ -48,12 +48,16 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     sessionId: string,
     dbId: string,
-    headers: Record<string, string>
+    headers: Record<string, string>,
+    userId?: string
   ): Promise<Array<RunSchema | TeamRunSchema>> {
     const url = new URL(`${endpoint}/sessions/${sessionId}/runs`);
     url.searchParams.set('type', entityType);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
+    }
+    if (userId) {
+      url.searchParams.set('user_id', userId);
     }
 
     const response = await fetch(url.toString(), { headers });

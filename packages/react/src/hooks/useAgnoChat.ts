@@ -22,6 +22,10 @@ export function useAgnoChat() {
       setMessages(updatedMessages);
     };
 
+    const handleMessageRefreshed = (updatedMessages: ChatMessage[]) => {
+      setMessages(updatedMessages);
+    };
+
     const handleMessageError = (errorMessage: string) => {
       setError(errorMessage);
     };
@@ -44,6 +48,7 @@ export function useAgnoChat() {
 
     client.on('message:update', handleMessageUpdate);
     client.on('message:complete', handleMessageComplete);
+    client.on('message:refreshed', handleMessageRefreshed);
     client.on('message:error', handleMessageError);
     client.on('state:change', handleStateChange);
     client.on('ui:render', handleUIRender);
@@ -55,6 +60,7 @@ export function useAgnoChat() {
     return () => {
       client.off('message:update', handleMessageUpdate);
       client.off('message:complete', handleMessageComplete);
+      client.off('message:refreshed', handleMessageRefreshed);
       client.off('message:error', handleMessageError);
       client.off('state:change', handleStateChange);
       client.off('ui:render', handleUIRender);
@@ -92,6 +98,7 @@ export function useAgnoChat() {
     sendMessage,
     clearMessages,
     isStreaming: state.isStreaming,
+    isRefreshing: state.isRefreshing,
     isPaused: state.isPaused,
     error,
     state,

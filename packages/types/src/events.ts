@@ -39,6 +39,7 @@ export enum RunEvent {
 export type ClientEvent =
   | 'message:update'
   | 'message:complete'
+  | 'message:refreshed'
   | 'message:error'
   | 'session:loaded'
   | 'session:created'
