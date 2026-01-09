@@ -19,12 +19,20 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     entityId: string,
     dbId: string,
-    headers: Record<string, string>
+    headers: Record<string, string>,
+    params?: URLSearchParams
   ): Promise<SessionEntry[]> {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set('type', entityType);
     url.searchParams.set('component_id', entityId);
     url.searchParams.set('db_id', dbId);
+
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
 
     const response = await fetch(url.toString(), { headers });
 
@@ -49,7 +57,8 @@ export class SessionManager {
     sessionId: string,
     dbId: string,
     headers: Record<string, string>,
-    userId?: string
+    userId?: string,
+    params?: URLSearchParams
   ): Promise<Array<RunSchema | TeamRunSchema>> {
     const url = new URL(`${endpoint}/sessions/${sessionId}/runs`);
     url.searchParams.set('type', entityType);
@@ -58,6 +67,13 @@ export class SessionManager {
     }
     if (userId) {
       url.searchParams.set('user_id', userId);
+    }
+
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
 
     const response = await fetch(url.toString(), { headers });
@@ -76,11 +92,19 @@ export class SessionManager {
     endpoint: string,
     sessionId: string,
     dbId: string,
-    headers: Record<string, string>
+    headers: Record<string, string>,
+    params?: URLSearchParams
   ): Promise<void> {
     const url = new URL(`${endpoint}/sessions/${sessionId}`);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
+    }
+
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
 
     const response = await fetch(url.toString(), {

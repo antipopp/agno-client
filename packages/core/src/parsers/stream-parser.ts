@@ -148,6 +148,7 @@ export function parseBuffer(
 export async function streamResponse(options: {
   apiUrl: string;
   headers?: Record<string, string>;
+  params?: URLSearchParams;
   requestBody: FormData | Record<string, unknown>;
   onChunk: (chunk: RunResponseContent) => void;
   onError: (error: Error) => void;
@@ -157,6 +158,7 @@ export async function streamResponse(options: {
   const {
     apiUrl,
     headers = {},
+    params,
     requestBody,
     onChunk,
     onError,
@@ -166,8 +168,13 @@ export async function streamResponse(options: {
 
   let buffer = '';
 
+  // Append query parameters to URL if provided
+  const finalUrl = params && params.toString()
+    ? `${apiUrl}?${params.toString()}`
+    : apiUrl;
+
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(finalUrl, {
       method: 'POST',
       headers: {
         ...(!(requestBody instanceof FormData) && {

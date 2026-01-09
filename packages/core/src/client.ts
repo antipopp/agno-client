@@ -114,7 +114,7 @@ export class AgnoClient extends EventEmitter {
    */
   async sendMessage(
     message: string | FormData,
-    options?: { headers?: Record<string, string> }
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
@@ -181,10 +181,12 @@ export class AgnoClient extends EventEmitter {
       }
 
       const headers = this.configManager.buildRequestHeaders(options?.headers);
+      const params = this.configManager.buildQueryString(options?.params);
 
       await streamResponse({
         apiUrl: runUrl,
         headers,
+        params,
         requestBody: formData,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, newSessionId, formData.get('message') as string);
@@ -380,13 +382,16 @@ export class AgnoClient extends EventEmitter {
       const userId = this.configManager.getUserId();
       const headers = this.configManager.buildRequestHeaders();
 
+      const params = this.configManager.buildQueryString();
+
       const response = await this.sessionManager.fetchSession(
         config.endpoint,
         entityType,
         sessionId,
         dbId,
         headers,
-        userId
+        userId,
+        params
       );
 
       const messages = this.sessionManager.convertSessionToMessages(response);
@@ -424,7 +429,10 @@ export class AgnoClient extends EventEmitter {
   /**
    * Load a session
    */
-  async loadSession(sessionId: string): Promise<ChatMessage[]> {
+  async loadSession(
+    sessionId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ChatMessage[]> {
     Logger.debug('[AgnoClient] loadSession called with sessionId:', sessionId);
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
@@ -433,13 +441,15 @@ export class AgnoClient extends EventEmitter {
     Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId, userId });
 
     const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     const response = await this.sessionManager.fetchSession(
       config.endpoint,
       entityType,
       sessionId,
       dbId,
       headers,
-      userId
+      userId,
+      params
     );
 
     const messages = this.sessionManager.convertSessionToMessages(response);
@@ -459,7 +469,7 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch all sessions
    */
-  async fetchSessions(): Promise<SessionEntry[]> {
+  async fetchSessions(options?: { params?: Record<string, string> }): Promise<SessionEntry[]> {
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
     const entityId = this.configManager.getCurrentEntityId();
@@ -470,12 +480,14 @@ export class AgnoClient extends EventEmitter {
     }
 
     const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     const sessions = await this.sessionManager.fetchSessions(
       config.endpoint,
       entityType,
       entityId,
       dbId,
-      headers
+      headers,
+      params
     );
 
     this.state.sessions = sessions;
@@ -487,16 +499,21 @@ export class AgnoClient extends EventEmitter {
   /**
    * Delete a session
    */
-  async deleteSession(sessionId: string): Promise<void> {
+  async deleteSession(
+    sessionId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
     const config = this.configManager.getConfig();
     const dbId = this.configManager.getDbId() || '';
 
     const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     await this.sessionManager.deleteSession(
       config.endpoint,
       sessionId,
       dbId,
-      headers
+      headers,
+      params
     );
 
     // Remove from state
@@ -647,13 +664,13 @@ export class AgnoClient extends EventEmitter {
    * Teams do not support the continue endpoint.
    *
    * @param tools - Array of tool calls with execution results
-   * @param options - Optional request headers
+   * @param options - Optional request headers and query parameters
    * @throws Error if no paused run exists
    * @throws Error if called with team mode (teams don't support HITL)
    */
   async continueRun(
     tools: ToolCall[],
-    options?: { headers?: Record<string, string> }
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
     // Validate that we're not in team mode (teams don't support continue endpoint)
     if (this.configManager.getMode() === 'team') {
@@ -702,11 +719,13 @@ export class AgnoClient extends EventEmitter {
     }
 
     const headers = this.configManager.buildRequestHeaders(options?.headers);
+    const params = this.configManager.buildQueryString(options?.params);
 
     try {
       await streamResponse({
         apiUrl: continueUrl,
         headers,
+        params,
         requestBody: formData,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, currentSessionId, '');
@@ -740,10 +759,17 @@ export class AgnoClient extends EventEmitter {
   /**
    * Check endpoint status
    */
-  async checkStatus(): Promise<boolean> {
+  async checkStatus(options?: { params?: Record<string, string> }): Promise<boolean> {
     try {
       const headers = this.configManager.buildRequestHeaders();
-      const response = await fetch(`${this.configManager.getEndpoint()}/health`, { headers });
+      const params = this.configManager.buildQueryString(options?.params);
+      const url = new URL(`${this.configManager.getEndpoint()}/health`);
+      if (params.toString()) {
+        params.forEach((value, key) => {
+          url.searchParams.set(key, value);
+        });
+      }
+      const response = await fetch(url.toString(), { headers });
       const isActive = response.ok;
       this.state.isEndpointActive = isActive;
       this.emit('state:change', this.getState());
@@ -758,9 +784,16 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch agents from endpoint
    */
-  async fetchAgents(): Promise<AgentDetails[]> {
+  async fetchAgents(options?: { params?: Record<string, string> }): Promise<AgentDetails[]> {
     const headers = this.configManager.buildRequestHeaders();
-    const response = await fetch(`${this.configManager.getEndpoint()}/agents`, { headers });
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(`${this.configManager.getEndpoint()}/agents`);
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+    const response = await fetch(url.toString(), { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch agents');
     }
@@ -775,9 +808,16 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch teams from endpoint
    */
-  async fetchTeams(): Promise<TeamDetails[]> {
+  async fetchTeams(options?: { params?: Record<string, string> }): Promise<TeamDetails[]> {
     const headers = this.configManager.buildRequestHeaders();
-    const response = await fetch(`${this.configManager.getEndpoint()}/teams`, { headers });
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(`${this.configManager.getEndpoint()}/teams`);
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+    const response = await fetch(url.toString(), { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch teams');
     }
@@ -793,18 +833,18 @@ export class AgnoClient extends EventEmitter {
    * Initialize client (check status and fetch agents/teams)
    * Automatically selects the first available agent or team if none is configured
    */
-  async initialize(): Promise<{
+  async initialize(options?: { params?: Record<string, string> }): Promise<{
     agents: AgentDetails[];
     teams: TeamDetails[];
   }> {
-    const isActive = await this.checkStatus();
+    const isActive = await this.checkStatus(options);
     if (!isActive) {
       return { agents: [], teams: [] };
     }
 
     const [agents, teams] = await Promise.all([
-      this.fetchAgents(),
-      this.fetchTeams(),
+      this.fetchAgents(options),
+      this.fetchTeams(options),
     ]);
 
     // Auto-select first available agent or team if none is configured

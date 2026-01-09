@@ -48,6 +48,13 @@ export interface AgnoClientConfig {
    * Note: Authorization header from authToken will override any Authorization header set here.
    */
   headers?: Record<string, string>;
+
+  /**
+   * Global query parameters to append to all API requests.
+   * These parameters are applied before per-request parameters.
+   * Per-request parameters will override global parameters with the same key.
+   */
+  params?: Record<string, string>;
 }
 
 /**
@@ -58,6 +65,11 @@ export interface StreamOptions {
    * Custom headers to include in the request
    */
   headers?: Record<string, string>;
+
+  /**
+   * Custom query parameters to append to the request URL
+   */
+  params?: Record<string, string>;
 
   /**
    * Request timeout in milliseconds

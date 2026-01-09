@@ -71,7 +71,7 @@ export function useAgnoChat() {
    * Send a message to the agent/team
    */
   const sendMessage = useCallback(
-    async (message: string | FormData, options?: { headers?: Record<string, string> }) => {
+    async (message: string | FormData, options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
       setError(undefined);
       try {
         await client.sendMessage(message, options);

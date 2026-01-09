@@ -218,6 +218,115 @@ client.updateConfig({ userId: 'user-789' });
 - `packages/core/src/managers/config-manager.ts` - `getUserId()` and `setUserId()` methods
 - `packages/core/src/client.ts` - `sendMessage()` and `continueRun()` include `user_id` in FormData
 
+## Custom Query Parameters
+
+The client libraries support appending custom query parameters to all API requests via the `params` configuration and per-request options. This allows you to pass additional parameters to the Agno API endpoints.
+
+**How it works:**
+
+1. **Global params**: Set `params` in `AgnoClientConfig` to apply parameters to all API requests
+2. **Per-request params**: Pass `params` in the options object when calling client methods
+3. **Merge behavior**: Per-request params override global params with the same key
+4. The client automatically appends these as query string parameters to all API calls
+
+**Parameter merging precedence (lowest to highest):**
+1. Global params from `config.params`
+2. Per-request params (overrides global)
+
+**Usage:**
+
+```typescript
+// Core client - Global params
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  mode: 'agent',
+  agentId: 'agent-123',
+  params: {
+    version: 'v2',
+    locale: 'en-US'
+  }
+});
+
+// Core client - Per-request params
+await client.sendMessage('Hello', {
+  params: {
+    temperature: '0.7',
+    max_tokens: '500'
+  }
+});
+
+// Per-request params override global params
+await client.sendMessage('Hello', {
+  params: {
+    version: 'v3',  // Overrides global 'v2'
+    custom_flag: 'true'
+  }
+});
+
+// React - Global params via AgnoProvider
+<AgnoProvider config={{
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  params: {
+    environment: 'production',
+    api_version: 'v2'
+  }
+}}>
+  {/* Your app */}
+</AgnoProvider>
+
+// React hooks - Per-request params
+const { sendMessage } = useAgnoChat();
+sendMessage('Hello', {
+  params: {
+    temperature: '0.7'
+  }
+});
+
+const { loadSession } = useAgnoSession();
+loadSession('session-123', {
+  params: {
+    include_metadata: 'true'
+  }
+});
+
+const { initialize } = useAgnoActions();
+initialize({
+  params: {
+    filter: 'active'
+  }
+});
+```
+
+**Supported methods with params:**
+
+All client methods that make API calls support the `params` option:
+- `sendMessage(message, { params })` - POST to `/runs` endpoint
+- `continueRun(tools, { params })` - POST to `/continue` endpoint
+- `loadSession(sessionId, { params })` - GET session data
+- `fetchSessions({ params })` - GET sessions list
+- `deleteSession(sessionId, { params })` - DELETE session
+- `checkStatus({ params })` - GET health endpoint
+- `fetchAgents({ params })` - GET agents list
+- `fetchTeams({ params })` - GET teams list
+- `initialize({ params })` - Runs checkStatus, fetchAgents, fetchTeams with params
+
+**Key files:**
+- `packages/types/src/config.ts` - `AgnoClientConfig.params` and `StreamOptions.params` fields
+- `packages/core/src/managers/config-manager.ts` - `getParams()`, `setParams()`, and `buildQueryString()` methods
+- `packages/core/src/parsers/stream-parser.ts` - `streamResponse()` accepts and applies params
+- `packages/core/src/managers/session-manager.ts` - All methods accept params and merge them into URLs
+- `packages/core/src/client.ts` - All API methods accept and use params
+- `packages/react/src/hooks/` - All hooks forward params to core client methods
+
+**Example use cases:**
+- API versioning: `params: { api_version: 'v2' }`
+- Feature flags: `params: { enable_feature_x: 'true' }`
+- Locale/language: `params: { locale: 'en-US' }`
+- Debugging: `params: { debug: 'true', trace_id: 'xyz' }`
+- Pagination: `params: { page: '1', limit: '50' }`
+- Custom backend parameters specific to your Agno setup
+
 ## Type Safety and Official Types
 
 All types in `@antipopp/agno-types` are based on the **official Agno API specification** provided by the Agno team. When making changes:

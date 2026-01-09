@@ -5,6 +5,197 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-01-09
+
+### Added
+
+#### @antipopp/agno-types
+- **Global Query Parameters**: New `params` field in `AgnoClientConfig` for setting custom query parameters
+  - Optional `Record<string, string>` field for defining parameters that apply to all API requests
+  - Fully documented with JSDoc explaining parameter merge precedence
+  - Backward compatible - existing code works without changes
+- **StreamOptions Enhancement**: Added `params` field to `StreamOptions` for per-request query parameters
+  - Enables per-request parameter overrides alongside existing header support
+  - Consistent API across all streaming operations
+
+#### @antipopp/agno-client
+- **Centralized Query Parameter Management**: All API requests now support custom query parameters
+  - New `getParams()` and `setParams()` methods in ConfigManager
+  - New `buildQueryString()` method that intelligently merges parameters with proper precedence
+  - Parameters applied to ALL requests: streaming (sendMessage, continueRun), session management (fetchSessions, loadSession, deleteSession), and utility methods (fetchAgents, fetchTeams, checkStatus, initialize)
+  - **Parameter Merge Order** (lowest to highest precedence):
+    1. Global params from `config.params`
+    2. Per-request params from `options.params` (overrides global)
+  - StreamParser updated to accept and apply URLSearchParams to fetch URLs
+  - SessionManager methods updated to accept and merge query parameters into request URLs
+  - All methods automatically construct query strings from params and append to endpoint URLs
+
+#### @antipopp/agno-react
+- **Automatic Query Parameter Support**: React hooks automatically support query parameters through config forwarding
+  - `AgnoProvider` now accepts `params` in config prop
+  - `updateConfig({ params: {...} })` enables dynamic parameter updates at runtime
+  - All hooks forward params to core client methods:
+    - `useAgnoChat.sendMessage(message, { params })` - Per-request params for message streaming
+    - `useAgnoSession.loadSession(sessionId, { params })` - Per-request params for session loading
+    - `useAgnoSession.fetchSessions({ params })` - Per-request params for session fetching
+    - `useAgnoActions.initialize({ params })` - Per-request params for initialization
+    - `useAgnoActions.checkStatus({ params })` - Per-request params for health checks
+    - `useAgnoActions.fetchAgents({ params })` - Per-request params for agent listing
+    - `useAgnoActions.fetchTeams({ params })` - Per-request params for team listing
+    - `useAgnoToolExecution.continueWithResults(tools, { params })` - Per-request params for HITL continuation
+  - No code changes required for global params - existing config synchronization handles new field
+
+### Changed
+
+#### @antipopp/agno-client (Internal API)
+- **SessionManager Method Signatures**: Enhanced to accept `params?: URLSearchParams`
+  - Affects: `fetchSessions()`, `fetchSession()`, `deleteSession()`
+  - Internal change only - not exposed directly in public API
+  - Enables cleaner parameter management across all session operations
+  - Parameters are merged into existing URL query strings using URLSearchParams.set()
+- **StreamParser**: Updated `streamResponse()` to accept `params?: URLSearchParams`
+  - Parameters appended to URL before fetch call
+  - Gracefully handles empty/undefined params
+- **All Client Methods**: Updated to build and pass query parameters
+  - Methods now construct URLSearchParams via `ConfigManager.buildQueryString()`
+  - Parameters appended to URLs for GET requests (agents, teams, health, sessions)
+  - Parameters appended to URLs for POST requests (runs, continue endpoints)
+  - Parameters appended to URLs for DELETE requests (session deletion)
+
+### Documentation
+
+#### CLAUDE.md
+- Added comprehensive "Custom Query Parameters" section with:
+  - How params work (global vs per-request)
+  - Parameter merging precedence rules
+  - Complete usage examples for both core client and React
+  - All supported methods with params documented
+  - Key files reference with line numbers
+  - Common use cases (API versioning, feature flags, locale, debugging, pagination, model configuration)
+  - Practical examples showing params override behavior
+
+#### README.md Updates
+- **packages/core/README.md**:
+  - Added `params` to constructor config options
+  - Enhanced `sendMessage()` examples with query parameter usage
+  - New "Custom Headers and Query Parameters" section with:
+    - Global configuration examples
+    - Per-request options examples
+    - Merge behavior explanation for both headers and params
+    - Common use cases for production scenarios
+- **packages/react/README.md**:
+  - Updated `AgnoProvider` example with params in config
+  - Enhanced `sendMessage()` examples with query parameter usage
+  - Updated hook examples to show params support:
+    - `useAgnoSession` example with params
+    - `useAgnoActions` example with params
+
+### Technical Highlights
+- **Type-Safe**: Full TypeScript support with `Record<string, string>` enforcement for params
+- **Mutable**: Query parameters can be updated dynamically via `updateConfig()`
+- **Centralized**: All parameter building logic in one place (`ConfigManager.buildQueryString()`)
+- **Consistent**: Parameter behavior mirrors headers implementation for API consistency
+- **Backward Compatible**: `params` field is optional, existing code unchanged
+- **Applied Everywhere**: Consistent parameter behavior across all API operations
+- **URL Safe**: Uses `URLSearchParams` for proper query string encoding
+
+### Usage Examples
+
+**Global Params in React:**
+```typescript
+<AgnoProvider
+  config={{
+    endpoint: 'http://localhost:7777',
+    agentId: 'agent-123',
+    params: {
+      locale: 'en-US',
+      environment: 'production',
+      api_version: 'v2',
+    },
+  }}
+>
+  <App />
+</AgnoProvider>
+```
+
+**Dynamic Updates:**
+```typescript
+const { updateConfig } = useAgnoActions();
+updateConfig({
+  params: { temperature: '0.7', max_tokens: '500' },
+});
+```
+
+**Per-Request Override:**
+```typescript
+const { sendMessage } = useAgnoChat();
+await sendMessage('Hello', {
+  params: { debug: 'true', trace_id: 'xyz123' },
+});
+```
+
+**Core Client Usage:**
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  params: {
+    locale: 'en-US',
+    version: 'v2',
+  },
+});
+
+// Per-request override
+await client.sendMessage('Hello', {
+  params: { temperature: '0.8' } // Overrides global params
+});
+```
+
+**Session Management with Params:**
+```typescript
+// Fetch sessions with pagination
+await client.fetchSessions({ params: { limit: '50', offset: '0' } });
+
+// Load session with metadata
+await client.loadSession('session-123', { params: { include_metadata: 'true' } });
+```
+
+**Combining Headers and Params:**
+```typescript
+await client.sendMessage('Hello', {
+  headers: { 'X-Request-ID': crypto.randomUUID() },
+  params: { temperature: '0.7', debug: 'true' }
+});
+```
+
+### Affected Files
+- `packages/types/src/config.ts` - Added `params` field to `AgnoClientConfig` and `StreamOptions`
+- `packages/core/src/managers/config-manager.ts` - Added `getParams()`, `setParams()`, and `buildQueryString()` methods
+- `packages/core/src/parsers/stream-parser.ts` - Updated `streamResponse()` to accept and apply params
+- `packages/core/src/managers/session-manager.ts` - Updated 3 method signatures to accept params
+- `packages/core/src/client.ts` - Updated 9 methods to build and use query parameters:
+  - `sendMessage()` - line 117
+  - `continueRun()` - line 658
+  - `loadSession()` - line 434
+  - `fetchSessions()` - line 472
+  - `deleteSession()` - line 504
+  - `checkStatus()` - line 762
+  - `fetchAgents()` - line 787
+  - `fetchTeams()` - line 811
+  - `initialize()` - line 836
+- `packages/react/src/hooks/useAgnoChat.ts` - Updated `sendMessage()` to accept params
+- `packages/react/src/hooks/useAgnoSession.ts` - Updated `loadSession()` and `fetchSessions()` to accept params
+- `packages/react/src/hooks/useAgnoActions.ts` - Updated `initialize()`, `checkStatus()`, `fetchAgents()`, `fetchTeams()` to accept params
+- `packages/react/src/hooks/useAgnoToolExecution.ts` - Updated `continueWithResults()` to accept params
+
+### Migration Guide
+No migration required - this is a fully backward-compatible feature addition. Existing code continues to work without changes.
+
+To start using query parameters:
+1. Add `params` to your `AgnoClientConfig` for global parameters
+2. Pass `params` in options object for per-request parameters
+3. Parameters automatically merge with per-request overriding global
+
 ## [0.7.0] - 2025-12-30
 
 ### Added
@@ -436,6 +627,7 @@ All endpoints now align with AgentOS OpenAPI specification:
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.9.0]: https://github.com/antipopp/agno-client/compare/v0.8.0...v0.9.0
 [0.7.0]: https://github.com/antipopp/agno-client/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/antipopp/agno-client/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/antipopp/agno-client/compare/v0.5.1...v0.6.0

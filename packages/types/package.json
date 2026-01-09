@@ -1,6 +1,6 @@
 {
   "name": "@antipopp/agno-types",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "TypeScript types for Agno client libraries",
   "author": "antipopp",
   "license": "MIT",

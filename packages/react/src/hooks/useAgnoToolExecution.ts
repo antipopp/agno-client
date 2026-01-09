@@ -355,13 +355,13 @@ export function useAgnoToolExecution(
    * Manually continue the run with custom tool results
    */
   const continueWithResults = useCallback(
-    async (tools: ToolCall[]) => {
+    async (tools: ToolCall[], options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
       if (!isPaused) {
         throw new Error('No paused run to continue');
       }
       setIsExecuting(true);
       try {
-        await client.continueRun(tools);
+        await client.continueRun(tools, options);
       } catch (error) {
         setIsExecuting(false);
         throw error;

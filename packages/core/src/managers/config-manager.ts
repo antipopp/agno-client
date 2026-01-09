@@ -161,6 +161,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get global query parameters
+   */
+  getParams(): Record<string, string> | undefined {
+    return this.config.params;
+  }
+
+  /**
+   * Set global query parameters
+   */
+  setParams(params: Record<string, string> | undefined): void {
+    this.updateField('params', params);
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {
@@ -218,5 +232,31 @@ export class ConfigManager {
     }
 
     return headers;
+  }
+
+  /**
+   * Build query string by merging global params and per-request params.
+   * Merge order (lowest to highest precedence):
+   * 1. Global params from config
+   * 2. Per-request params (overrides global)
+   *
+   * @param perRequestParams - Optional query parameters for this specific request
+   * @returns URLSearchParams object ready to append to URLs
+   */
+  buildQueryString(perRequestParams?: Record<string, string>): URLSearchParams {
+    const params: Record<string, string> = {};
+
+    // 1. Apply global params from config
+    const globalParams = this.getParams();
+    if (globalParams) {
+      Object.assign(params, globalParams);
+    }
+
+    // 2. Apply per-request params (overrides global)
+    if (perRequestParams) {
+      Object.assign(params, perRequestParams);
+    }
+
+    return new URLSearchParams(params);
   }
 }

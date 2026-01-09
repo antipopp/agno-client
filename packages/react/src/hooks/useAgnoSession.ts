@@ -50,11 +50,11 @@ export function useAgnoSession() {
    * Load a specific session
    */
   const loadSession = useCallback(
-    async (sessionId: string): Promise<ChatMessage[]> => {
+    async (sessionId: string, options?: { params?: Record<string, string> }): Promise<ChatMessage[]> => {
       setIsLoading(true);
       setError(undefined);
       try {
-        const messages = await client.loadSession(sessionId);
+        const messages = await client.loadSession(sessionId, options);
         setCurrentSessionId(sessionId);
         return messages;
       } catch (err) {
@@ -71,11 +71,11 @@ export function useAgnoSession() {
   /**
    * Fetch all sessions
    */
-  const fetchSessions = useCallback(async (): Promise<SessionEntry[]> => {
+  const fetchSessions = useCallback(async (options?: { params?: Record<string, string> }): Promise<SessionEntry[]> => {
     setIsLoading(true);
     setError(undefined);
     try {
-      const fetchedSessions = await client.fetchSessions();
+      const fetchedSessions = await client.fetchSessions(options);
       setSessions(fetchedSessions);
       return fetchedSessions;
     } catch (err) {
