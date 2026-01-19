@@ -20,6 +20,11 @@ export function AgnoProvider({ config, children }: AgnoProviderProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const client = useMemo(() => new AgnoClient(config), []);
 
+  // Sync config changes to the client instance
+  useEffect(() => {
+    client.updateConfig(config);
+  }, [client, config]);
+
   // Cleanup on unmount to prevent memory leaks
   useEffect(() => {
     return () => {

@@ -136,6 +136,9 @@ export class EventProcessor {
           };
         }
 
+        // Note: UI components are now stored in tool_calls array, not extra_data
+        // This section is preserved for backward compatibility but doesn't update extra_data
+
         updatedMessage.created_at = chunk.created_at ?? lastMessage.created_at;
 
         if (chunk.images) {
@@ -223,6 +226,9 @@ export class EventProcessor {
         // Custom events are passed through without modifying message state.
         // They are handled at the client level via the 'custom:event' emission.
         // Tool-emitted custom data is available in the raw event payload.
+      case RunEventEnum.RunPaused:
+        // Run paused for HITL - handled at client level
+        // Don't update the message, just let the client emit run:paused event
         break;
 
       case RunEventEnum.RunError:

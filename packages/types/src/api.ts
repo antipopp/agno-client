@@ -229,6 +229,11 @@ export interface RunResponse {
   videos?: VideoData[];
   audio?: AudioData[];
   response_audio?: ResponseAudioData;
+  // HITL fields
+  is_paused?: boolean;
+  tools_awaiting_external_execution?: ToolCall[];
+  tools_requiring_confirmation?: ToolCall[];
+  tools_requiring_user_input?: ToolCall[];
 }
 
 /**

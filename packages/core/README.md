@@ -28,6 +28,7 @@ const client = new AgnoClient({
   mode: 'agent',
   agentId: 'your-agent-id',
   authToken: 'optional-auth-token',
+  userId: 'user-123', // Optional: Link sessions to a user
 });
 
 // Listen to message updates
@@ -66,6 +67,9 @@ new AgnoClient(config: AgnoClientConfig)
 - `teamId` (string, optional) - Team ID (required if mode is 'team')
 - `dbId` (string, optional) - Database ID
 - `sessionId` (string, optional) - Current session ID
+- `userId` (string, optional) - User ID to link sessions to a specific user
+- `headers` (Record<string, string>, optional) - Global custom headers for all API requests
+- `params` (Record<string, string>, optional) - Global query parameters for all API requests
 
 ### Methods
 
@@ -85,6 +89,17 @@ await client.sendMessage(formData);
 // With custom headers
 await client.sendMessage('Hello!', {
   headers: { 'X-Custom-Header': 'value' }
+});
+
+// With query parameters
+await client.sendMessage('Hello!', {
+  params: { temperature: '0.7', max_tokens: '500' }
+});
+
+// With both headers and params
+await client.sendMessage('Hello!', {
+  headers: { 'X-Request-ID': '12345' },
+  params: { debug: 'true' }
 });
 ```
 
@@ -136,6 +151,7 @@ Update client configuration.
 client.updateConfig({
   agentId: 'new-agent-id',
   authToken: 'new-token',
+  userId: 'user-456', // Update user ID
 });
 ```
 
@@ -237,6 +253,94 @@ try {
   console.error('Failed to send:', error);
 }
 ```
+
+### Custom Headers and Query Parameters
+
+The client supports both global and per-request headers and query parameters.
+
+#### Global Configuration
+
+Set headers and params in the client config to apply them to all API requests:
+
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  headers: {
+    'X-API-Version': 'v2',
+    'X-Client-ID': 'my-app'
+  },
+  params: {
+    locale: 'en-US',
+    environment: 'production'
+  }
+});
+```
+
+#### Per-Request Options
+
+Override or add headers/params for specific requests:
+
+```typescript
+// Per-request overrides global settings
+await client.sendMessage('Hello!', {
+  headers: { 'X-Request-ID': '12345' },
+  params: { temperature: '0.7' }
+});
+
+// All methods support headers and params
+await client.loadSession('session-123', {
+  params: { include_metadata: 'true' }
+});
+
+await client.fetchSessions({
+  params: { limit: '50', status: 'active' }
+});
+
+await client.continueRun(tools, {
+  headers: { 'X-Trace-ID': 'abc123' },
+  params: { debug: 'true' }
+});
+```
+
+#### Merge Behavior
+
+**Headers:**
+1. Global headers from `config.headers` (lowest precedence)
+2. Per-request headers (overrides global)
+3. Authorization header from `authToken` (highest precedence - always overrides)
+
+**Query Parameters:**
+1. Global params from `config.params` (lowest precedence)
+2. Per-request params (highest precedence - overrides global)
+
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  params: { version: 'v1', locale: 'en-US' }
+});
+
+// This request will have: version=v2 (overridden), locale=en-US (from global), debug=true (added)
+await client.sendMessage('Hello!', {
+  params: { version: 'v2', debug: 'true' }
+});
+```
+
+#### Common Use Cases
+
+**Headers:**
+- Request tracking: `{ 'X-Request-ID': uuid() }`
+- API versioning: `{ 'X-API-Version': 'v2' }`
+- Client identification: `{ 'X-Client-ID': 'mobile-app' }`
+- Custom auth: `{ 'X-Custom-Auth': 'token' }`
+
+**Query Parameters:**
+- Model configuration: `{ temperature: '0.7', max_tokens: '500' }`
+- Feature flags: `{ enable_streaming: 'true' }`
+- Locale/language: `{ locale: 'en-US', timezone: 'America/New_York' }`
+- Debugging: `{ debug: 'true', trace_id: 'xyz' }`
+- Pagination: `{ page: '1', limit: '50' }`
 
 ### Request Cancellation
 

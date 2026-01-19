@@ -32,6 +32,13 @@ function App() {
         endpoint: 'http://localhost:7777',
         mode: 'agent',
         agentId: 'your-agent-id',
+        userId: 'user-123', // Optional: Link sessions to a user
+        headers: {          // Optional: Global headers for all requests
+          'X-API-Version': 'v2'
+        },
+        params: {           // Optional: Global query params for all requests
+          locale: 'en-US'
+        }
       }}
     >
       <YourComponents />
@@ -133,6 +140,17 @@ await sendMessage(formData);
 await sendMessage('Hello!', {
   headers: { 'X-Custom': 'value' }
 });
+
+// Send with query parameters
+await sendMessage('Hello!', {
+  params: { temperature: '0.7', max_tokens: '500' }
+});
+
+// Send with both headers and params
+await sendMessage('Hello!', {
+  headers: { 'X-Request-ID': '12345' },
+  params: { debug: 'true' }
+});
 ```
 
 #### `clearMessages()`
@@ -163,14 +181,20 @@ function SessionList() {
   const { sessions, loadSession, fetchSessions } = useAgnoSession();
 
   useEffect(() => {
-    fetchSessions();
+    // Fetch sessions with optional query params
+    fetchSessions({ params: { limit: '50', status: 'active' } });
   }, [fetchSessions]);
+
+  const handleLoadSession = (sessionId: string) => {
+    // Load session with optional params
+    loadSession(sessionId, { params: { include_metadata: 'true' } });
+  };
 
   return (
     <ul>
       {sessions.map((session) => (
         <li key={session.session_id}>
-          <button onClick={() => loadSession(session.session_id)}>
+          <button onClick={() => handleLoadSession(session.session_id)}>
             {session.session_name}
           </button>
         </li>
@@ -200,12 +224,18 @@ const {
 
 ```tsx
 function InitComponent() {
-  const { initialize, updateConfig, isInitializing } = useAgnoActions();
+  const { initialize, fetchAgents, updateConfig, isInitializing } = useAgnoActions();
   const { state } = useAgnoChat();
 
   useEffect(() => {
-    initialize();
+    // Initialize with optional params
+    initialize({ params: { filter: 'active' } });
   }, [initialize]);
+
+  const loadMoreAgents = () => {
+    // Fetch agents with custom params
+    fetchAgents({ params: { page: '2', limit: '20' } });
+  };
 
   const switchAgent = (agentId: string) => {
     updateConfig({ agentId, mode: 'agent' });
@@ -221,6 +251,7 @@ function InitComponent() {
           {agent.name}
         </button>
       ))}
+      <button onClick={loadMoreAgents}>Load More</button>
     </div>
   );
 }

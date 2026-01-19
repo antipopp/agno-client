@@ -133,6 +133,48 @@ export class ConfigManager {
   }
 
   /**
+   * Get user ID
+   */
+  getUserId(): string | undefined {
+    return this.config.userId;
+  }
+
+  /**
+   * Set user ID
+   */
+  setUserId(userId: string | undefined): void {
+    this.updateField('userId', userId);
+  }
+
+  /**
+   * Get custom headers
+   */
+  getHeaders(): Record<string, string> | undefined {
+    return this.config.headers;
+  }
+
+  /**
+   * Set custom headers
+   */
+  setHeaders(headers: Record<string, string> | undefined): void {
+    this.updateField('headers', headers);
+  }
+
+  /**
+   * Get global query parameters
+   */
+  getParams(): Record<string, string> | undefined {
+    return this.config.params;
+  }
+
+  /**
+   * Set global query parameters
+   */
+  setParams(params: Record<string, string> | undefined): void {
+    this.updateField('params', params);
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {
@@ -157,5 +199,64 @@ export class ConfigManager {
     } else {
       return `${endpoint}/agents/${encodedEntityId}/runs`;
     }
+  }
+
+  /**
+   * Build request headers by merging global headers, per-request headers, and auth token.
+   * Merge order (lowest to highest precedence):
+   * 1. Global headers from config
+   * 2. Per-request headers (overrides global)
+   * 3. Authorization header from authToken (overrides all)
+   *
+   * @param perRequestHeaders - Optional headers for this specific request
+   * @returns Merged headers object ready for fetch
+   */
+  buildRequestHeaders(perRequestHeaders?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {};
+
+    // 1. Apply global headers from config
+    const globalHeaders = this.getHeaders();
+    if (globalHeaders) {
+      Object.assign(headers, globalHeaders);
+    }
+
+    // 2. Apply per-request headers (overrides global)
+    if (perRequestHeaders) {
+      Object.assign(headers, perRequestHeaders);
+    }
+
+    // 3. Apply Authorization from authToken (overrides all)
+    const authToken = this.getAuthToken();
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    return headers;
+  }
+
+  /**
+   * Build query string by merging global params and per-request params.
+   * Merge order (lowest to highest precedence):
+   * 1. Global params from config
+   * 2. Per-request params (overrides global)
+   *
+   * @param perRequestParams - Optional query parameters for this specific request
+   * @returns URLSearchParams object ready to append to URLs
+   */
+  buildQueryString(perRequestParams?: Record<string, string>): URLSearchParams {
+    const params: Record<string, string> = {};
+
+    // 1. Apply global params from config
+    const globalParams = this.getParams();
+    if (globalParams) {
+      Object.assign(params, globalParams);
+    }
+
+    // 2. Apply per-request params (overrides global)
+    if (perRequestParams) {
+      Object.assign(params, perRequestParams);
+    }
+
+    return new URLSearchParams(params);
   }
 }

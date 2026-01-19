@@ -13,14 +13,14 @@ export function useAgnoActions() {
   /**
    * Initialize the client (check status and fetch agents/teams)
    */
-  const initialize = useCallback(async (): Promise<{
+  const initialize = useCallback(async (options?: { params?: Record<string, string> }): Promise<{
     agents: AgentDetails[];
     teams: TeamDetails[];
   }> => {
     setIsInitializing(true);
     setError(undefined);
     try {
-      const result = await client.initialize();
+      const result = await client.initialize(options);
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -34,10 +34,10 @@ export function useAgnoActions() {
   /**
    * Check endpoint status
    */
-  const checkStatus = useCallback(async (): Promise<boolean> => {
+  const checkStatus = useCallback(async (options?: { params?: Record<string, string> }): Promise<boolean> => {
     setError(undefined);
     try {
-      return await client.checkStatus();
+      return await client.checkStatus(options);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
@@ -48,10 +48,10 @@ export function useAgnoActions() {
   /**
    * Fetch agents
    */
-  const fetchAgents = useCallback(async (): Promise<AgentDetails[]> => {
+  const fetchAgents = useCallback(async (options?: { params?: Record<string, string> }): Promise<AgentDetails[]> => {
     setError(undefined);
     try {
-      return await client.fetchAgents();
+      return await client.fetchAgents(options);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
@@ -62,10 +62,10 @@ export function useAgnoActions() {
   /**
    * Fetch teams
    */
-  const fetchTeams = useCallback(async (): Promise<TeamDetails[]> => {
+  const fetchTeams = useCallback(async (options?: { params?: Record<string, string> }): Promise<TeamDetails[]> => {
     setError(undefined);
     try {
-      return await client.fetchTeams();
+      return await client.fetchTeams(options);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);

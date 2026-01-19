@@ -19,16 +19,19 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     entityId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>,
+    params?: URLSearchParams
   ): Promise<SessionEntry[]> {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set('type', entityType);
     url.searchParams.set('component_id', entityId);
     url.searchParams.set('db_id', dbId);
 
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
 
     const response = await fetch(url.toString(), { headers });
@@ -53,17 +56,24 @@ export class SessionManager {
     entityType: 'agent' | 'team',
     sessionId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>,
+    userId?: string,
+    params?: URLSearchParams
   ): Promise<Array<RunSchema | TeamRunSchema>> {
     const url = new URL(`${endpoint}/sessions/${sessionId}/runs`);
     url.searchParams.set('type', entityType);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
     }
+    if (userId) {
+      url.searchParams.set('user_id', userId);
+    }
 
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
 
     const response = await fetch(url.toString(), { headers });
@@ -82,16 +92,19 @@ export class SessionManager {
     endpoint: string,
     sessionId: string,
     dbId: string,
-    authToken?: string
+    headers: Record<string, string>,
+    params?: URLSearchParams
   ): Promise<void> {
     const url = new URL(`${endpoint}/sessions/${sessionId}`);
     if (dbId) {
       url.searchParams.set('db_id', dbId);
     }
 
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    // Merge additional params if provided
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
 
     const response = await fetch(url.toString(), {
@@ -104,32 +117,6 @@ export class SessionManager {
     }
   }
 
-  /**
-   * Delete a team session
-   * Note: The API route has a typo with double slashes (/v1//teams), keeping it as-is for compatibility
-   */
-  async deleteTeamSession(
-    endpoint: string,
-    teamId: string,
-    sessionId: string,
-    authToken?: string
-  ): Promise<void> {
-    const url = `${endpoint}/v1//teams/${teamId}/sessions/${sessionId}`;
-
-    const headers: Record<string, string> = {};
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete team session: ${response.statusText}`);
-    }
-  }
 
   /**
    * Convert session runs array to chat messages
@@ -137,9 +124,7 @@ export class SessionManager {
   convertSessionToMessages(
     runs: Array<RunSchema | TeamRunSchema>
   ): ChatMessage[] {
-    console.log('[SessionManager] convertSessionToMessages received:', runs.length, 'runs');
     const messages = this.convertRunsToMessages(runs);
-    console.log('[SessionManager] Converted to messages:', messages.length, 'messages');
     return messages;
   }
 
@@ -169,11 +154,12 @@ export class SessionManager {
 
       // Extract tool calls from tools array
       const toolCalls: ToolCall[] = [];
+
       if (run.tools && Array.isArray(run.tools)) {
         for (const tool of run.tools) {
           const toolObj = tool as Record<string, unknown>;
-          toolCalls.push({
-            role: 'tool',
+          const toolCall = {
+            role: 'tool' as const,
             content: (toolObj.content as string) ?? '',
             tool_call_id: (toolObj.tool_call_id as string) ?? '',
             tool_name: (toolObj.tool_name as string) ?? '',
@@ -181,7 +167,9 @@ export class SessionManager {
             tool_call_error: (toolObj.tool_call_error as boolean) ?? false,
             metrics: (toolObj.metrics as { time: number }) ?? { time: 0 },
             created_at: timestamp,
-          });
+          };
+
+          toolCalls.push(toolCall);
         }
       }
 

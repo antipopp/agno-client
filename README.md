@@ -1,6 +1,6 @@
 # Agno Client Libraries
 
-Independent open-source client libraries for [Agno](https://www.agno.dev) agents with streaming support.
+Independent open-source client libraries for [Agno](https://www.agno.com) agents with streaming support.
 
 ## 📦 Packages
 
@@ -49,6 +49,7 @@ function App() {
         endpoint: 'http://localhost:7777',
         mode: 'agent',
         agentId: 'your-agent-id',
+        userId: 'user-123', // Optional: Link sessions to a user
       }}
     >
       <ChatComponent />
@@ -91,6 +92,7 @@ const client = new AgnoClient({
   endpoint: 'http://localhost:7777',
   mode: 'agent',
   agentId: 'your-agent-id',
+  userId: 'user-123', // Optional: Link sessions to a user
 });
 
 // Listen to events
@@ -138,11 +140,64 @@ agno-client/
 └── package.json       # Monorepo root
 ```
 
+## ✨ Features
+
+### Frontend Tool Execution (HITL)
+
+The library includes built-in support for Human-in-the-Loop (HITL) frontend tool execution, allowing your Agno agents to delegate tools to the browser:
+
+- **UI Automation**: Navigate pages, fill forms, click buttons
+- **Browser APIs**: Access geolocation, notifications, local storage
+- **User Confirmation**: Get user approval for sensitive operations
+- **External Integrations**: Call APIs not accessible from the backend
+
+### Generative UI
+
+Create rich, interactive UI components directly from agent responses:
+
+- **Agent-Driven Visualizations**: Let agents decide what charts and components to render
+- **Interactive Charts**: Bar, line, area, and pie charts with export functionality (CSV/PNG)
+- **Card Grids & Tables**: Display structured data with sortable, filterable tables
+- **Custom Components**: Extend with your own component renderers
+- **Persistent UI**: Components survive page refreshes (serializable specs)
+
+See [Frontend Tool Execution & Generative UI Guide](./FRONTEND_TOOL_EXECUTION.md) for detailed usage instructions.
+
+### Quick Example: Frontend Tools
+
+```tsx
+import { useAgnoToolExecution } from '@antipopp/agno-react';
+
+function ChatComponent() {
+  const toolHandlers = {
+    navigate_to_page: async (args: { url: string }) => {
+      window.location.href = args.url;
+      return { success: true };
+    },
+    get_location: async () => {
+      const position = await new Promise((resolve) =>
+        navigator.geolocation.getCurrentPosition(resolve)
+      );
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    },
+  };
+
+  const { isPaused, isExecuting, pendingTools } =
+    useAgnoToolExecution(toolHandlers);
+
+  // Tools execute automatically when agent requests them
+}
+```
+
 ## 📚 Documentation
 
 - [Core Client API](./packages/core/README.md)
 - [React Hooks API](./packages/react/README.md)
 - [Type Definitions](./packages/types/README.md)
+- [Frontend Tool Execution & Generative UI](./FRONTEND_TOOL_EXECUTION.md)
 
 ## 🤝 Contributing
 

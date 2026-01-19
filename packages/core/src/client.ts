@@ -8,6 +8,7 @@ import type {
   TeamDetails,
   ClientState,
   CustomEventData,
+  ToolCall,
 } from '@antipopp/agno-types';
 import { RunEvent } from '@antipopp/agno-types';
 import { MessageStore } from './stores/message-store';
@@ -46,6 +47,8 @@ export class AgnoClient extends EventEmitter {
   private sessionManager: SessionManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
+  private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
+  private runCompletedSuccessfully: boolean = false;
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -53,12 +56,17 @@ export class AgnoClient extends EventEmitter {
     this.configManager = new ConfigManager(config);
     this.sessionManager = new SessionManager();
     this.eventProcessor = new EventProcessor();
+    this.pendingUISpecs = new Map();
     this.state = {
       isStreaming: false,
+      isRefreshing: false,
       isEndpointActive: false,
       agents: [],
       teams: [],
       sessions: [],
+      isPaused: false,
+      pausedRunId: undefined,
+      toolsAwaitingExecution: undefined,
     };
   }
 
@@ -97,6 +105,7 @@ export class AgnoClient extends EventEmitter {
   clearMessages(): void {
     this.messageStore.clear();
     this.configManager.setSessionId(undefined);
+    this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
     this.emit('message:update', this.messageStore.getMessages());
     this.emit('state:change', this.getState());
   }
@@ -106,11 +115,14 @@ export class AgnoClient extends EventEmitter {
    */
   async sendMessage(
     message: string | FormData,
-    options?: { headers?: Record<string, string> }
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
     }
+
+    // Reset completion flag for new message
+    this.runCompletedSuccessfully = false;
 
     const runUrl = this.configManager.getRunUrl();
     if (!runUrl) {
@@ -163,15 +175,19 @@ export class AgnoClient extends EventEmitter {
       formData.append('stream', 'true');
       formData.append('session_id', newSessionId ?? '');
 
-      const headers: Record<string, string> = { ...options?.headers };
-      const authToken = this.configManager.getAuthToken();
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
+      // Add user_id if configured
+      const userId = this.configManager.getUserId();
+      if (userId) {
+        formData.append('user_id', userId);
       }
+
+      const headers = this.configManager.buildRequestHeaders(options?.headers);
+      const params = this.configManager.buildQueryString(options?.params);
 
       await streamResponse({
         apiUrl: runUrl,
         headers,
+        params,
         requestBody: formData,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, newSessionId, formData.get('message') as string);
@@ -191,11 +207,17 @@ export class AgnoClient extends EventEmitter {
         onError: (error) => {
           this.handleError(error, newSessionId);
         },
-        onComplete: () => {
+        onComplete: async () => {
           this.state.isStreaming = false;
           this.emit('stream:end');
           this.emit('message:complete', this.messageStore.getMessages());
           this.emit('state:change', this.getState());
+
+          // Trigger refresh if run completed successfully
+          if (this.runCompletedSuccessfully) {
+            this.runCompletedSuccessfully = false;
+            await this.refreshSessionMessages();
+          }
         },
       });
     } catch (error) {
@@ -237,6 +259,27 @@ export class AgnoClient extends EventEmitter {
       }
     }
 
+    // Handle pause for HITL
+    if (event === RunEvent.RunPaused) {
+      this.state.isStreaming = false;
+      this.state.isPaused = true;
+      this.state.pausedRunId = chunk.run_id;
+      this.state.toolsAwaitingExecution =
+        chunk.tools_awaiting_external_execution ||
+        chunk.tools_requiring_confirmation ||
+        chunk.tools_requiring_user_input ||
+        chunk.tools ||
+        [];
+
+      this.emit('run:paused', {
+        runId: chunk.run_id,
+        sessionId: chunk.session_id,
+        tools: this.state.toolsAwaitingExecution,
+      });
+      this.emit('state:change', this.getState());
+      return;
+    }
+
     // Handle errors
     if (
       event === RunEvent.RunError ||
@@ -275,6 +318,14 @@ export class AgnoClient extends EventEmitter {
       return updated || lastMessage;
     });
 
+    // Apply any pending UI specs to newly arrived tool calls
+    this.applyPendingUISpecs();
+
+    // Track if run completed successfully for post-stream refresh
+    if (event === RunEvent.RunCompleted || event === RunEvent.TeamRunCompleted) {
+      this.runCompletedSuccessfully = true;
+    }
+
     this.emit('message:update', this.messageStore.getMessages());
   }
 
@@ -302,21 +353,109 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
+   * Refresh messages from the session API after run completion.
+   * Replaces streamed messages with authoritative session data.
+   * Preserves client-side properties like ui_component that aren't stored on the server.
+   * @private
+   */
+  private async refreshSessionMessages(): Promise<void> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) {
+      Logger.debug('[AgnoClient] Cannot refresh: no session ID');
+      return;
+    }
+
+    this.state.isRefreshing = true;
+    this.emit('state:change', this.getState());
+
+    try {
+      // Preserve ui_component properties from existing tool calls before refresh
+      // The API doesn't store these - they're added client-side during HITL execution
+      const existingUIComponents = new Map<string, any>();
+      for (const message of this.messageStore.getMessages()) {
+        if (message.tool_calls) {
+          for (const toolCall of message.tool_calls) {
+            if ((toolCall as any).ui_component) {
+              existingUIComponents.set(toolCall.tool_call_id, (toolCall as any).ui_component);
+            }
+          }
+        }
+      }
+
+      const config = this.configManager.getConfig();
+      const entityType = this.configManager.getMode();
+      const dbId = this.configManager.getDbId() || '';
+      const userId = this.configManager.getUserId();
+      const headers = this.configManager.buildRequestHeaders();
+
+      const params = this.configManager.buildQueryString();
+
+      const response = await this.sessionManager.fetchSession(
+        config.endpoint,
+        entityType,
+        sessionId,
+        dbId,
+        headers,
+        userId,
+        params
+      );
+
+      const messages = this.sessionManager.convertSessionToMessages(response);
+
+      // Re-apply preserved ui_component properties to matching tool calls
+      if (existingUIComponents.size > 0) {
+        for (const message of messages) {
+          if (message.tool_calls) {
+            for (let i = 0; i < message.tool_calls.length; i++) {
+              const toolCall = message.tool_calls[i];
+              const uiComponent = existingUIComponents.get(toolCall.tool_call_id);
+              if (uiComponent) {
+                (message.tool_calls[i] as any).ui_component = uiComponent;
+              }
+            }
+          }
+        }
+      }
+
+      this.messageStore.setMessages(messages);
+
+      Logger.debug('[AgnoClient] Session refreshed:', `${messages.length} messages`);
+
+      this.emit('message:refreshed', messages);
+      this.emit('message:update', messages);
+    } catch (error) {
+      Logger.error('[AgnoClient] Failed to refresh session:', error);
+      this.emit('message:error', `Session refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.state.isRefreshing = false;
+      this.emit('state:change', this.getState());
+    }
+  }
+
+  /**
    * Load a session
    */
-  async loadSession(sessionId: string): Promise<ChatMessage[]> {
+  async loadSession(
+    sessionId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ChatMessage[]> {
     Logger.debug('[AgnoClient] loadSession called with sessionId:', sessionId);
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
     const dbId = this.configManager.getDbId() || '';
-    Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId });
+    const userId = this.configManager.getUserId();
+    Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId, userId });
 
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     const response = await this.sessionManager.fetchSession(
       config.endpoint,
       entityType,
       sessionId,
       dbId,
-      config.authToken
+      headers,
+      userId,
+      params
     );
 
     const messages = this.sessionManager.convertSessionToMessages(response);
@@ -336,7 +475,7 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch all sessions
    */
-  async fetchSessions(): Promise<SessionEntry[]> {
+  async fetchSessions(options?: { params?: Record<string, string> }): Promise<SessionEntry[]> {
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
     const entityId = this.configManager.getCurrentEntityId();
@@ -346,12 +485,15 @@ export class AgnoClient extends EventEmitter {
       throw new Error('Entity ID must be configured');
     }
 
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     const sessions = await this.sessionManager.fetchSessions(
       config.endpoint,
       entityType,
       entityId,
       dbId,
-      config.authToken
+      headers,
+      params
     );
 
     this.state.sessions = sessions;
@@ -363,15 +505,21 @@ export class AgnoClient extends EventEmitter {
   /**
    * Delete a session
    */
-  async deleteSession(sessionId: string): Promise<void> {
+  async deleteSession(
+    sessionId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
     const config = this.configManager.getConfig();
     const dbId = this.configManager.getDbId() || '';
 
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
     await this.sessionManager.deleteSession(
       config.endpoint,
       sessionId,
       dbId,
-      config.authToken
+      headers,
+      params
     );
 
     // Remove from state
@@ -387,38 +535,247 @@ export class AgnoClient extends EventEmitter {
     this.emit('state:change', this.getState());
   }
 
+
   /**
-   * Delete a team session
+   * Add tool calls to the last message
+   * Used by frontend execution to add tool calls that were executed locally
    */
-  async deleteTeamSession(teamId: string, sessionId: string): Promise<void> {
-    const config = this.configManager.getConfig();
-
-    await this.sessionManager.deleteTeamSession(
-      config.endpoint,
-      teamId,
-      sessionId,
-      config.authToken
-    );
-
-    // Remove from state
-    this.state.sessions = this.state.sessions.filter(
-      (s) => s.session_id !== sessionId
-    );
-
-    // Clear messages if this was the current session
-    if (this.configManager.getSessionId() === sessionId) {
-      this.clearMessages();
+  addToolCallsToLastMessage(toolCalls: ToolCall[]): void {
+    const lastMessage = this.messageStore.getLastMessage();
+    if (!lastMessage || lastMessage.role !== 'agent') {
+      return;
     }
 
+    const existingToolCalls = lastMessage.tool_calls || [];
+    const existingIds = new Set(existingToolCalls.map(t => t.tool_call_id));
+
+    // Only add tool calls that don't already exist
+    const newToolCalls = toolCalls.filter(t => !existingIds.has(t.tool_call_id));
+
+    if (newToolCalls.length > 0) {
+      this.messageStore.updateLastMessage((msg) => ({
+        ...msg,
+        tool_calls: [...existingToolCalls, ...newToolCalls],
+      }));
+
+      this.emit('message:update', this.messageStore.getMessages());
+    }
+  }
+
+  /**
+   * Hydrate a specific tool call with its UI component
+   * If tool call doesn't exist yet, stores UI spec as pending
+   */
+  hydrateToolCallUI(toolCallId: string, uiSpec: any): void {
+    // Find the message containing this tool call and update it
+    const messages = this.messageStore.getMessages();
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+
+      if (message.tool_calls) {
+        const toolIndex = message.tool_calls.findIndex(
+          t => t.tool_call_id === toolCallId
+        );
+
+        if (toolIndex !== -1) {
+          // Update this specific message
+          this.messageStore.updateMessage(i, (msg) => {
+            const updatedToolCalls = [...(msg.tool_calls || [])];
+            updatedToolCalls[toolIndex] = {
+              ...updatedToolCalls[toolIndex],
+              ui_component: uiSpec,
+            };
+
+            return {
+              ...msg,
+              tool_calls: updatedToolCalls,
+            };
+          });
+
+          // Remove from pending if it was there
+          this.pendingUISpecs.delete(toolCallId);
+
+          // Emit event to sync with React state
+          this.emit('message:update', this.messageStore.getMessages());
+          return;
+        }
+      }
+    }
+
+    // Tool call not found yet - store UI spec as pending
+    this.pendingUISpecs.set(toolCallId, uiSpec);
+  }
+
+  /**
+   * Apply any pending UI specs to tool calls that have just been added
+   * Called after message updates to attach UI to newly arrived tool calls
+   * Batches all updates to emit only one message:update event
+   */
+  private applyPendingUISpecs(): void {
+    if (this.pendingUISpecs.size === 0) return;
+
+    const messages = this.messageStore.getMessages();
+    const updatedMessages: { index: number; message: ChatMessage }[] = [];
+
+    // Collect all updates first (batching)
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+
+      if (message.tool_calls) {
+        let messageUpdated = false;
+        const updatedToolCalls = [...message.tool_calls];
+
+        for (let j = 0; j < updatedToolCalls.length; j++) {
+          const toolCall = updatedToolCalls[j];
+          const pendingUI = this.pendingUISpecs.get(toolCall.tool_call_id);
+
+          if (pendingUI && !(toolCall as any).ui_component) {
+            updatedToolCalls[j] = {
+              ...updatedToolCalls[j],
+              ui_component: pendingUI,
+            };
+
+            this.pendingUISpecs.delete(toolCall.tool_call_id);
+            messageUpdated = true;
+          }
+        }
+
+        if (messageUpdated) {
+          updatedMessages.push({
+            index: i,
+            message: {
+              ...message,
+              tool_calls: updatedToolCalls,
+            },
+          });
+        }
+      }
+    }
+
+    // Apply all updates at once
+    if (updatedMessages.length > 0) {
+      updatedMessages.forEach(({ index, message }) => {
+        this.messageStore.updateMessage(index, () => message);
+      });
+
+      this.emit('message:update', this.messageStore.getMessages());
+    }
+  }
+
+  /**
+   * Continue a paused run with tool execution results.
+   *
+   * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
+   * Teams do not support the continue endpoint.
+   *
+   * @param tools - Array of tool calls with execution results
+   * @param options - Optional request headers and query parameters
+   * @throws Error if no paused run exists
+   * @throws Error if called with team mode (teams don't support HITL)
+   */
+  async continueRun(
+    tools: ToolCall[],
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
+  ): Promise<void> {
+    // Validate that we're not in team mode (teams don't support continue endpoint)
+    if (this.configManager.getMode() === 'team') {
+      throw new Error(
+        'HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. ' +
+        'Only agents support the continue endpoint.'
+      );
+    }
+
+    if (!this.state.isPaused || !this.state.pausedRunId) {
+      throw new Error('No paused run to continue');
+    }
+
+    const runUrl = this.configManager.getRunUrl();
+    if (!runUrl) {
+      throw new Error('No agent or team selected');
+    }
+
+    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
+    const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
+
+    this.state.isPaused = false;
+    this.state.isStreaming = true;
+    this.emit('run:continued', { runId: this.state.pausedRunId });
     this.emit('state:change', this.getState());
+
+    // Clean tools before sending to backend (remove UI-specific fields)
+    const cleanedTools = tools.map(tool => {
+      const { ui_component, ...backendTool } = tool as any;
+      return backendTool;
+    });
+
+    const formData = new FormData();
+    formData.append('tools', JSON.stringify(cleanedTools));
+    formData.append('stream', 'true');
+
+    const currentSessionId = this.configManager.getSessionId();
+    if (currentSessionId) {
+      formData.append('session_id', currentSessionId);
+    }
+
+    // Add user_id if configured
+    const userId = this.configManager.getUserId();
+    if (userId) {
+      formData.append('user_id', userId);
+    }
+
+    const headers = this.configManager.buildRequestHeaders(options?.headers);
+    const params = this.configManager.buildQueryString(options?.params);
+
+    try {
+      await streamResponse({
+        apiUrl: continueUrl,
+        headers,
+        params,
+        requestBody: formData,
+        onChunk: (chunk: RunResponse) => {
+          this.handleChunk(chunk, currentSessionId, '');
+        },
+        onError: (error) => {
+          this.handleError(error, currentSessionId);
+        },
+        onComplete: async () => {
+          this.state.isStreaming = false;
+          this.state.pausedRunId = undefined;
+          this.state.toolsAwaitingExecution = undefined;
+          this.emit('stream:end');
+          this.emit('message:complete', this.messageStore.getMessages());
+          this.emit('state:change', this.getState());
+
+          // Trigger refresh if run completed successfully
+          if (this.runCompletedSuccessfully) {
+            this.runCompletedSuccessfully = false;
+            await this.refreshSessionMessages();
+          }
+        },
+      });
+    } catch (error) {
+      this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        currentSessionId
+      );
+    }
   }
 
   /**
    * Check endpoint status
    */
-  async checkStatus(): Promise<boolean> {
+  async checkStatus(options?: { params?: Record<string, string> }): Promise<boolean> {
     try {
-      const response = await fetch(`${this.configManager.getEndpoint()}/health`);
+      const headers = this.configManager.buildRequestHeaders();
+      const params = this.configManager.buildQueryString(options?.params);
+      const url = new URL(`${this.configManager.getEndpoint()}/health`);
+      if (params.toString()) {
+        params.forEach((value, key) => {
+          url.searchParams.set(key, value);
+        });
+      }
+      const response = await fetch(url.toString(), { headers });
       const isActive = response.ok;
       this.state.isEndpointActive = isActive;
       this.emit('state:change', this.getState());
@@ -433,14 +790,16 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch agents from endpoint
    */
-  async fetchAgents(): Promise<AgentDetails[]> {
-    const config = this.configManager.getConfig();
-    const headers: Record<string, string> = {};
-    if (config.authToken) {
-      headers['Authorization'] = `Bearer ${config.authToken}`;
+  async fetchAgents(options?: { params?: Record<string, string> }): Promise<AgentDetails[]> {
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(`${this.configManager.getEndpoint()}/agents`);
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
-
-    const response = await fetch(`${config.endpoint}/agents`, { headers });
+    const response = await fetch(url.toString(), { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch agents');
     }
@@ -455,14 +814,16 @@ export class AgnoClient extends EventEmitter {
   /**
    * Fetch teams from endpoint
    */
-  async fetchTeams(): Promise<TeamDetails[]> {
-    const config = this.configManager.getConfig();
-    const headers: Record<string, string> = {};
-    if (config.authToken) {
-      headers['Authorization'] = `Bearer ${config.authToken}`;
+  async fetchTeams(options?: { params?: Record<string, string> }): Promise<TeamDetails[]> {
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(`${this.configManager.getEndpoint()}/teams`);
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
     }
-
-    const response = await fetch(`${config.endpoint}/teams`, { headers });
+    const response = await fetch(url.toString(), { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch teams');
     }
@@ -478,18 +839,18 @@ export class AgnoClient extends EventEmitter {
    * Initialize client (check status and fetch agents/teams)
    * Automatically selects the first available agent or team if none is configured
    */
-  async initialize(): Promise<{
+  async initialize(options?: { params?: Record<string, string> }): Promise<{
     agents: AgentDetails[];
     teams: TeamDetails[];
   }> {
-    const isActive = await this.checkStatus();
+    const isActive = await this.checkStatus(options);
     if (!isActive) {
       return { agents: [], teams: [] };
     }
 
     const [agents, teams] = await Promise.all([
-      this.fetchAgents(),
-      this.fetchTeams(),
+      this.fetchAgents(options),
+      this.fetchTeams(options),
     ]);
 
     // Auto-select first available agent or team if none is configured
