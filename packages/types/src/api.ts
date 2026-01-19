@@ -284,3 +284,50 @@ export interface TeamSessionRunsResponse {
   data: TeamRunSchema[];
   meta: PaginationInfo;
 }
+
+/**
+ * Data payload for CustomEvent events emitted by agent tools.
+ *
+ * Custom events contain standard metadata fields plus arbitrary
+ * user-defined fields from the tool implementation.
+ *
+ * @example
+ * // A greet_user tool might emit:
+ * {
+ *   event: 'CustomEvent',
+ *   created_at: 1768858175,
+ *   agent_id: 'hello-agno-world',
+ *   agent_name: 'Hello Agno World',
+ *   run_id: '3b032e52-...',
+ *   session_id: '94528649-...',
+ *   greeting: 'Hello! Welcome to Agno World!'  // Custom field
+ * }
+ */
+export interface CustomEventData {
+  /** Event type identifier */
+  event: 'CustomEvent';
+
+  /** Unix timestamp when the event was created */
+  created_at: number;
+
+  /** Agent ID (for agent runs) */
+  agent_id?: string;
+
+  /** Agent display name */
+  agent_name?: string;
+
+  /** Team ID (for team runs) */
+  team_id?: string;
+
+  /** Current run ID */
+  run_id?: string;
+
+  /** Current session ID */
+  session_id?: string;
+
+  /**
+   * Custom fields from the tool implementation.
+   * These are user-defined and vary by tool.
+   */
+  [key: string]: unknown;
+}

@@ -7,6 +7,7 @@ import type {
   AgentDetails,
   TeamDetails,
   ClientState,
+  CustomEventData,
   ToolCall,
 } from '@antipopp/agno-types';
 import { RunEvent } from '@antipopp/agno-types';
@@ -304,6 +305,11 @@ export class AgnoClient extends EventEmitter {
 
       this.emit('message:error', errorContent);
       return;
+    }
+
+    // Emit semantic custom:event for CustomEvent types
+    if (event === RunEvent.CustomEvent) {
+      this.emit('custom:event', chunk as unknown as CustomEventData);
     }
 
     // Process the chunk and update message

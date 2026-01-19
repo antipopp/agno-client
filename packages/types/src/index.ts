@@ -41,6 +41,7 @@ export type {
   SessionsListResponse,
   SessionRunsResponse,
   TeamSessionRunsResponse,
+  CustomEventData,
 } from './api';
 
 // Config

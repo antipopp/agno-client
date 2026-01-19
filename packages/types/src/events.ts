@@ -31,6 +31,8 @@ export enum RunEvent {
   TeamReasoningCompleted = 'TeamReasoningCompleted',
   TeamMemoryUpdateStarted = 'TeamMemoryUpdateStarted',
   TeamMemoryUpdateCompleted = 'TeamMemoryUpdateCompleted',
+  // Custom Events (user-defined events from tools)
+  CustomEvent = 'CustomEvent',
 }
 
 /**
@@ -47,6 +49,7 @@ export type ClientEvent =
   | 'stream:end'
   | 'state:change'
   | 'config:change'
+  | 'custom:event';
   | 'run:paused'
   | 'run:continued'
   // Generative UI events

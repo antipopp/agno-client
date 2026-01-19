@@ -222,6 +222,10 @@ export class EventProcessor {
         // No-op for now
         break;
 
+      case RunEventEnum.CustomEvent:
+        // Custom events are passed through without modifying message state.
+        // They are handled at the client level via the 'custom:event' emission.
+        // Tool-emitted custom data is available in the raw event payload.
       case RunEventEnum.RunPaused:
         // Run paused for HITL - handled at client level
         // Don't update the message, just let the client emit run:paused event

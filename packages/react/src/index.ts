@@ -49,6 +49,7 @@ export type {
 export { useAgnoChat } from './hooks/useAgnoChat';
 export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
+export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 
@@ -62,6 +63,7 @@ export type {
   TeamDetails,
   ClientState,
   RunEvent,
+  CustomEventData,
   // Generative UI types
   UIComponentSpec,
   ChartComponentSpec,
