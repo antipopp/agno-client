@@ -138,4 +138,8 @@ export interface ChatMessage {
   response_audio?: ResponseAudioData;
   created_at: number;
   streamingError?: boolean;
+  /**
+   * Whether this message was cancelled during streaming
+   */
+  cancelled?: boolean;
 }

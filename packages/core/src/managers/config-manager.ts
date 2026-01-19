@@ -202,6 +202,32 @@ export class ConfigManager {
   }
 
   /**
+   * Construct the cancel URL for a specific run
+   * POST /agents/{agent_id}/runs/{run_id}/cancel
+   * POST /teams/{team_id}/runs/{run_id}/cancel
+   *
+   * @param runId - The run ID to cancel
+   * @returns The cancel URL or null if entity ID is not configured
+   */
+  getCancelUrl(runId: string): string | null {
+    const mode = this.getMode();
+    const endpoint = this.getEndpoint();
+    const entityId = this.getCurrentEntityId();
+
+    if (!entityId || !runId) return null;
+
+    // Encode IDs to prevent path traversal and handle special characters
+    const encodedEntityId = encodeURIComponent(entityId);
+    const encodedRunId = encodeURIComponent(runId);
+
+    if (mode === 'team') {
+      return `${endpoint}/teams/${encodedEntityId}/runs/${encodedRunId}/cancel`;
+    } else {
+      return `${endpoint}/agents/${encodedEntityId}/runs/${encodedRunId}/cancel`;
+    }
+  }
+
+  /**
    * Build request headers by merging global headers, per-request headers, and auth token.
    * Merge order (lowest to highest precedence):
    * 1. Global headers from config

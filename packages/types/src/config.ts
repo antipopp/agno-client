@@ -75,6 +75,11 @@ export interface StreamOptions {
    * Request timeout in milliseconds
    */
   timeout?: number;
+
+  /**
+   * AbortSignal for request cancellation
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -130,4 +135,14 @@ export interface ClientState {
    * Tools awaiting external execution
    */
   toolsAwaitingExecution?: import('./messages').ToolCall[];
+
+  /**
+   * Current active run ID (during streaming)
+   */
+  currentRunId?: string;
+
+  /**
+   * Whether a cancellation request is in progress
+   */
+  isCancelling?: boolean;
 }
