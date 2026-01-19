@@ -11,6 +11,7 @@ export type { AgnoProviderProps } from './context/AgnoContext';
 export { useAgnoChat } from './hooks/useAgnoChat';
 export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
+export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 
 // Re-export types from dependencies
 export type {
@@ -22,4 +23,5 @@ export type {
   TeamDetails,
   ClientState,
   RunEvent,
+  CustomEventData,
 } from '@antipopp/agno-types';
