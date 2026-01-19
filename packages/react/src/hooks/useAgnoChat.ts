@@ -46,12 +46,19 @@ export function useAgnoChat() {
       }
     };
 
+    // Handle run cancelled event
+    const handleRunCancelled = () => {
+      // State is already updated via state:change event
+      // This handler can be used for additional cancellation logic if needed
+    };
+
     client.on('message:update', handleMessageUpdate);
     client.on('message:complete', handleMessageComplete);
     client.on('message:refreshed', handleMessageRefreshed);
     client.on('message:error', handleMessageError);
     client.on('state:change', handleStateChange);
     client.on('ui:render', handleUIRender);
+    client.on('run:cancelled', handleRunCancelled);
 
     // Initialize state
     setMessages(client.getMessages());
@@ -64,6 +71,7 @@ export function useAgnoChat() {
       client.off('message:error', handleMessageError);
       client.off('state:change', handleStateChange);
       client.off('ui:render', handleUIRender);
+      client.off('run:cancelled', handleRunCancelled);
     };
   }, [client]);
 
@@ -93,13 +101,29 @@ export function useAgnoChat() {
     setError(undefined);
   }, [client]);
 
+  /**
+   * Cancel the current run
+   */
+  const cancelRun = useCallback(async () => {
+    try {
+      await client.cancelRun();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [client]);
+
   return {
     messages,
     sendMessage,
     clearMessages,
+    cancelRun,
     isStreaming: state.isStreaming,
     isRefreshing: state.isRefreshing,
     isPaused: state.isPaused,
+    isCancelling: state.isCancelling,
+    currentRunId: state.currentRunId,
     error,
     state,
   };

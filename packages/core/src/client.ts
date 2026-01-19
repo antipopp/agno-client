@@ -48,6 +48,8 @@ export class AgnoClient extends EventEmitter {
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
   private runCompletedSuccessfully: boolean = false;
+  private currentRunId?: string;
+  private abortController?: AbortController;
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -66,6 +68,8 @@ export class AgnoClient extends EventEmitter {
       isPaused: false,
       pausedRunId: undefined,
       toolsAwaitingExecution: undefined,
+      currentRunId: undefined,
+      isCancelling: false,
     };
   }
 
@@ -114,7 +118,7 @@ export class AgnoClient extends EventEmitter {
    */
   async sendMessage(
     message: string | FormData,
-    options?: { headers?: Record<string, string>; params?: Record<string, string> }
+    options?: { headers?: Record<string, string>; params?: Record<string, string>; signal?: AbortSignal }
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
@@ -122,6 +126,9 @@ export class AgnoClient extends EventEmitter {
 
     // Reset completion flag for new message
     this.runCompletedSuccessfully = false;
+
+    // Create new AbortController for this request
+    this.abortController = new AbortController();
 
     const runUrl = this.configManager.getRunUrl();
     if (!runUrl) {
@@ -188,6 +195,7 @@ export class AgnoClient extends EventEmitter {
         headers,
         params,
         requestBody: formData,
+        signal: options?.signal ?? this.abortController?.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, newSessionId, formData.get('message') as string);
 
@@ -208,6 +216,9 @@ export class AgnoClient extends EventEmitter {
         },
         onComplete: async () => {
           this.state.isStreaming = false;
+          this.currentRunId = undefined;
+          this.state.currentRunId = undefined;
+          this.abortController = undefined;
           this.emit('stream:end');
           this.emit('message:complete', this.messageStore.getMessages());
           this.emit('state:change', this.getState());
@@ -233,13 +244,20 @@ export class AgnoClient extends EventEmitter {
   private handleChunk(chunk: RunResponse, currentSessionId: string | undefined, messageContent: string): void {
     const event = chunk.event as RunEvent;
 
-    // Handle session creation
+    // Handle session creation and run ID tracking
     if (
       event === RunEvent.RunStarted ||
       event === RunEvent.TeamRunStarted ||
       event === RunEvent.ReasoningStarted ||
       event === RunEvent.TeamReasoningStarted
     ) {
+      // Track current run ID
+      if (chunk.run_id) {
+        this.currentRunId = chunk.run_id;
+        this.state.currentRunId = chunk.run_id;
+        this.emit('state:change', this.getState());
+      }
+
       if (chunk.session_id && (!currentSessionId || currentSessionId !== chunk.session_id)) {
         const sessionData: SessionEntry = {
           session_id: chunk.session_id,
@@ -256,6 +274,12 @@ export class AgnoClient extends EventEmitter {
           this.emit('session:created', sessionData);
         }
       }
+    }
+
+    // Handle run cancellation (user-initiated, distinct from errors)
+    if (event === RunEvent.RunCancelled) {
+      this.handleRunCancelled(chunk);
+      return;
     }
 
     // Handle pause for HITL
@@ -344,6 +368,131 @@ export class AgnoClient extends EventEmitter {
     this.emit('message:error', error.message);
     this.emit('stream:end');
     this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Handle RunCancelled event from backend
+   * Cancellation is user-initiated and distinct from errors
+   */
+  private handleRunCancelled(chunk: RunResponse): void {
+    this.state.isStreaming = false;
+    this.state.isCancelling = false;
+    this.state.currentRunId = undefined;
+    this.currentRunId = undefined;
+    this.abortController = undefined;
+
+    // Mark message as cancelled (distinct from error)
+    this.messageStore.updateLastMessage((msg) => ({
+      ...msg,
+      cancelled: true,
+    }));
+
+    this.emit('run:cancelled', {
+      runId: chunk.run_id,
+      sessionId: chunk.session_id,
+    });
+    this.emit('stream:end');
+    this.emit('message:update', this.messageStore.getMessages());
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Handle local cancellation cleanup
+   * Called when user cancels, regardless of backend response
+   */
+  private handleLocalCancellation(): void {
+    const runId = this.currentRunId;
+    const sessionId = this.configManager.getSessionId();
+
+    this.state.isStreaming = false;
+    this.state.isCancelling = false;
+    this.state.currentRunId = undefined;
+    this.currentRunId = undefined;
+    this.abortController = undefined;
+
+    this.messageStore.updateLastMessage((msg) => ({
+      ...msg,
+      cancelled: true,
+    }));
+
+    this.emit('run:cancelled', { runId, sessionId });
+    this.emit('stream:end');
+    this.emit('message:update', this.messageStore.getMessages());
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Cancel the current running agent/team run.
+   *
+   * This will:
+   * 1. Abort the local fetch stream (immediate UI feedback)
+   * 2. Notify the backend to stop processing
+   * 3. Emit 'run:cancelled' event
+   *
+   * @param options - Optional request headers and query parameters
+   * @throws Error if no run is currently streaming
+   */
+  async cancelRun(options?: {
+    headers?: Record<string, string>;
+    params?: Record<string, string>;
+  }): Promise<void> {
+    if (!this.state.isStreaming) {
+      throw new Error('No active run to cancel');
+    }
+
+    if (!this.currentRunId) {
+      throw new Error('No run ID available for cancellation');
+    }
+
+    this.state.isCancelling = true;
+    this.emit('state:change', this.getState());
+
+    // 1. Abort local stream immediately for instant UI feedback
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = undefined;
+    }
+
+    // 2. Notify backend to stop processing
+    const cancelUrl = this.configManager.getCancelUrl(this.currentRunId);
+    if (!cancelUrl) {
+      // Still cleanup local state even if no cancel URL
+      this.handleLocalCancellation();
+      return;
+    }
+
+    try {
+      const headers = this.configManager.buildRequestHeaders(options?.headers);
+      const params = this.configManager.buildQueryString(options?.params);
+
+      const url = new URL(cancelUrl);
+      if (params.toString()) {
+        params.forEach((value, key) => url.searchParams.set(key, value));
+      }
+
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        Logger.warn(`[AgnoClient] Cancel request failed: ${response.status}`);
+        // Still cleanup local state
+      }
+    } catch (error) {
+      Logger.warn('[AgnoClient] Cancel request error:', error);
+      // Still cleanup local state even on network error
+    }
+
+    // 3. Cleanup local state (in case backend didn't send RunCancelled event)
+    this.handleLocalCancellation();
+  }
+
+  /**
+   * Get current run ID (if streaming)
+   */
+  getCurrentRunId(): string | undefined {
+    return this.currentRunId;
   }
 
   /**
@@ -670,7 +819,7 @@ export class AgnoClient extends EventEmitter {
    */
   async continueRun(
     tools: ToolCall[],
-    options?: { headers?: Record<string, string>; params?: Record<string, string> }
+    options?: { headers?: Record<string, string>; params?: Record<string, string>; signal?: AbortSignal }
   ): Promise<void> {
     // Validate that we're not in team mode (teams don't support continue endpoint)
     if (this.configManager.getMode() === 'team') {
@@ -691,6 +840,9 @@ export class AgnoClient extends EventEmitter {
 
     // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
     const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
+
+    // Create new AbortController for this request
+    this.abortController = new AbortController();
 
     this.state.isPaused = false;
     this.state.isStreaming = true;
@@ -727,6 +879,7 @@ export class AgnoClient extends EventEmitter {
         headers,
         params,
         requestBody: formData,
+        signal: options?.signal ?? this.abortController?.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, currentSessionId, '');
         },
@@ -737,6 +890,9 @@ export class AgnoClient extends EventEmitter {
           this.state.isStreaming = false;
           this.state.pausedRunId = undefined;
           this.state.toolsAwaitingExecution = undefined;
+          this.currentRunId = undefined;
+          this.state.currentRunId = undefined;
+          this.abortController = undefined;
           this.emit('stream:end');
           this.emit('message:complete', this.messageStore.getMessages());
           this.emit('state:change', this.getState());

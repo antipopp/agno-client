@@ -227,6 +227,11 @@ export class EventProcessor {
         // Don't update the message, just let the client emit run:paused event
         break;
 
+      case RunEventEnum.RunCancelled:
+        // User-initiated cancellation - mark as cancelled, not error
+        updatedMessage.cancelled = true;
+        break;
+
       case RunEventEnum.RunError:
       case RunEventEnum.TeamRunError:
       case RunEventEnum.TeamRunCancelled:
