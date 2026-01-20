@@ -14,7 +14,7 @@ This monorepo contains three packages:
 
 Built with production-ready security features:
 
-- **Request Cancellation** - AbortController support to prevent memory leaks and orphaned requests
+- **Request Cancellation** - Single `cancelRun()` method that aborts client stream AND notifies backend to stop processing
 - **Secure Logging** - Production-safe logger that automatically sanitizes auth tokens and sensitive data
 - **URL Encoding** - Automatic encoding of entity IDs to prevent path traversal and injection attacks
 - **Timestamp Validation** - Safe date handling with bounds checking to prevent invalid timestamps

@@ -153,7 +153,7 @@ export async function streamResponse(options: {
   onChunk: (chunk: RunResponseContent) => void;
   onError: (error: Error) => void;
   onComplete: () => void;
-  signal?: AbortSignal;
+  signal: AbortSignal;
 }): Promise<void> {
   const {
     apiUrl,

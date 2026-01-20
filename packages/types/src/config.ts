@@ -75,11 +75,6 @@ export interface StreamOptions {
    * Request timeout in milliseconds
    */
   timeout?: number;
-
-  /**
-   * AbortSignal for request cancellation
-   */
-  signal?: AbortSignal;
 }
 
 /**

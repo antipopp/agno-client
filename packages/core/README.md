@@ -344,54 +344,63 @@ await client.sendMessage('Hello!', {
 
 ### Request Cancellation
 
-Use `AbortController` to cancel ongoing requests. This is essential for preventing memory leaks when components unmount or users navigate away during streaming:
+Use the `cancelRun()` method to cancel ongoing streaming requests. This provides a complete cancellation flow that:
+1. **Aborts the local fetch stream** - Immediate UI feedback
+2. **Notifies the backend** - Stops LLM processing and saves compute costs
 
 ```typescript
-const controller = new AbortController();
+// Start a streaming request
+await client.sendMessage('Hello!');
 
-// Pass signal to sendMessage options
-await client.sendMessage('Hello!', {
-  signal: controller.signal
-});
+// Cancel the request
+await client.cancelRun();
+```
 
-// Cancel the request (e.g., on component unmount)
-controller.abort();
+**State Tracking:**
+
+```typescript
+// Check cancellation state
+const state = client.getState();
+console.log(state.isStreaming);    // true while streaming
+console.log(state.isCancelling);   // true during cancellation
+console.log(state.currentRunId);   // current run ID (if streaming)
 ```
 
 **React Example:**
 
 ```typescript
-import { useEffect } from 'react';
-import { AgnoClient } from '@antipopp/agno-client';
+import { useAgnoChat } from '@antipopp/agno-react';
 
 function ChatComponent() {
-  const client = new AgnoClient(config);
+  const { sendMessage, cancelRun, isStreaming, isCancelling } = useAgnoChat();
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const handleSend = async () => {
+    await sendMessage('Hello!');
+  };
 
-    // Send message with abort signal
-    client.sendMessage('Hello!', {
-      signal: controller.signal
-    });
+  const handleCancel = async () => {
+    await cancelRun();
+  };
 
-    // Cleanup: cancel request on unmount
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  return <div>Chat</div>;
+  return (
+    <div>
+      <button onClick={handleSend} disabled={isStreaming}>Send</button>
+      <button onClick={handleCancel} disabled={!isStreaming || isCancelling}>
+        {isCancelling ? 'Cancelling...' : 'Cancel'}
+      </button>
+    </div>
+  );
 }
 ```
 
 **Use Cases:**
+- **User cancellation** - Allow users to stop long-running requests via a "Stop" button
 - **Component unmounting** - Cancel requests when user navigates away
-- **Request timeouts** - Implement custom timeout logic
-- **User cancellation** - Allow users to cancel long-running requests
-- **Preventing memory leaks** - Ensure streaming stops when components are destroyed
+- **Timeout handling** - Cancel requests that exceed a time limit
 
-**Note:** Aborted requests will not trigger the `onError` callback - they complete silently.
+**Events:**
+- `run:cancelled` - Emitted when cancellation completes (includes `runId` and `sessionId`)
+- Cancelled messages have `cancelled: true` flag (distinct from errors)
 
 ## License
 

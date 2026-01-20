@@ -115,10 +115,14 @@ export class AgnoClient extends EventEmitter {
 
   /**
    * Send a message to the agent/team (streaming)
+   *
+   * To cancel a running request, use the `cancelRun()` method which:
+   * 1. Aborts the local fetch stream (immediate UI feedback)
+   * 2. Notifies the backend to stop processing (saves compute costs)
    */
   async sendMessage(
     message: string | FormData,
-    options?: { headers?: Record<string, string>; params?: Record<string, string>; signal?: AbortSignal }
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
@@ -195,7 +199,7 @@ export class AgnoClient extends EventEmitter {
         headers,
         params,
         requestBody: formData,
-        signal: options?.signal ?? this.abortController?.signal,
+        signal: this.abortController.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, newSessionId, formData.get('message') as string);
 
@@ -277,7 +281,7 @@ export class AgnoClient extends EventEmitter {
     }
 
     // Handle run cancellation (user-initiated, distinct from errors)
-    if (event === RunEvent.RunCancelled) {
+    if (event === RunEvent.RunCancelled || event === RunEvent.TeamRunCancelled) {
       this.handleRunCancelled(chunk);
       return;
     }
@@ -306,12 +310,10 @@ export class AgnoClient extends EventEmitter {
     // Handle errors
     if (
       event === RunEvent.RunError ||
-      event === RunEvent.TeamRunError ||
-      event === RunEvent.TeamRunCancelled
+      event === RunEvent.TeamRunError
     ) {
       const errorContent =
-        (chunk.content as string) ||
-        (event === RunEvent.TeamRunCancelled ? 'Run cancelled' : 'Error during run');
+        (chunk.content as string) || 'Error during run';
 
       this.state.errorMessage = errorContent;
       this.messageStore.updateLastMessage((msg) => ({
@@ -812,6 +814,8 @@ export class AgnoClient extends EventEmitter {
    * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
    * Teams do not support the continue endpoint.
    *
+   * To cancel a running request, use the `cancelRun()` method.
+   *
    * @param tools - Array of tool calls with execution results
    * @param options - Optional request headers and query parameters
    * @throws Error if no paused run exists
@@ -819,7 +823,7 @@ export class AgnoClient extends EventEmitter {
    */
   async continueRun(
     tools: ToolCall[],
-    options?: { headers?: Record<string, string>; params?: Record<string, string>; signal?: AbortSignal }
+    options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
     // Validate that we're not in team mode (teams don't support continue endpoint)
     if (this.configManager.getMode() === 'team') {
@@ -879,7 +883,7 @@ export class AgnoClient extends EventEmitter {
         headers,
         params,
         requestBody: formData,
-        signal: options?.signal ?? this.abortController?.signal,
+        signal: this.abortController.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, currentSessionId, '');
         },
