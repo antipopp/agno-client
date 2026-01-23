@@ -6,16 +6,16 @@
  */
 
 import type {
-  ChartComponentSpec,
-  CardGridComponentSpec,
-  CardData,
-  TableComponentSpec,
-  TableColumn,
-  MarkdownComponentSpec,
   ArtifactComponentSpec,
-  UIComponentSpec,
+  CardData,
+  CardGridComponentSpec,
+  ChartComponentSpec,
+  MarkdownComponentSpec,
+  TableColumn,
+  TableComponentSpec,
   ToolHandlerResult,
-} from '@antipopp/agno-types';
+  UIComponentSpec,
+} from "@antipopp/agno-types";
 
 /**
  * Chart helper options
@@ -26,7 +26,7 @@ export interface ChartHelperOptions {
   /** Chart description */
   description?: string;
   /** Layout preference */
-  layout?: 'inline' | 'artifact';
+  layout?: "inline" | "artifact";
   /** Show legend */
   showLegend?: boolean;
   /** Show grid */
@@ -47,15 +47,15 @@ export function createBarChart(
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
-    type: 'chart',
-    component: 'BarChart',
+    type: "chart",
+    component: "BarChart",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
     props: {
       data,
       xKey,
-      bars: bars.map(bar => ({
+      bars: bars.map((bar) => ({
         key: bar.key,
         label: bar.label || bar.key,
         color: bar.color,
@@ -78,15 +78,15 @@ export function createLineChart(
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
-    type: 'chart',
-    component: 'LineChart',
+    type: "chart",
+    component: "LineChart",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
     props: {
       data,
       xKey,
-      lines: lines.map(line => ({
+      lines: lines.map((line) => ({
         key: line.key,
         label: line.label || line.key,
         color: line.color,
@@ -109,8 +109,8 @@ export function createPieChart(
   options?: ChartHelperOptions & { showLabel?: boolean }
 ): ChartComponentSpec {
   return {
-    type: 'chart',
-    component: 'PieChart',
+    type: "chart",
+    component: "PieChart",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
@@ -138,15 +138,15 @@ export function createAreaChart(
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
-    type: 'chart',
-    component: 'AreaChart',
+    type: "chart",
+    component: "AreaChart",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
     props: {
       data,
       xKey,
-      areas: areas.map(area => ({
+      areas: areas.map((area) => ({
         key: area.key,
         label: area.label || area.key,
         color: area.color,
@@ -165,7 +165,7 @@ export function createAreaChart(
 export interface CardGridHelperOptions {
   title?: string;
   description?: string;
-  layout?: 'inline' | 'artifact';
+  layout?: "inline" | "artifact";
   columns?: {
     default?: number;
     sm?: number;
@@ -173,7 +173,7 @@ export interface CardGridHelperOptions {
     lg?: number;
     xl?: number;
   };
-  variant?: 'default' | 'bordered' | 'elevated';
+  variant?: "default" | "bordered" | "elevated";
 }
 
 /**
@@ -184,14 +184,14 @@ export function createCardGrid(
   options?: CardGridHelperOptions
 ): CardGridComponentSpec {
   return {
-    type: 'card-grid',
+    type: "card-grid",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
     props: {
       cards,
       columns: options?.columns || { default: 1, md: 2, lg: 3 },
-      variant: options?.variant || 'default',
+      variant: options?.variant || "default",
     },
   };
 }
@@ -206,7 +206,7 @@ export function createCard(
   options?: {
     image?: string;
     metadata?: Record<string, any>;
-    actions?: CardData['actions'];
+    actions?: CardData["actions"];
   }
 ): CardData {
   return {
@@ -225,14 +225,14 @@ export function createCard(
 export interface TableHelperOptions {
   title?: string;
   description?: string;
-  layout?: 'inline' | 'artifact';
+  layout?: "inline" | "artifact";
   sortable?: boolean;
   filterable?: boolean;
   pagination?: {
     pageSize?: number;
     pageSizeOptions?: number[];
   };
-  density?: 'comfortable' | 'compact';
+  density?: "comfortable" | "compact";
 }
 
 /**
@@ -244,7 +244,7 @@ export function createTable(
   options?: TableHelperOptions
 ): TableComponentSpec {
   return {
-    type: 'table',
+    type: "table",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
@@ -254,7 +254,7 @@ export function createTable(
       sortable: options?.sortable ?? true,
       filterable: options?.filterable,
       pagination: options?.pagination,
-      density: options?.density || 'comfortable',
+      density: options?.density || "comfortable",
     },
   };
 }
@@ -268,8 +268,8 @@ export function createColumn(
   options?: {
     width?: number | string;
     sortable?: boolean;
-    cellType?: 'text' | 'number' | 'date' | 'badge' | 'link';
-    format?: TableColumn['format'];
+    cellType?: "text" | "number" | "date" | "badge" | "link";
+    format?: TableColumn["format"];
   }
 ): TableColumn {
   return {
@@ -277,7 +277,7 @@ export function createColumn(
     header,
     width: options?.width,
     sortable: options?.sortable,
-    cellType: options?.cellType || 'text',
+    cellType: options?.cellType || "text",
     format: options?.format,
   };
 }
@@ -290,12 +290,12 @@ export function createMarkdown(
   options?: {
     title?: string;
     description?: string;
-    layout?: 'inline' | 'artifact';
+    layout?: "inline" | "artifact";
     syntaxHighlight?: boolean;
   }
 ): MarkdownComponentSpec {
   return {
-    type: 'markdown',
+    type: "markdown",
     layout: options?.layout,
     title: options?.title,
     description: options?.description,
@@ -314,16 +314,16 @@ export function createArtifact(
   options?: {
     title?: string;
     description?: string;
-    variant?: 'default' | 'bordered' | 'elevated';
+    variant?: "default" | "bordered" | "elevated";
   }
 ): ArtifactComponentSpec {
   return {
-    type: 'artifact',
+    type: "artifact",
     title: options?.title,
     description: options?.description,
     props: {
       content,
-      variant: options?.variant || 'default',
+      variant: options?.variant || "default",
     },
   };
 }
@@ -336,15 +336,15 @@ export function createSmartChart(
   options?: {
     title?: string;
     description?: string;
-    layout?: 'inline' | 'artifact';
+    layout?: "inline" | "artifact";
     xKey?: string;
     yKeys?: string[];
-    preferredType?: 'bar' | 'line' | 'area' | 'pie';
+    preferredType?: "bar" | "line" | "area" | "pie";
   }
 ): ChartComponentSpec {
   // If no data, return a default bar chart
   if (!data || data.length === 0) {
-    return createBarChart([], '', [], options);
+    return createBarChart([], "", [], options);
   }
 
   // Auto-detect keys if not provided
@@ -354,61 +354,65 @@ export function createSmartChart(
   // Try to find suitable xKey (first string key or 'name', 'label', 'category', etc.)
   const xKey =
     options?.xKey ||
-    keys.find(k =>
-      ['name', 'label', 'category', 'date', 'time', 'month', 'year'].includes(k.toLowerCase())
+    keys.find((k) =>
+      ["name", "label", "category", "date", "time", "month", "year"].includes(
+        k.toLowerCase()
+      )
     ) ||
     keys[0];
 
   // Get numeric keys for yKeys
-  const numericKeys = keys.filter(k => k !== xKey && typeof firstItem[k] === 'number');
+  const numericKeys = keys.filter(
+    (k) => k !== xKey && typeof firstItem[k] === "number"
+  );
   const yKeys = options?.yKeys || numericKeys;
 
   // Respect explicit preferredType first
   if (options?.preferredType) {
     switch (options.preferredType) {
-      case 'bar':
+      case "bar":
         return createBarChart(
           data,
           xKey,
-          yKeys.map(key => ({ key })),
+          yKeys.map((key) => ({ key })),
           options
         );
-      case 'line':
+      case "line":
         return createLineChart(
           data,
           xKey,
-          yKeys.map(key => ({ key })),
+          yKeys.map((key) => ({ key })),
           options
         );
-      case 'area':
+      case "area":
         return createAreaChart(
           data,
           xKey,
-          yKeys.map(key => ({ key })),
+          yKeys.map((key) => ({ key })),
           options
         );
-      case 'pie':
+      case "pie":
         return createPieChart(data, yKeys[0], xKey, options);
     }
   }
 
   // Auto-detect based on data characteristics
   // If only one value key and non-numeric xKey, consider pie chart
-  if (yKeys.length === 1 && typeof firstItem[xKey] === 'string') {
+  if (yKeys.length === 1 && typeof firstItem[xKey] === "string") {
     return createPieChart(data, yKeys[0], xKey, options);
   }
 
   // If xKey looks like a date/time, prefer line chart
   if (
-    xKey.toLowerCase().includes('date') ||
-    xKey.toLowerCase().includes('time') ||
-    xKey.toLowerCase().includes('month') ||
-    xKey.toLowerCase().includes('year')
+    xKey.toLowerCase().includes("date") ||
+    xKey.toLowerCase().includes("time") ||
+    xKey.toLowerCase().includes("month") ||
+    xKey.toLowerCase().includes("year")
   ) {
     return createLineChart(
       data,
       xKey,
-      yKeys.map(key => ({ key })),
+      yKeys.map((key) => ({ key })),
       options
     );
   }
@@ -417,7 +421,7 @@ export function createSmartChart(
   return createBarChart(
     data,
     xKey,
-    yKeys.map(key => ({ key })),
+    yKeys.map((key) => ({ key })),
     options
   );
 }
@@ -425,7 +429,10 @@ export function createSmartChart(
 /**
  * Wrap data and UI into a ToolHandlerResult
  */
-export function createToolResult(data: any, ui: UIComponentSpec): ToolHandlerResult {
+export function createToolResult(
+  data: any,
+  ui: UIComponentSpec
+): ToolHandlerResult {
   return { data, ui };
 }
 

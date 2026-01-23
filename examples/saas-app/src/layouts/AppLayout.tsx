@@ -1,29 +1,36 @@
-import { Link, Outlet } from 'react-router-dom'
-import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from '@/components/ui/navigation-menu'
-import { AICopilot } from '@/components/chat/AICopilot'
+import { Link, Outlet } from "react-router-dom";
+import { AICopilot } from "@/components/chat/AICopilot";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from "@/components/ui/navigation-menu";
 
 export function AppLayout() {
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex h-screen flex-col">
       {/* Top Navigation */}
       <header className="border-b bg-background px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <h1 className="text-xl font-semibold">SaaS Dashboard</h1>
+            <h1 className="font-semibold text-xl">SaaS Dashboard</h1>
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuLink asChild className="px-4 py-2 hover:bg-accent rounded-md">
-                    <Link to="/">
-                      Dashboard
-                    </Link>
+                  <NavigationMenuLink
+                    asChild
+                    className="rounded-md px-4 py-2 hover:bg-accent"
+                  >
+                    <Link to="/">Dashboard</Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuLink asChild className="px-4 py-2 hover:bg-accent rounded-md">
-                    <Link to="/reports">
-                      Reports
-                    </Link>
+                  <NavigationMenuLink
+                    asChild
+                    className="rounded-md px-4 py-2 hover:bg-accent"
+                  >
+                    <Link to="/reports">Reports</Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -45,5 +52,5 @@ export function AppLayout() {
         </aside>
       </div>
     </div>
-  )
+  );
 }

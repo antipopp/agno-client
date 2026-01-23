@@ -9,7 +9,7 @@ export interface ToolMetrics {
  * Tool call information
  */
 export interface ToolCall {
-  role: 'user' | 'tool' | 'system' | 'assistant';
+  role: "user" | "tool" | "system" | "assistant";
   content: string | null;
   tool_call_id: string;
   tool_name: string;
@@ -31,7 +31,7 @@ export interface ToolCall {
  * Reasoning step message
  */
 export interface ReasoningMessage {
-  role: 'user' | 'tool' | 'system' | 'assistant';
+  role: "user" | "tool" | "system" | "assistant";
   content: string | null;
   tool_call_id?: string;
   tool_name?: string;
@@ -128,7 +128,7 @@ export interface MessageExtraData {
  * Chat message structure
  */
 export interface ChatMessage {
-  role: 'user' | 'agent' | 'system' | 'tool';
+  role: "user" | "agent" | "system" | "tool";
   content: string;
   tool_calls?: ToolCall[];
   extra_data?: MessageExtraData;

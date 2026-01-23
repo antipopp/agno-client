@@ -49,6 +49,23 @@ pnpm --filter @antipopp/agno-react build
 cd packages/core && pnpm dev
 ```
 
+### Verification Commands (REQUIRED)
+
+**After making any code changes, ALWAYS run these commands to verify the implementation:**
+
+```bash
+# 1. Lint - Check code style and catch common issues
+pnpm lint
+
+# 2. Type check - Ensure TypeScript types are correct
+pnpm typecheck
+
+# 3. Test - Run all unit tests
+pnpm test
+```
+
+All three commands must pass before considering a change complete. Fix any errors before moving on.
+
 ### Important Notes
 
 - **Always build in order**: types → core → react (or use `pnpm build` which handles this)

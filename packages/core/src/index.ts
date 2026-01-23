@@ -3,28 +3,25 @@
  * Core client library for Agno agents with streaming support
  */
 
-// Main client
-export { AgnoClient } from './client';
-
-// Utilities
-export { Logger } from './utils/logger';
-
 // Re-export types from @antipopp/agno-types
 export type {
+  AgentDetails,
   AgnoClientConfig,
+  AudioData,
   ChatMessage,
-  ToolCall,
+  ClientState,
+  ImageData,
+  MessageExtraData,
+  ResponseAudioData,
   RunResponse,
   RunResponseContent,
   SessionEntry,
-  AgentDetails,
   TeamDetails,
-  ClientState,
-  MessageExtraData,
-  ImageData,
+  ToolCall,
   VideoData,
-  AudioData,
-  ResponseAudioData,
-} from '@antipopp/agno-types';
-
-export { RunEvent } from '@antipopp/agno-types';
+} from "@antipopp/agno-types";
+export { RunEvent } from "@antipopp/agno-types";
+// Main client
+export { AgnoClient } from "./client";
+// Utilities
+export { Logger } from "./utils/logger";

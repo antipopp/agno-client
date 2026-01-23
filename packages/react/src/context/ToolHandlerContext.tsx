@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { ToolHandler } from '../hooks/useAgnoToolExecution';
+import type React from "react";
+import { createContext, useCallback, useContext, useState } from "react";
+import type { ToolHandler } from "../hooks/useAgnoToolExecution";
 
 /**
  * Context value for tool handler registry
@@ -37,21 +38,25 @@ export interface ToolHandlerProviderProps {
  * </ToolHandlerProvider>
  * ```
  */
-export function ToolHandlerProvider({ handlers: initialHandlers = {}, children }: ToolHandlerProviderProps) {
-  const [handlers, setHandlers] = useState<Record<string, ToolHandler>>(initialHandlers);
+export function ToolHandlerProvider({
+  handlers: initialHandlers = {},
+  children,
+}: ToolHandlerProviderProps) {
+  const [handlers, setHandlers] =
+    useState<Record<string, ToolHandler>>(initialHandlers);
 
   /**
    * Register a new tool handler or update an existing one
    */
   const registerHandler = useCallback((name: string, handler: ToolHandler) => {
-    setHandlers(prev => ({ ...prev, [name]: handler }));
+    setHandlers((prev) => ({ ...prev, [name]: handler }));
   }, []);
 
   /**
    * Unregister a tool handler
    */
   const unregisterHandler = useCallback((name: string) => {
-    setHandlers(prev => {
+    setHandlers((prev) => {
       const { [name]: _, ...rest } = prev;
       return rest;
     });

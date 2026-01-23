@@ -1,37 +1,43 @@
-import { useAgnoClient, useAgnoChat } from '@antipopp/agno-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useEffect, useState } from 'react'
-import { Copy, Activity } from 'lucide-react'
-import { toast } from 'sonner'
+import { useAgnoChat, useAgnoClient } from "@antipopp/agno-react";
+import { Activity, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface EventLog {
-  timestamp: number
-  event: string
-  data?: any
+  timestamp: number;
+  event: string;
+  data?: any;
 }
 
 export function StateInspector() {
-  const client = useAgnoClient()
-  const { messages, isStreaming, error } = useAgnoChat()
-  const [eventLog, setEventLog] = useState<EventLog[]>([])
+  const client = useAgnoClient();
+  const { messages, isStreaming, error } = useAgnoChat();
+  const [eventLog, setEventLog] = useState<EventLog[]>([]);
 
   // Listen to all events and log them
   useEffect(() => {
     const events = [
-      'message:update',
-      'message:complete',
-      'message:error',
-      'session:loaded',
-      'session:created',
-      'stream:start',
-      'stream:end',
-      'state:change',
-      'config:change',
-    ]
+      "message:update",
+      "message:complete",
+      "message:error",
+      "session:loaded",
+      "session:created",
+      "stream:start",
+      "stream:end",
+      "state:change",
+      "config:change",
+    ];
 
     const handlers = events.map((eventName) => {
       const handler = (data?: any) => {
@@ -42,109 +48,117 @@ export function StateInspector() {
             data: data ? JSON.stringify(data, null, 2) : undefined,
           },
           ...prev.slice(0, 49), // Keep last 50 events
-        ])
-      }
-      client.on(eventName, handler)
-      return { eventName, handler }
-    })
+        ]);
+      };
+      client.on(eventName, handler);
+      return { eventName, handler };
+    });
 
     return () => {
       handlers.forEach(({ eventName, handler }) => {
-        client.off(eventName, handler)
-      })
-    }
-  }, [client])
+        client.off(eventName, handler);
+      });
+    };
+  }, [client]);
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard')
-  }
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
 
-  const config = client.getConfig()
-  const clientState = client.getState()
+  const config = client.getConfig();
+  const clientState = client.getState();
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4 p-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
             Debug Inspector
           </CardTitle>
-          <CardDescription>Real-time state and event monitoring</CardDescription>
+          <CardDescription>
+            Real-time state and event monitoring
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="state" className="w-full">
+          <Tabs className="w-full" defaultValue="state">
             <TabsList className="w-full">
-              <TabsTrigger value="state" className="flex-1">
+              <TabsTrigger className="flex-1" value="state">
                 State
               </TabsTrigger>
-              <TabsTrigger value="config" className="flex-1">
+              <TabsTrigger className="flex-1" value="config">
                 Config
               </TabsTrigger>
-              <TabsTrigger value="events" className="flex-1">
+              <TabsTrigger className="flex-1" value="events">
                 Events
               </TabsTrigger>
             </TabsList>
 
             {/* State Tab */}
-            <TabsContent value="state" className="space-y-3">
+            <TabsContent className="space-y-3" value="state">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Streaming</span>
-                  <Badge variant={isStreaming ? 'default' : 'secondary'}>
-                    {isStreaming ? 'Active' : 'Inactive'}
+                  <span className="font-medium text-sm">Streaming</span>
+                  <Badge variant={isStreaming ? "default" : "secondary"}>
+                    {isStreaming ? "Active" : "Inactive"}
                   </Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Endpoint Active</span>
-                  <Badge variant={clientState.isEndpointActive ? 'default' : 'destructive'}>
-                    {clientState.isEndpointActive ? 'Yes' : 'No'}
+                  <span className="font-medium text-sm">Endpoint Active</span>
+                  <Badge
+                    variant={
+                      clientState.isEndpointActive ? "default" : "destructive"
+                    }
+                  >
+                    {clientState.isEndpointActive ? "Yes" : "No"}
                   </Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Messages</span>
+                  <span className="font-medium text-sm">Messages</span>
                   <Badge variant="outline">{messages.length}</Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Sessions</span>
+                  <span className="font-medium text-sm">Sessions</span>
                   <Badge variant="outline">{clientState.sessions.length}</Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Agents</span>
+                  <span className="font-medium text-sm">Agents</span>
                   <Badge variant="outline">{clientState.agents.length}</Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Teams</span>
+                  <span className="font-medium text-sm">Teams</span>
                   <Badge variant="outline">{clientState.teams.length}</Badge>
                 </div>
 
                 {error && (
-                  <div className="p-2 bg-destructive/10 text-destructive text-xs rounded">
+                  <div className="rounded bg-destructive/10 p-2 text-destructive text-xs">
                     {error}
                   </div>
                 )}
               </div>
 
               <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Full State</span>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium text-sm">Full State</span>
                   <Button
-                    variant="outline"
+                    onClick={() =>
+                      copyToClipboard(JSON.stringify(clientState, null, 2))
+                    }
                     size="sm"
-                    onClick={() => copyToClipboard(JSON.stringify(clientState, null, 2))}
+                    variant="outline"
                   >
-                    <Copy className="h-3 w-3 mr-1" />
+                    <Copy className="mr-1 h-3 w-3" />
                     Copy
                   </Button>
                 </div>
                 <ScrollArea className="h-[200px]">
-                  <pre className="text-xs bg-muted p-2 rounded overflow-auto">
+                  <pre className="overflow-auto rounded bg-muted p-2 text-xs">
                     {JSON.stringify(clientState, null, 2)}
                   </pre>
                 </ScrollArea>
@@ -152,80 +166,98 @@ export function StateInspector() {
             </TabsContent>
 
             {/* Config Tab */}
-            <TabsContent value="config" className="space-y-3">
+            <TabsContent className="space-y-3" value="config">
               <div className="space-y-2 text-sm">
                 <div>
                   <span className="font-medium">Endpoint:</span>
-                  <div className="text-muted-foreground break-all">{config.endpoint}</div>
+                  <div className="break-all text-muted-foreground">
+                    {config.endpoint}
+                  </div>
                 </div>
                 <div>
                   <span className="font-medium">Mode:</span>
-                  <Badge variant="outline" className="ml-2">
-                    {config.mode || 'Not set'}
+                  <Badge className="ml-2" variant="outline">
+                    {config.mode || "Not set"}
                   </Badge>
                 </div>
                 <div>
                   <span className="font-medium">Agent ID:</span>
-                  <div className="text-muted-foreground break-all">
-                    {config.agentId || 'Not set'}
+                  <div className="break-all text-muted-foreground">
+                    {config.agentId || "Not set"}
                   </div>
                 </div>
                 <div>
                   <span className="font-medium">Team ID:</span>
-                  <div className="text-muted-foreground break-all">
-                    {config.teamId || 'Not set'}
+                  <div className="break-all text-muted-foreground">
+                    {config.teamId || "Not set"}
                   </div>
                 </div>
                 <div>
                   <span className="font-medium">Database ID:</span>
-                  <div className="text-muted-foreground break-all">
-                    {config.dbId || 'Not set'}
+                  <div className="break-all text-muted-foreground">
+                    {config.dbId || "Not set"}
                   </div>
                 </div>
                 <div>
                   <span className="font-medium">Session ID:</span>
-                  <div className="text-muted-foreground break-all">
-                    {config.sessionId || 'Not set'}
+                  <div className="break-all text-muted-foreground">
+                    {config.sessionId || "Not set"}
                   </div>
                 </div>
                 <div>
                   <span className="font-medium">Auth Token:</span>
                   <div className="text-muted-foreground">
-                    {config.authToken ? '••••••••' : 'Not set'}
+                    {config.authToken ? "••••••••" : "Not set"}
                   </div>
                 </div>
               </div>
 
               <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Full Config</span>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium text-sm">Full Config</span>
                   <Button
-                    variant="outline"
-                    size="sm"
                     onClick={() =>
                       copyToClipboard(
-                        JSON.stringify({ ...config, authToken: config.authToken ? '***' : undefined }, null, 2)
+                        JSON.stringify(
+                          {
+                            ...config,
+                            authToken: config.authToken ? "***" : undefined,
+                          },
+                          null,
+                          2
+                        )
                       )
                     }
+                    size="sm"
+                    variant="outline"
                   >
-                    <Copy className="h-3 w-3 mr-1" />
+                    <Copy className="mr-1 h-3 w-3" />
                     Copy
                   </Button>
                 </div>
-                <pre className="text-xs bg-muted p-2 rounded overflow-auto">
-                  {JSON.stringify({ ...config, authToken: config.authToken ? '***' : undefined }, null, 2)}
+                <pre className="overflow-auto rounded bg-muted p-2 text-xs">
+                  {JSON.stringify(
+                    {
+                      ...config,
+                      authToken: config.authToken ? "***" : undefined,
+                    },
+                    null,
+                    2
+                  )}
                 </pre>
               </div>
             </TabsContent>
 
             {/* Events Tab */}
-            <TabsContent value="events" className="space-y-3">
+            <TabsContent className="space-y-3" value="events">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Event Log ({eventLog.length})</span>
+                <span className="font-medium text-sm">
+                  Event Log ({eventLog.length})
+                </span>
                 <Button
-                  variant="outline"
-                  size="sm"
                   onClick={() => setEventLog([])}
+                  size="sm"
+                  variant="outline"
                 >
                   Clear
                 </Button>
@@ -234,23 +266,23 @@ export function StateInspector() {
               <ScrollArea className="h-[400px]">
                 <div className="space-y-2">
                   {eventLog.length === 0 ? (
-                    <div className="text-center text-sm text-muted-foreground py-8">
+                    <div className="py-8 text-center text-muted-foreground text-sm">
                       No events yet
                     </div>
                   ) : (
                     eventLog.map((log, idx) => (
-                      <Card key={idx} className="p-2">
+                      <Card className="p-2" key={idx}>
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs" variant="outline">
                               {log.event}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-muted-foreground text-xs">
                               {new Date(log.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
                           {log.data && (
-                            <pre className="text-xs bg-muted p-1 rounded overflow-auto max-h-[100px]">
+                            <pre className="max-h-[100px] overflow-auto rounded bg-muted p-1 text-xs">
                               {log.data}
                             </pre>
                           )}
@@ -265,5 +297,5 @@ export function StateInspector() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

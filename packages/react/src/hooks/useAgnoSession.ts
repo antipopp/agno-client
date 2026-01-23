@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { SessionEntry, ChatMessage } from '@antipopp/agno-types';
-import { useAgnoClient } from '../context/AgnoContext';
+import type { ChatMessage, SessionEntry } from "@antipopp/agno-types";
+import { useCallback, useEffect, useState } from "react";
+import { useAgnoClient } from "../context/AgnoContext";
 
 /**
  * Hook for session management
@@ -31,18 +31,18 @@ export function useAgnoSession() {
       setSessions(client.getState().sessions);
     };
 
-    client.on('session:loaded', handleSessionLoaded);
-    client.on('session:created', handleSessionCreated);
-    client.on('state:change', handleStateChange);
+    client.on("session:loaded", handleSessionLoaded);
+    client.on("session:created", handleSessionCreated);
+    client.on("state:change", handleStateChange);
 
     // Initialize
     setSessions(client.getState().sessions);
     setCurrentSessionId(client.getConfig().sessionId);
 
     return () => {
-      client.off('session:loaded', handleSessionLoaded);
-      client.off('session:created', handleSessionCreated);
-      client.off('state:change', handleStateChange);
+      client.off("session:loaded", handleSessionLoaded);
+      client.off("session:created", handleSessionCreated);
+      client.off("state:change", handleStateChange);
     };
   }, [client]);
 
@@ -50,7 +50,10 @@ export function useAgnoSession() {
    * Load a specific session
    */
   const loadSession = useCallback(
-    async (sessionId: string, options?: { params?: Record<string, string> }): Promise<ChatMessage[]> => {
+    async (
+      sessionId: string,
+      options?: { params?: Record<string, string> }
+    ): Promise<ChatMessage[]> => {
       setIsLoading(true);
       setError(undefined);
       try {
@@ -71,21 +74,26 @@ export function useAgnoSession() {
   /**
    * Fetch all sessions
    */
-  const fetchSessions = useCallback(async (options?: { params?: Record<string, string> }): Promise<SessionEntry[]> => {
-    setIsLoading(true);
-    setError(undefined);
-    try {
-      const fetchedSessions = await client.fetchSessions(options);
-      setSessions(fetchedSessions);
-      return fetchedSessions;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [client]);
+  const fetchSessions = useCallback(
+    async (options?: {
+      params?: Record<string, string>;
+    }): Promise<SessionEntry[]> => {
+      setIsLoading(true);
+      setError(undefined);
+      try {
+        const fetchedSessions = await client.fetchSessions(options);
+        setSessions(fetchedSessions);
+        return fetchedSessions;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client]
+  );
 
   return {
     sessions,

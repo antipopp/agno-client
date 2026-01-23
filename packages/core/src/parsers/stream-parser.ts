@@ -1,15 +1,15 @@
-import type { RunResponseContent } from '@antipopp/agno-types';
+import type { RunResponseContent } from "@antipopp/agno-types";
 
 /**
  * Detects if the incoming data is in the legacy format (direct RunResponseContent)
  */
 function isLegacyFormat(data: RunResponseContent): boolean {
   return (
-    typeof data === 'object' &&
+    typeof data === "object" &&
     data !== null &&
-    'event' in data &&
-    !('data' in data) &&
-    typeof data.event === 'string'
+    "event" in data &&
+    !("data" in data) &&
+    typeof data.event === "string"
   );
 }
 
@@ -29,7 +29,7 @@ function convertNewFormatToLegacy(
   const { event, data } = newFormatData;
 
   let parsedData: Record<string, unknown>;
-  if (typeof data === 'string') {
+  if (typeof data === "string") {
     try {
       parsedData = JSON.parse(data);
     } catch {
@@ -64,7 +64,7 @@ export function parseBuffer(
   onChunk: (chunk: RunResponseContent) => void
 ): string {
   let currentIndex = 0;
-  let jsonStartIndex = buffer.indexOf('{', currentIndex);
+  let jsonStartIndex = buffer.indexOf("{", currentIndex);
 
   while (jsonStartIndex !== -1 && jsonStartIndex < buffer.length) {
     let braceCount = 0;
@@ -79,22 +79,20 @@ export function parseBuffer(
       if (inString) {
         if (escapeNext) {
           escapeNext = false;
-        } else if (char === '\\') {
+        } else if (char === "\\") {
           escapeNext = true;
         } else if (char === '"') {
           inString = false;
         }
-      } else {
-        if (char === '"') {
-          inString = true;
-        } else if (char === '{') {
-          braceCount++;
-        } else if (char === '}') {
-          braceCount--;
-          if (braceCount === 0) {
-            jsonEndIndex = i;
-            break;
-          }
+      } else if (char === '"') {
+        inString = true;
+      } else if (char === "{") {
+        braceCount++;
+      } else if (char === "}") {
+        braceCount--;
+        if (braceCount === 0) {
+          jsonEndIndex = i;
+          break;
         }
       }
     }
@@ -113,27 +111,34 @@ export function parseBuffer(
         }
       } catch (error) {
         // Log parse errors in development mode for debugging
-        if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-          console.error('Failed to parse JSON chunk:', {
+        if (
+          typeof process !== "undefined" &&
+          process.env?.NODE_ENV === "development"
+        ) {
+          console.error("Failed to parse JSON chunk:", {
             error,
-            chunk: jsonString.substring(0, 100) + (jsonString.length > 100 ? '...' : ''),
+            chunk:
+              jsonString.substring(0, 100) +
+              (jsonString.length > 100 ? "..." : ""),
             position: jsonStartIndex,
           });
         }
 
         // Throw error for very large unparseable chunks (indicates real problem)
-        if (jsonString.length > 10000) {
-          throw new Error(`Failed to parse large JSON chunk at position ${jsonStartIndex}`);
+        if (jsonString.length > 10_000) {
+          throw new Error(
+            `Failed to parse large JSON chunk at position ${jsonStartIndex}`
+          );
         }
 
-        jsonStartIndex = buffer.indexOf('{', jsonStartIndex + 1);
+        jsonStartIndex = buffer.indexOf("{", jsonStartIndex + 1);
         continue;
       }
 
       currentIndex = jsonEndIndex + 1;
       buffer = buffer.slice(currentIndex).trim();
       currentIndex = 0;
-      jsonStartIndex = buffer.indexOf('{', currentIndex);
+      jsonStartIndex = buffer.indexOf("{", currentIndex);
     } else {
       break;
     }
@@ -166,19 +171,19 @@ export async function streamResponse(options: {
     signal,
   } = options;
 
-  let buffer = '';
+  let buffer = "";
 
   // Append query parameters to URL if provided
-  const finalUrl = params && params.toString()
+  const finalUrl = params?.toString()
     ? `${apiUrl}?${params.toString()}`
     : apiUrl;
 
   try {
     const response = await fetch(finalUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
         ...(!(requestBody instanceof FormData) && {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         }),
         ...headers,
       },
@@ -192,8 +197,8 @@ export async function streamResponse(options: {
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
         try {
           const errorData = await response.json();
           errorMessage = errorData.detail || errorData.message || errorMessage;
@@ -206,7 +211,7 @@ export async function streamResponse(options: {
     }
 
     if (!response.body) {
-      throw new Error('No response body');
+      throw new Error("No response body");
     }
 
     const reader = response.body.getReader();
@@ -229,11 +234,11 @@ export async function streamResponse(options: {
     await processStream();
   } catch (error) {
     // Handle abort gracefully without calling onError
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === "AbortError") {
       return;
     }
 
-    if (typeof error === 'object' && error !== null && 'detail' in error) {
+    if (typeof error === "object" && error !== null && "detail" in error) {
       onError(new Error(String(error.detail)));
     } else {
       onError(new Error(String(error)));

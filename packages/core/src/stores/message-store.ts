@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@antipopp/agno-types';
+import type { ChatMessage } from "@antipopp/agno-types";
 
 /**
  * Manages message state with immutable updates
@@ -33,15 +33,17 @@ export class MessageStore {
   updateLastMessage(
     updater: (lastMessage: ChatMessage) => ChatMessage
   ): ChatMessage | undefined {
-    if (this.messages.length === 0) return undefined;
+    if (this.messages.length === 0) {
+      return undefined;
+    }
 
-    const lastMessage = this.messages[this.messages.length - 1];
+    const lastMessage = this.messages.at(-1);
+    if (!lastMessage) {
+      return undefined;
+    }
     const updatedMessage = updater(lastMessage);
 
-    this.messages = [
-      ...this.messages.slice(0, -1),
-      updatedMessage,
-    ];
+    this.messages = [...this.messages.slice(0, -1), updatedMessage];
 
     return updatedMessage;
   }
@@ -53,7 +55,9 @@ export class MessageStore {
     index: number,
     updater: (message: ChatMessage) => ChatMessage
   ): ChatMessage | undefined {
-    if (index < 0 || index >= this.messages.length) return undefined;
+    if (index < 0 || index >= this.messages.length) {
+      return undefined;
+    }
 
     const message = this.messages[index];
     const updatedMessage = updater(message);
@@ -85,9 +89,7 @@ export class MessageStore {
    * Get the last message
    */
   getLastMessage(): ChatMessage | undefined {
-    return this.messages.length > 0
-      ? this.messages[this.messages.length - 1]
-      : undefined;
+    return this.messages.length > 0 ? this.messages.at(-1) : undefined;
   }
 
   /**

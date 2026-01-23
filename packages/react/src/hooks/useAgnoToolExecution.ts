@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import type {
+  CustomRenderFunction,
   ToolCall,
-  UIComponentSpec,
   ToolHandlerResult,
-  CustomRenderFunction
-} from '@antipopp/agno-types';
-import { useAgnoClient } from '../context/AgnoContext';
-import { useToolHandlers } from '../context/ToolHandlerContext';
+  UIComponentSpec,
+} from "@antipopp/agno-types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAgnoClient } from "../context/AgnoContext";
+import { useToolHandlers } from "../context/ToolHandlerContext";
 
 /**
  * Tool handler function type (now supports generative UI)
@@ -39,21 +39,26 @@ export function getCustomRender(key: string): CustomRenderFunction | undefined {
  * Check if a value is a ToolHandlerResult with UI spec
  */
 function isToolHandlerResult(value: any): value is ToolHandlerResult {
-  return value && typeof value === 'object' && ('data' in value || 'ui' in value);
+  return (
+    value && typeof value === "object" && ("data" in value || "ui" in value)
+  );
 }
 
 /**
  * Check if a value is a UIComponentSpec
  */
 function isUIComponentSpec(value: any): value is UIComponentSpec {
-  return value && typeof value === 'object' && 'type' in value;
+  return value && typeof value === "object" && "type" in value;
 }
 
 /**
  * Process tool handler result and extract data/UI
  * Exported for use in session loading UI hydration
  */
-export function processToolResult(result: any, _tool: ToolCall): {
+export function processToolResult(
+  result: any,
+  _tool: ToolCall
+): {
   resultData: string;
   uiComponent?: any;
 } {
@@ -61,10 +66,10 @@ export function processToolResult(result: any, _tool: ToolCall): {
   if (isToolHandlerResult(result)) {
     const { data, ui } = result;
 
-    let uiComponent: any = undefined;
+    let uiComponent: any;
     if (ui) {
       // Handle custom render functions
-      if (ui.type === 'custom' && typeof (ui as any).render === 'function') {
+      if (ui.type === "custom" && typeof (ui as any).render === "function") {
         const renderKey = registerCustomRender((ui as any).render);
         uiComponent = {
           ...ui,
@@ -78,7 +83,7 @@ export function processToolResult(result: any, _tool: ToolCall): {
     }
 
     return {
-      resultData: typeof data === 'string' ? data : JSON.stringify(data),
+      resultData: typeof data === "string" ? data : JSON.stringify(data),
       uiComponent,
     };
   }
@@ -86,7 +91,10 @@ export function processToolResult(result: any, _tool: ToolCall): {
   // Case 2: Direct UI component spec (no separate data)
   if (isUIComponentSpec(result)) {
     let uiComponent: any;
-    if (result.type === 'custom' && typeof (result as any).render === 'function') {
+    if (
+      result.type === "custom" &&
+      typeof (result as any).render === "function"
+    ) {
       const renderKey = registerCustomRender((result as any).render);
       uiComponent = {
         ...result,
@@ -105,7 +113,7 @@ export function processToolResult(result: any, _tool: ToolCall): {
 
   // Case 3: Legacy format - plain data (backward compatible)
   return {
-    resultData: typeof result === 'string' ? result : JSON.stringify(result),
+    resultData: typeof result === "string" ? result : JSON.stringify(result),
     uiComponent: undefined,
   };
 }
@@ -146,20 +154,20 @@ export interface ToolExecutionEvent {
  */
 export function useAgnoToolExecution(
   handlers: Record<string, ToolHandler> = {},
-  autoExecute: boolean = true
+  autoExecute = true
 ) {
   const client = useAgnoClient();
   const toolHandlerContext = useToolHandlers();
 
   // Check if in team mode - teams don't support HITL
-  const isTeamMode = client.getConfig().mode === 'team';
+  const isTeamMode = client.getConfig().mode === "team";
 
   // Log warning once if in team mode
   useEffect(() => {
     if (isTeamMode) {
       console.warn(
-        '[useAgnoToolExecution] HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. ' +
-        'Only agents support the continue endpoint. This hook will not function in team mode.'
+        "[useAgnoToolExecution] HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. " +
+          "Only agents support the continue endpoint. This hook will not function in team mode."
       );
     }
   }, [isTeamMode]);
@@ -195,12 +203,12 @@ export function useAgnoToolExecution(
       setExecutionError(undefined);
     };
 
-    client.on('run:paused', handleRunPaused);
-    client.on('run:continued', handleRunContinued);
+    client.on("run:paused", handleRunPaused);
+    client.on("run:continued", handleRunContinued);
 
     return () => {
-      client.off('run:paused', handleRunPaused);
-      client.off('run:continued', handleRunContinued);
+      client.off("run:paused", handleRunPaused);
+      client.off("run:continued", handleRunContinued);
     };
   }, [client, isTeamMode]);
 
@@ -209,7 +217,7 @@ export function useAgnoToolExecution(
    */
   const executeAndContinue = useCallback(async () => {
     if (!isPaused || pendingTools.length === 0) {
-      console.warn('[useAgnoToolExecution] Cannot execute: no pending tools');
+      console.warn("[useAgnoToolExecution] Cannot execute: no pending tools");
       return;
     }
 
@@ -255,10 +263,10 @@ export function useAgnoToolExecution(
 
       // Store UI components in the client's message store before continuing
       // This ensures the UI components are visible even if the backend doesn't echo them back
-      const toolsWithUI = updatedTools.filter(t => (t as any).ui_component);
+      const toolsWithUI = updatedTools.filter((t) => (t as any).ui_component);
       if (toolsWithUI.length > 0) {
         // Emit a custom event with the UI data
-        client.emit('ui:render', {
+        client.emit("ui:render", {
           tools: updatedTools,
           runId: client.getState().pausedRunId,
         });
@@ -271,7 +279,8 @@ export function useAgnoToolExecution(
       // Continue the run with results
       await client.continueRun(updatedTools);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       setExecutionError(errorMessage);
       setIsExecuting(false);
       throw error;
@@ -286,14 +295,20 @@ export function useAgnoToolExecution(
       const messages = client.getMessages();
 
       for (const message of messages) {
-        if (!message.tool_calls) continue;
+        if (!message.tool_calls) {
+          continue;
+        }
 
         for (const tool of message.tool_calls) {
           // Skip if already has UI
-          if ((tool as any).ui_component) continue;
+          if ((tool as any).ui_component) {
+            continue;
+          }
 
           const handler = mergedHandlers[tool.tool_name];
-          if (!handler) continue;
+          if (!handler) {
+            continue;
+          }
 
           try {
             const result = await handler(tool.tool_args);
@@ -309,9 +324,9 @@ export function useAgnoToolExecution(
       }
     };
 
-    client.on('session:loaded', handleSessionLoaded);
+    client.on("session:loaded", handleSessionLoaded);
     return () => {
-      client.off('session:loaded', handleSessionLoaded);
+      client.off("session:loaded", handleSessionLoaded);
     };
   }, [client, mergedHandlers]);
 
@@ -324,7 +339,9 @@ export function useAgnoToolExecution(
       return Promise.all(
         tools.map(async (tool) => {
           const handler = mergedHandlers[tool.tool_name];
-          if (!handler) return tool;
+          if (!handler) {
+            return tool;
+          }
 
           try {
             const result = await handler(tool.tool_args);
@@ -355,9 +372,15 @@ export function useAgnoToolExecution(
    * Manually continue the run with custom tool results
    */
   const continueWithResults = useCallback(
-    async (tools: ToolCall[], options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
+    async (
+      tools: ToolCall[],
+      options?: {
+        headers?: Record<string, string>;
+        params?: Record<string, string>;
+      }
+    ) => {
       if (!isPaused) {
-        throw new Error('No paused run to continue');
+        throw new Error("No paused run to continue");
       }
       setIsExecuting(true);
       try {
@@ -375,7 +398,13 @@ export function useAgnoToolExecution(
     if (autoExecute && isPaused && !isExecuting && pendingTools.length > 0) {
       executeAndContinue();
     }
-  }, [autoExecute, isPaused, isExecuting, pendingTools.length, executeAndContinue]);
+  }, [
+    autoExecute,
+    isPaused,
+    isExecuting,
+    pendingTools.length,
+    executeAndContinue,
+  ]);
 
   return {
     /** Whether the run is currently paused awaiting tool execution */

@@ -13,12 +13,20 @@
     "build": "pnpm -r --filter './packages/*' build",
     "dev": "pnpm -r --parallel --filter './packages/*' dev",
     "clean": "pnpm -r exec rm -rf dist node_modules",
-    "typecheck": "pnpm -r --filter './packages/*' typecheck"
+    "lint": "pnpm ultracite fix",
+    "typecheck": "pnpm -r --filter './packages/*' typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.11",
     "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^2.0.0",
     "shadcn": "^3.5.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "ultracite": "7.0.12",
+    "vitest": "^2.0.0"
   },
   "packageManager": "pnpm@9.15.4"
 }

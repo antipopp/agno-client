@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useMemo, useEffect } from 'react';
-import { AgnoClient } from '@antipopp/agno-client';
-import type { AgnoClientConfig } from '@antipopp/agno-types';
+import { AgnoClient } from "@antipopp/agno-client";
+import type { AgnoClientConfig } from "@antipopp/agno-types";
+import type React from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 
 /**
  * Context for providing AgnoClient instance
@@ -13,31 +14,28 @@ export interface AgnoProviderProps {
 }
 
 /**
- * Provider component that creates and manages an AgnoClient instance
+ * Provider component that creates and manages an AgnoClient instance.
  */
 export function AgnoProvider({ config, children }: AgnoProviderProps) {
-  // Create client only once using useMemo (React best practice)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const client = useMemo(() => new AgnoClient(config), []);
+  const clientRef = useRef<AgnoClient | null>(null);
 
-  // Sync config changes to the client instance
+  if (clientRef.current === null) {
+    clientRef.current = new AgnoClient(config);
+  }
+
+  const client = clientRef.current;
+
   useEffect(() => {
     client.updateConfig(config);
   }, [client, config]);
 
-  // Cleanup on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
-      // Remove all event listeners when provider unmounts
       client.removeAllListeners();
     };
   }, [client]);
 
-  return (
-    <AgnoContext.Provider value={client}>
-      {children}
-    </AgnoContext.Provider>
-  );
+  return <AgnoContext.Provider value={client}>{children}</AgnoContext.Provider>;
 }
 
 /**
@@ -47,7 +45,7 @@ export function useAgnoClient(): AgnoClient {
   const client = useContext(AgnoContext);
 
   if (!client) {
-    throw new Error('useAgnoClient must be used within an AgnoProvider');
+    throw new Error("useAgnoClient must be used within an AgnoProvider");
   }
 
   return client;

@@ -1,0 +1,59 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite/biome/core", "ultracite/biome/react"],
+
+  "linter": {
+    "rules": {
+      "performance": {
+        "noNamespaceImport": "off",
+        "noBarrelFile": "off"
+      },
+
+      "style": {
+        "useFilenamingConvention": "off",
+        "noEnum": "off",
+        "noNonNullAssertion": "warn",
+        "noExportedImports": "off",
+        "noNestedTernary": "warn",
+        "useDefaultSwitchClause": "warn",
+        "useForOf": "warn",
+        "noParameterAssign": "warn"
+      },
+
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn",
+        "useAwait": "warn",
+        "noUnknownAtRules": "off",
+        "noEmptyBlockStatements": "warn",
+        "useIterableCallbackReturn": "warn",
+        "noDocumentCookie": "warn"
+      },
+
+      "complexity": {
+        "noForEach": "warn",
+        "noExcessiveCognitiveComplexity": "warn",
+        "noStaticOnlyClass": "warn"
+      },
+
+      "correctness": {
+        "noNestedComponentDefinitions": "warn",
+        "useImageSize": "warn"
+      },
+
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+
+      "a11y": {
+        "useMediaCaption": "warn",
+        "useButtonType": "warn",
+        "useSemanticElements": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noNoninteractiveElementInteractions": "warn",
+        "useFocusableInteractive": "warn",
+        "useAriaPropsForRole": "warn"
+      }
+    }
+  }
+}

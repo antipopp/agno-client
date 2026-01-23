@@ -4,20 +4,31 @@
  * Renders a grid of cards based on specifications from the agent.
  */
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import type { CardGridComponentSpec } from '@antipopp/agno-react';
+import type { CardGridComponentSpec } from "@antipopp/agno-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 /**
  * Card Grid Renderer
  */
-export function CardGridRenderer(props: CardGridComponentSpec['props']) {
-  const { cards, columns = { default: 1, md: 2, lg: 3 }, variant = 'default' } = props;
+export function CardGridRenderer(props: CardGridComponentSpec["props"]) {
+  const {
+    cards,
+    columns = { default: 1, md: 2, lg: 3 },
+    variant = "default",
+  } = props;
 
   if (!cards || cards.length === 0) {
     return (
-      <div className="flex items-center justify-center p-8 border rounded-md bg-muted/10">
-        <p className="text-sm text-muted-foreground">No items available</p>
+      <div className="flex items-center justify-center rounded-md border bg-muted/10 p-8">
+        <p className="text-muted-foreground text-sm">No items available</p>
       </div>
     );
   }
@@ -31,41 +42,44 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
     xl: columns.xl,
   };
 
-  const gridClass = `grid gap-4 ${gridCols.default === 1 ? 'grid-cols-1' : `grid-cols-${gridCols.default}`} ${
-    gridCols.sm ? `sm:grid-cols-${gridCols.sm}` : ''
-  } ${gridCols.md ? `md:grid-cols-${gridCols.md}` : ''} ${gridCols.lg ? `lg:grid-cols-${gridCols.lg}` : ''} ${
-    gridCols.xl ? `xl:grid-cols-${gridCols.xl}` : ''
-  }`.trim();
+  const gridClass =
+    `grid gap-4 ${gridCols.default === 1 ? "grid-cols-1" : `grid-cols-${gridCols.default}`} ${
+      gridCols.sm ? `sm:grid-cols-${gridCols.sm}` : ""
+    } ${gridCols.md ? `md:grid-cols-${gridCols.md}` : ""} ${gridCols.lg ? `lg:grid-cols-${gridCols.lg}` : ""} ${
+      gridCols.xl ? `xl:grid-cols-${gridCols.xl}` : ""
+    }`.trim();
 
   const cardVariantClass =
-    variant === 'bordered'
-      ? 'border-2'
-      : variant === 'elevated'
-        ? 'shadow-lg'
-        : '';
+    variant === "bordered"
+      ? "border-2"
+      : variant === "elevated"
+        ? "shadow-lg"
+        : "";
 
   return (
     <div className={gridClass}>
       {cards.map((card) => (
-        <Card key={card.id} className={cardVariantClass}>
+        <Card className={cardVariantClass} key={card.id}>
           {card.image && (
             <div className="aspect-video w-full overflow-hidden rounded-t-lg">
               <img
-                src={card.image}
                 alt={card.title}
                 className="h-full w-full object-cover"
+                src={card.image}
               />
             </div>
           )}
           <CardHeader>
             <CardTitle>{card.title}</CardTitle>
-            {card.description && <CardDescription>{card.description}</CardDescription>}
+            {card.description && (
+              <CardDescription>{card.description}</CardDescription>
+            )}
           </CardHeader>
           {card.metadata && Object.keys(card.metadata).length > 0 && (
             <CardContent>
               <dl className="space-y-1 text-sm">
                 {Object.entries(card.metadata).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
+                  <div className="flex justify-between" key={key}>
                     <dt className="text-muted-foreground">{key}:</dt>
                     <dd className="font-medium">{String(value)}</dd>
                   </div>
@@ -78,18 +92,18 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
               {card.actions.map((action, index) => (
                 <Button
                   key={index}
-                  variant={action.variant || 'default'}
-                  size="sm"
                   onClick={() => {
                     // Emit custom event for action handling
                     if (action.onClick) {
                       window.dispatchEvent(
-                        new CustomEvent('generative-ui-action', {
+                        new CustomEvent("generative-ui-action", {
                           detail: { action: action.onClick, cardId: card.id },
                         })
                       );
                     }
                   }}
+                  size="sm"
+                  variant={action.variant || "default"}
                 >
                   {action.label}
                 </Button>

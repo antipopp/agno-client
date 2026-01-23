@@ -6,53 +6,53 @@
  */
 
 import {
-  createTable,
   createColumn,
-  resultWithSmartChart,
-  resultWithCardGrid,
+  createTable,
   resultWithBarChart,
+  resultWithCardGrid,
+  resultWithSmartChart,
   type ToolHandlerResult,
-} from '@antipopp/agno-react';
+} from "@antipopp/agno-react";
 
 /**
  * Example 1: Render a revenue chart
  * Backend fetches the data, frontend renders the chart
  */
 export async function render_revenue_chart(args: Record<string, any>) {
-  const { data, period = 'monthly', chartType = 'auto' } = args;
+  const { data, period = "monthly", chartType = "auto" } = args;
 
   if (!data || data.length === 0) {
     return {
-      data: { error: 'No data provided' },
+      data: { error: "No data provided" },
       ui: {
-        type: 'markdown',
-        props: { content: '**Error:** No data available to display' },
+        type: "markdown",
+        props: { content: "**Error:** No data available to display" },
       },
     };
   }
 
   // Agent decides: line chart for trends, bar chart for comparisons
-  if (chartType === 'line' || chartType === 'trend') {
+  if (chartType === "line" || chartType === "trend") {
     return resultWithSmartChart(data, {
       title: `Revenue Trend - ${period}`,
-      description: 'Revenue and expenses over time',
-      preferredType: 'line',
-      layout: 'artifact',
+      description: "Revenue and expenses over time",
+      preferredType: "line",
+      layout: "artifact",
     });
   }
 
   // Default to bar chart
   return resultWithBarChart(
     data,
-    'month',
+    "month",
     [
-      { key: 'revenue', label: 'Revenue', color: 'hsl(var(--chart-1))' },
-      { key: 'expenses', label: 'Expenses', color: 'hsl(var(--chart-2))' },
+      { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
+      { key: "expenses", label: "Expenses", color: "hsl(var(--chart-2))" },
     ],
     {
       title: `Revenue Comparison - ${period}`,
-      description: 'Compare revenue vs expenses',
-      layout: 'artifact',
+      description: "Compare revenue vs expenses",
+      layout: "artifact",
       height: 400,
     }
   );
@@ -63,14 +63,14 @@ export async function render_revenue_chart(args: Record<string, any>) {
  * Backend fetches car data from MCP/database, frontend renders the cards
  */
 export async function render_rental_cars(args: Record<string, any>) {
-  const { data, location = 'Unknown' } = args;
+  const { data, location = "Unknown" } = args;
 
   if (!data || data.length === 0) {
     return {
-      data: { error: 'No cars found' },
+      data: { error: "No cars found" },
       ui: {
-        type: 'markdown',
-        props: { content: '**No rental cars available** at this location.' },
+        type: "markdown",
+        props: { content: "**No rental cars available** at this location." },
       },
     };
   }
@@ -79,26 +79,36 @@ export async function render_rental_cars(args: Record<string, any>) {
   // Backend might return: [{ id, name, description, price_per_day, type, seats, image_url }]
   const cards = data.map((car: any) => ({
     id: car.id || `car-${Math.random()}`,
-    title: car.name || car.title || 'Unknown Car',
-    description: car.description || '',
+    title: car.name || car.title || "Unknown Car",
+    description: car.description || "",
     image: car.image_url || car.image,
     metadata: {
-      Price: car.price_per_day ? `$${car.price_per_day}/day` : car.price || 'N/A',
-      Type: car.type || 'N/A',
-      Seats: car.seats?.toString() || 'N/A',
-      Available: car.available ? 'Yes' : 'No',
+      Price: car.price_per_day
+        ? `$${car.price_per_day}/day`
+        : car.price || "N/A",
+      Type: car.type || "N/A",
+      Seats: car.seats?.toString() || "N/A",
+      Available: car.available ? "Yes" : "No",
     },
     actions: [
-      { label: 'Book Now', variant: 'default' as const, onClick: `book_car:${car.id}` },
-      { label: 'Details', variant: 'outline' as const, onClick: `view_car:${car.id}` },
+      {
+        label: "Book Now",
+        variant: "default" as const,
+        onClick: `book_car:${car.id}`,
+      },
+      {
+        label: "Details",
+        variant: "outline" as const,
+        onClick: `view_car:${car.id}`,
+      },
     ],
   }));
 
   return resultWithCardGrid(cards, {
     title: `Available Cars in ${location}`,
-    description: `${cards.length} vehicle${cards.length !== 1 ? 's' : ''} available for rent`,
+    description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
     columns: { default: 1, md: 2, lg: 3 },
-    variant: 'elevated',
+    variant: "elevated",
   });
 }
 
@@ -107,39 +117,39 @@ export async function render_rental_cars(args: Record<string, any>) {
  * Backend fetches product data, frontend renders the comparison table
  */
 export async function render_product_comparison(args: Record<string, any>) {
-  const { data, category = 'products' } = args;
+  const { data, category = "products" } = args;
 
   if (!data || data.length === 0) {
     return {
-      data: { error: 'No products provided' },
+      data: { error: "No products provided" },
       ui: {
-        type: 'markdown',
-        props: { content: '**Error:** No product data available to compare' },
+        type: "markdown",
+        props: { content: "**Error:** No product data available to compare" },
       },
     };
   }
 
   // Define columns based on the data structure
   const columns = [
-    createColumn('name', 'Product', { width: '200px', sortable: true }),
-    createColumn('price', 'Price', {
+    createColumn("name", "Product", { width: "200px", sortable: true }),
+    createColumn("price", "Price", {
       sortable: true,
-      cellType: 'number',
-      format: { type: 'currency', currency: 'USD' },
+      cellType: "number",
+      format: { type: "currency", currency: "USD" },
     }),
-    createColumn('cpu', 'Processor', { sortable: true }),
-    createColumn('ram', 'RAM', { sortable: true }),
-    createColumn('storage', 'Storage', { sortable: true }),
-    createColumn('display', 'Display', { sortable: true }),
-    createColumn('rating', 'Rating', { sortable: true, cellType: 'number' }),
+    createColumn("cpu", "Processor", { sortable: true }),
+    createColumn("ram", "RAM", { sortable: true }),
+    createColumn("storage", "Storage", { sortable: true }),
+    createColumn("display", "Display", { sortable: true }),
+    createColumn("rating", "Rating", { sortable: true, cellType: "number" }),
   ];
 
   const tableSpec = createTable(data, columns, {
     title: `${category.charAt(0).toUpperCase() + category.slice(1)} Comparison`,
     description: `Compare specifications and prices for ${data.length} products`,
     sortable: true,
-    density: 'comfortable',
-    layout: 'artifact',
+    density: "comfortable",
+    layout: "artifact",
   });
 
   return {
@@ -157,10 +167,10 @@ export async function render_dashboard(args: Record<string, any>) {
 
   if (!data) {
     return {
-      data: { error: 'No dashboard data provided' },
+      data: { error: "No dashboard data provided" },
       ui: {
-        type: 'markdown',
-        props: { content: '**Error:** No dashboard data available' },
+        type: "markdown",
+        props: { content: "**Error:** No dashboard data available" },
       },
     };
   }
@@ -168,30 +178,30 @@ export async function render_dashboard(args: Record<string, any>) {
   // Transform backend metrics into card format
   const cards = [
     {
-      id: 'sales',
-      title: 'Total Sales',
+      id: "sales",
+      title: "Total Sales",
       description: `$${(data.totalSales || 0).toLocaleString()}`,
-      metadata: { Trend: data.salesTrend || 'N/A' },
+      metadata: { Trend: data.salesTrend || "N/A" },
     },
     {
-      id: 'customers',
-      title: 'New Customers',
+      id: "customers",
+      title: "New Customers",
       description: `${data.newCustomers || 0}`,
-      metadata: { Trend: data.customerTrend || 'N/A' },
+      metadata: { Trend: data.customerTrend || "N/A" },
     },
     {
-      id: 'projects',
-      title: 'Active Projects',
+      id: "projects",
+      title: "Active Projects",
       description: `${data.activeProjects || 0}`,
-      metadata: { Status: data.projectStatus || 'N/A' },
+      metadata: { Status: data.projectStatus || "N/A" },
     },
   ];
 
   return resultWithCardGrid(cards, {
-    title: userId ? `Dashboard for ${userId}` : 'Dashboard Overview',
-    description: 'Key metrics and insights',
+    title: userId ? `Dashboard for ${userId}` : "Dashboard Overview",
+    description: "Key metrics and insights",
     columns: { default: 1, md: 3 },
-    variant: 'elevated',
+    variant: "elevated",
   });
 }
 
@@ -200,36 +210,50 @@ export async function render_dashboard(args: Record<string, any>) {
  * Backend provides data, frontend intelligently chooses the best visualization
  */
 export async function render_visualization(args: Record<string, any>) {
-  const { data, query = 'Data Visualization', chartType } = args;
+  const { data, query = "Data Visualization", chartType } = args;
 
   if (!data || data.length === 0) {
     return {
-      data: { error: 'No data provided' },
+      data: { error: "No data provided" },
       ui: {
-        type: 'markdown',
-        props: { content: '**Error:** No data available to visualize' },
+        type: "markdown",
+        props: { content: "**Error:** No data available to visualize" },
       },
     };
   }
 
   // If chart type is explicitly requested, use it
-  let preferredType: 'bar' | 'line' | 'pie' | undefined;
+  let preferredType: "bar" | "line" | "pie" | undefined;
   if (chartType) {
-    if (chartType === 'pie' || query.toLowerCase().includes('market share') || query.toLowerCase().includes('distribution')) {
-      preferredType = 'pie';
-    } else if (chartType === 'line' || query.toLowerCase().includes('trend') || query.toLowerCase().includes('over time')) {
-      preferredType = 'line';
-    } else if (chartType === 'bar' || query.toLowerCase().includes('comparison') || query.toLowerCase().includes('compare')) {
-      preferredType = 'bar';
+    if (
+      chartType === "pie" ||
+      query.toLowerCase().includes("market share") ||
+      query.toLowerCase().includes("distribution")
+    ) {
+      preferredType = "pie";
+    } else if (
+      chartType === "line" ||
+      query.toLowerCase().includes("trend") ||
+      query.toLowerCase().includes("over time")
+    ) {
+      preferredType = "line";
+    } else if (
+      chartType === "bar" ||
+      query.toLowerCase().includes("comparison") ||
+      query.toLowerCase().includes("compare")
+    ) {
+      preferredType = "bar";
     }
   }
 
   // Smart chart auto-detects the best visualization based on data structure
   return resultWithSmartChart(data, {
     title: `${query}`,
-    description: preferredType ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization` : 'Automatically selected visualization type',
+    description: preferredType
+      ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization`
+      : "Automatically selected visualization type",
     preferredType,
-    layout: 'artifact',
+    layout: "artifact",
   });
 }
 

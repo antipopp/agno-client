@@ -1,12 +1,12 @@
 import type {
+  ChatMessage,
   RunEvent,
   RunResponse,
   RunResponseContent,
-  ChatMessage,
   ToolCall,
-} from '@antipopp/agno-types';
-import { RunEvent as RunEventEnum } from '@antipopp/agno-types';
-import { getJsonMarkdown } from '../utils/json-markdown';
+} from "@antipopp/agno-types";
+import { RunEvent as RunEventEnum } from "@antipopp/agno-types";
+import { getJsonMarkdown } from "../utils/json-markdown";
 
 /**
  * Processes a new tool call and adds/updates it in the message
@@ -34,9 +34,8 @@ export function processToolCall(
       ...toolCall,
     };
     return updatedToolCalls;
-  } else {
-    return [...prevToolCalls, toolCall];
   }
+  return [...prevToolCalls, toolCall];
 }
 
 /**
@@ -65,7 +64,7 @@ export function processChunkToolCalls(
  * Event processor that handles different RunEvent types
  */
 export class EventProcessor {
-  private lastContent = '';
+  private lastContent = "";
 
   /**
    * Process a chunk and update the last message
@@ -74,7 +73,7 @@ export class EventProcessor {
     chunk: RunResponse,
     lastMessage: ChatMessage | undefined
   ): ChatMessage | undefined {
-    if (!lastMessage || lastMessage.role !== 'agent') {
+    if (!lastMessage || lastMessage.role !== "agent") {
       return lastMessage;
     }
 
@@ -101,17 +100,18 @@ export class EventProcessor {
 
       case RunEventEnum.RunContent:
       case RunEventEnum.TeamRunContent:
-        if (typeof chunk.content === 'string') {
-          const uniqueContent = chunk.content.replace(this.lastContent, '');
+        if (typeof chunk.content === "string") {
+          const uniqueContent = chunk.content.replace(this.lastContent, "");
           updatedMessage.content =
             (updatedMessage.content as string) + uniqueContent;
           this.lastContent = chunk.content;
         } else if (
-          typeof chunk.content !== 'string' &&
+          typeof chunk.content !== "string" &&
           chunk.content !== null
         ) {
           const jsonBlock = getJsonMarkdown(chunk.content);
-          updatedMessage.content = (updatedMessage.content as string) + jsonBlock;
+          updatedMessage.content =
+            (updatedMessage.content as string) + jsonBlock;
           this.lastContent = jsonBlock;
         }
 
@@ -154,19 +154,19 @@ export class EventProcessor {
         // Handle response audio transcript
         if (
           chunk.response_audio?.transcript &&
-          typeof chunk.response_audio.transcript === 'string'
+          typeof chunk.response_audio.transcript === "string"
         ) {
           const transcript = chunk.response_audio.transcript;
           updatedMessage.response_audio = {
             ...updatedMessage.response_audio,
             transcript:
-              (updatedMessage.response_audio?.transcript || '') + transcript,
+              (updatedMessage.response_audio?.transcript || "") + transcript,
           };
         }
         break;
 
       case RunEventEnum.ReasoningStep:
-      case RunEventEnum.TeamReasoningStep:
+      case RunEventEnum.TeamReasoningStep: {
         const existingSteps = lastMessage.extra_data?.reasoning_steps ?? [];
         const incomingSteps = chunk.extra_data?.reasoning_steps ?? [];
         updatedMessage.extra_data = {
@@ -174,6 +174,7 @@ export class EventProcessor {
           reasoning_steps: [...existingSteps, ...incomingSteps],
         };
         break;
+      }
 
       case RunEventEnum.ReasoningCompleted:
       case RunEventEnum.TeamReasoningCompleted:
@@ -186,15 +187,15 @@ export class EventProcessor {
         break;
 
       case RunEventEnum.RunCompleted:
-      case RunEventEnum.TeamRunCompleted:
+      case RunEventEnum.TeamRunCompleted: {
         let updatedContent: string;
-        if (typeof chunk.content === 'string') {
+        if (typeof chunk.content === "string") {
           updatedContent = chunk.content;
         } else {
           try {
             updatedContent = JSON.stringify(chunk.content);
           } catch {
-            updatedContent = 'Error parsing response';
+            updatedContent = "Error parsing response";
           }
         }
 
@@ -215,6 +216,7 @@ export class EventProcessor {
             chunk.extra_data?.references ?? lastMessage.extra_data?.references,
         };
         break;
+      }
 
       case RunEventEnum.UpdatingMemory:
       case RunEventEnum.TeamMemoryUpdateStarted:
@@ -241,6 +243,6 @@ export class EventProcessor {
    * Reset the processor state (e.g., between messages)
    */
   reset() {
-    this.lastContent = '';
+    this.lastContent = "";
   }
 }

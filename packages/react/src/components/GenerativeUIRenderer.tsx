@@ -5,10 +5,10 @@
  * Supports both registry-based components and custom render functions.
  */
 
-import React from 'react';
-import type { UIComponentSpec } from '@antipopp/agno-types';
-import { getComponentRegistry } from '../utils/component-registry';
-import { getCustomRender } from '../hooks/useAgnoToolExecution';
+import type { UIComponentSpec } from "@antipopp/agno-types";
+import React from "react";
+import { getCustomRender } from "../hooks/useAgnoToolExecution";
+import { getComponentRegistry } from "../utils/component-registry";
 
 export interface GenerativeUIRendererProps {
   /** The UI component specification to render */
@@ -23,7 +23,11 @@ export interface GenerativeUIRendererProps {
  * Error Boundary for UI rendering errors
  */
 class UIErrorBoundary extends React.Component<
-  { children: React.ReactNode; onError?: (error: Error) => void; fallback?: React.ReactNode },
+  {
+    children: React.ReactNode;
+    onError?: (error: Error) => void;
+    fallback?: React.ReactNode;
+  },
   { hasError: boolean; error?: Error }
 > {
   constructor(props: any) {
@@ -36,7 +40,11 @@ class UIErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[GenerativeUIRenderer] Error rendering component:', error, errorInfo);
+    console.error(
+      "[GenerativeUIRenderer] Error rendering component:",
+      error,
+      errorInfo
+    );
     this.props.onError?.(error);
   }
 
@@ -44,9 +52,11 @@ class UIErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         this.props.fallback || (
-          <div className="p-4 border border-red-300 rounded-md bg-red-50 text-red-800">
+          <div className="rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
             <p className="font-semibold">Failed to render UI component</p>
-            <p className="text-sm mt-1">{this.state.error?.message || 'Unknown error'}</p>
+            <p className="mt-1 text-sm">
+              {this.state.error?.message || "Unknown error"}
+            </p>
           </div>
         )
       );
@@ -67,7 +77,7 @@ export function GenerativeUIRenderer({
   const registry = getComponentRegistry();
 
   // Handle custom render functions
-  if (spec.type === 'custom') {
+  if (spec.type === "custom") {
     const customSpec = spec as any;
     if (customSpec.renderKey) {
       const renderFn = getCustomRender(customSpec.renderKey);
@@ -81,15 +91,19 @@ export function GenerativeUIRenderer({
     }
     // Fallback if custom render not found
     return (
-      <div className={`p-4 border border-yellow-300 rounded-md bg-yellow-50 text-yellow-800 ${className || ''}`}>
+      <div
+        className={`rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800 ${className || ""}`}
+      >
         <p className="font-semibold">Custom component not available</p>
-        <p className="text-sm mt-1">The custom render function for this component is not available.</p>
+        <p className="mt-1 text-sm">
+          The custom render function for this component is not available.
+        </p>
       </div>
     );
   }
 
   // Handle chart components
-  if (spec.type === 'chart') {
+  if (spec.type === "chart") {
     const chartSpec = spec as any;
     const chartType = `chart:${chartSpec.component}`;
 
@@ -98,8 +112,14 @@ export function GenerativeUIRenderer({
       return (
         <UIErrorBoundary onError={onError}>
           <div className={className}>
-            {chartSpec.title && <h3 className="font-semibold mb-2">{chartSpec.title}</h3>}
-            {chartSpec.description && <p className="text-sm text-gray-600 mb-4">{chartSpec.description}</p>}
+            {chartSpec.title && (
+              <h3 className="mb-2 font-semibold">{chartSpec.title}</h3>
+            )}
+            {chartSpec.description && (
+              <p className="mb-4 text-gray-600 text-sm">
+                {chartSpec.description}
+              </p>
+            )}
             <ChartRenderer {...chartSpec.props} />
           </div>
         </UIErrorBoundary>
@@ -108,10 +128,14 @@ export function GenerativeUIRenderer({
 
     // Fallback: render data as JSON
     return (
-      <div className={`p-4 border border-gray-300 rounded-md ${className || ''}`}>
-        <p className="font-semibold mb-2">{chartSpec.title || 'Chart Data'}</p>
-        {chartSpec.description && <p className="text-sm text-gray-600 mb-2">{chartSpec.description}</p>}
-        <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto">
+      <div
+        className={`rounded-md border border-gray-300 p-4 ${className || ""}`}
+      >
+        <p className="mb-2 font-semibold">{chartSpec.title || "Chart Data"}</p>
+        {chartSpec.description && (
+          <p className="mb-2 text-gray-600 text-sm">{chartSpec.description}</p>
+        )}
+        <pre className="overflow-auto rounded bg-gray-100 p-2 text-xs">
           {JSON.stringify(chartSpec.props.data, null, 2)}
         </pre>
       </div>
@@ -119,15 +143,21 @@ export function GenerativeUIRenderer({
   }
 
   // Handle card grid
-  if (spec.type === 'card-grid') {
+  if (spec.type === "card-grid") {
     const cardGridSpec = spec as any;
-    if (registry.has('card-grid')) {
-      const CardGridRenderer = registry.get('card-grid')!;
+    if (registry.has("card-grid")) {
+      const CardGridRenderer = registry.get("card-grid")!;
       return (
         <UIErrorBoundary onError={onError}>
           <div className={className}>
-            {cardGridSpec.title && <h3 className="font-semibold mb-2">{cardGridSpec.title}</h3>}
-            {cardGridSpec.description && <p className="text-sm text-gray-600 mb-4">{cardGridSpec.description}</p>}
+            {cardGridSpec.title && (
+              <h3 className="mb-2 font-semibold">{cardGridSpec.title}</h3>
+            )}
+            {cardGridSpec.description && (
+              <p className="mb-4 text-gray-600 text-sm">
+                {cardGridSpec.description}
+              </p>
+            )}
             <CardGridRenderer {...cardGridSpec.props} />
           </div>
         </UIErrorBoundary>
@@ -136,15 +166,21 @@ export function GenerativeUIRenderer({
   }
 
   // Handle table
-  if (spec.type === 'table') {
+  if (spec.type === "table") {
     const tableSpec = spec as any;
-    if (registry.has('table')) {
-      const TableRenderer = registry.get('table')!;
+    if (registry.has("table")) {
+      const TableRenderer = registry.get("table")!;
       return (
         <UIErrorBoundary onError={onError}>
           <div className={className}>
-            {tableSpec.title && <h3 className="font-semibold mb-2">{tableSpec.title}</h3>}
-            {tableSpec.description && <p className="text-sm text-gray-600 mb-4">{tableSpec.description}</p>}
+            {tableSpec.title && (
+              <h3 className="mb-2 font-semibold">{tableSpec.title}</h3>
+            )}
+            {tableSpec.description && (
+              <p className="mb-4 text-gray-600 text-sm">
+                {tableSpec.description}
+              </p>
+            )}
             <TableRenderer {...tableSpec.props} />
           </div>
         </UIErrorBoundary>
@@ -153,10 +189,10 @@ export function GenerativeUIRenderer({
   }
 
   // Handle markdown
-  if (spec.type === 'markdown') {
+  if (spec.type === "markdown") {
     const markdownSpec = spec as any;
-    if (registry.has('markdown')) {
-      const MarkdownRenderer = registry.get('markdown')!;
+    if (registry.has("markdown")) {
+      const MarkdownRenderer = registry.get("markdown")!;
       return (
         <UIErrorBoundary onError={onError}>
           <div className={className}>
@@ -170,17 +206,29 @@ export function GenerativeUIRenderer({
   }
 
   // Handle artifact (container with multiple children)
-  if (spec.type === 'artifact') {
+  if (spec.type === "artifact") {
     const artifactSpec = spec as any;
     return (
       <UIErrorBoundary onError={onError}>
-        <div className={`p-4 border rounded-md ${className || ''}`}>
-          {artifactSpec.title && <h3 className="font-semibold mb-4">{artifactSpec.title}</h3>}
-          {artifactSpec.description && <p className="text-sm text-gray-600 mb-4">{artifactSpec.description}</p>}
+        <div className={`rounded-md border p-4 ${className || ""}`}>
+          {artifactSpec.title && (
+            <h3 className="mb-4 font-semibold">{artifactSpec.title}</h3>
+          )}
+          {artifactSpec.description && (
+            <p className="mb-4 text-gray-600 text-sm">
+              {artifactSpec.description}
+            </p>
+          )}
           <div className="space-y-4">
-            {artifactSpec.props.content?.map((childSpec: UIComponentSpec, index: number) => (
-              <GenerativeUIRenderer key={index} spec={childSpec} onError={onError} />
-            ))}
+            {artifactSpec.props.content?.map(
+              (childSpec: UIComponentSpec, index: number) => (
+                <GenerativeUIRenderer
+                  key={index}
+                  onError={onError}
+                  spec={childSpec}
+                />
+              )
+            )}
           </div>
         </div>
       </UIErrorBoundary>
@@ -189,9 +237,9 @@ export function GenerativeUIRenderer({
 
   // Unknown type fallback
   return (
-    <div className={`p-4 border border-gray-300 rounded-md ${className || ''}`}>
+    <div className={`rounded-md border border-gray-300 p-4 ${className || ""}`}>
       <p className="font-semibold">Unsupported UI component</p>
-      <p className="text-sm text-gray-600 mt-1">Component type: {spec.type}</p>
+      <p className="mt-1 text-gray-600 text-sm">Component type: {spec.type}</p>
     </div>
   );
 }

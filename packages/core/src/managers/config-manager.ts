@@ -1,4 +1,4 @@
-import type { AgnoClientConfig } from '@antipopp/agno-types';
+import type { AgnoClientConfig } from "@antipopp/agno-types";
 
 /**
  * Manages client configuration
@@ -45,7 +45,7 @@ export class ConfigManager {
    * Set endpoint URL
    */
   setEndpoint(endpoint: string): void {
-    this.updateField('endpoint', endpoint);
+    this.updateField("endpoint", endpoint);
   }
 
   /**
@@ -59,21 +59,21 @@ export class ConfigManager {
    * Set auth token
    */
   setAuthToken(token: string | undefined): void {
-    this.updateField('authToken', token);
+    this.updateField("authToken", token);
   }
 
   /**
    * Get mode (agent or team)
    */
-  getMode(): 'agent' | 'team' {
-    return this.config.mode || 'agent';
+  getMode(): "agent" | "team" {
+    return this.config.mode || "agent";
   }
 
   /**
    * Set mode
    */
-  setMode(mode: 'agent' | 'team'): void {
-    this.updateField('mode', mode);
+  setMode(mode: "agent" | "team"): void {
+    this.updateField("mode", mode);
   }
 
   /**
@@ -87,7 +87,7 @@ export class ConfigManager {
    * Set agent ID
    */
   setAgentId(agentId: string | undefined): void {
-    this.updateField('agentId', agentId);
+    this.updateField("agentId", agentId);
   }
 
   /**
@@ -101,7 +101,7 @@ export class ConfigManager {
    * Set team ID
    */
   setTeamId(teamId: string | undefined): void {
-    this.updateField('teamId', teamId);
+    this.updateField("teamId", teamId);
   }
 
   /**
@@ -115,7 +115,7 @@ export class ConfigManager {
    * Set database ID
    */
   setDbId(dbId: string | undefined): void {
-    this.updateField('dbId', dbId);
+    this.updateField("dbId", dbId);
   }
 
   /**
@@ -129,7 +129,7 @@ export class ConfigManager {
    * Set session ID
    */
   setSessionId(sessionId: string | undefined): void {
-    this.updateField('sessionId', sessionId);
+    this.updateField("sessionId", sessionId);
   }
 
   /**
@@ -143,7 +143,7 @@ export class ConfigManager {
    * Set user ID
    */
   setUserId(userId: string | undefined): void {
-    this.updateField('userId', userId);
+    this.updateField("userId", userId);
   }
 
   /**
@@ -157,7 +157,7 @@ export class ConfigManager {
    * Set custom headers
    */
   setHeaders(headers: Record<string, string> | undefined): void {
-    this.updateField('headers', headers);
+    this.updateField("headers", headers);
   }
 
   /**
@@ -171,14 +171,14 @@ export class ConfigManager {
    * Set global query parameters
    */
   setParams(params: Record<string, string> | undefined): void {
-    this.updateField('params', params);
+    this.updateField("params", params);
   }
 
   /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {
-    return this.getMode() === 'agent' ? this.getAgentId() : this.getTeamId();
+    return this.getMode() === "agent" ? this.getAgentId() : this.getTeamId();
   }
 
   /**
@@ -189,16 +189,17 @@ export class ConfigManager {
     const endpoint = this.getEndpoint();
     const entityId = this.getCurrentEntityId();
 
-    if (!entityId) return null;
+    if (!entityId) {
+      return null;
+    }
 
     // Encode entity ID to prevent path traversal and handle special characters
     const encodedEntityId = encodeURIComponent(entityId);
 
-    if (mode === 'team') {
+    if (mode === "team") {
       return `${endpoint}/teams/${encodedEntityId}/runs`;
-    } else {
-      return `${endpoint}/agents/${encodedEntityId}/runs`;
     }
+    return `${endpoint}/agents/${encodedEntityId}/runs`;
   }
 
   /**
@@ -211,7 +212,9 @@ export class ConfigManager {
    * @param perRequestHeaders - Optional headers for this specific request
    * @returns Merged headers object ready for fetch
    */
-  buildRequestHeaders(perRequestHeaders?: Record<string, string>): Record<string, string> {
+  buildRequestHeaders(
+    perRequestHeaders?: Record<string, string>
+  ): Record<string, string> {
     const headers: Record<string, string> = {};
 
     // 1. Apply global headers from config
@@ -228,7 +231,7 @@ export class ConfigManager {
     // 3. Apply Authorization from authToken (overrides all)
     const authToken = this.getAuthToken();
     if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+      headers.Authorization = `Bearer ${authToken}`;
     }
 
     return headers;

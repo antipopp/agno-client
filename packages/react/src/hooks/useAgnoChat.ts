@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { ChatMessage, ClientState } from '@antipopp/agno-types';
-import { useAgnoClient } from '../context/AgnoContext';
+import type { ChatMessage, ClientState } from "@antipopp/agno-types";
+import { useCallback, useEffect, useState } from "react";
+import { useAgnoClient } from "../context/AgnoContext";
 
 /**
  * Main hook for chat interactions
@@ -41,29 +41,32 @@ export function useAgnoChat() {
       // Update each tool call with its UI component
       for (const tool of tools) {
         if ((tool as any).ui_component) {
-          client.hydrateToolCallUI(tool.tool_call_id, (tool as any).ui_component);
+          client.hydrateToolCallUI(
+            tool.tool_call_id,
+            (tool as any).ui_component
+          );
         }
       }
     };
 
-    client.on('message:update', handleMessageUpdate);
-    client.on('message:complete', handleMessageComplete);
-    client.on('message:refreshed', handleMessageRefreshed);
-    client.on('message:error', handleMessageError);
-    client.on('state:change', handleStateChange);
-    client.on('ui:render', handleUIRender);
+    client.on("message:update", handleMessageUpdate);
+    client.on("message:complete", handleMessageComplete);
+    client.on("message:refreshed", handleMessageRefreshed);
+    client.on("message:error", handleMessageError);
+    client.on("state:change", handleStateChange);
+    client.on("ui:render", handleUIRender);
 
     // Initialize state
     setMessages(client.getMessages());
     setState(client.getState());
 
     return () => {
-      client.off('message:update', handleMessageUpdate);
-      client.off('message:complete', handleMessageComplete);
-      client.off('message:refreshed', handleMessageRefreshed);
-      client.off('message:error', handleMessageError);
-      client.off('state:change', handleStateChange);
-      client.off('ui:render', handleUIRender);
+      client.off("message:update", handleMessageUpdate);
+      client.off("message:complete", handleMessageComplete);
+      client.off("message:refreshed", handleMessageRefreshed);
+      client.off("message:error", handleMessageError);
+      client.off("state:change", handleStateChange);
+      client.off("ui:render", handleUIRender);
     };
   }, [client]);
 
@@ -71,7 +74,13 @@ export function useAgnoChat() {
    * Send a message to the agent/team
    */
   const sendMessage = useCallback(
-    async (message: string | FormData, options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
+    async (
+      message: string | FormData,
+      options?: {
+        headers?: Record<string, string>;
+        params?: Record<string, string>;
+      }
+    ) => {
       setError(undefined);
       try {
         await client.sendMessage(message, options);

@@ -1,11 +1,11 @@
 import type {
-  SessionEntry,
-  SessionsListResponse,
   ChatMessage,
   RunSchema,
+  SessionEntry,
+  SessionsListResponse,
   TeamRunSchema,
   ToolCall,
-} from '@antipopp/agno-types';
+} from "@antipopp/agno-types";
 
 /**
  * Manages session operations
@@ -16,16 +16,16 @@ export class SessionManager {
    */
   async fetchSessions(
     endpoint: string,
-    entityType: 'agent' | 'team',
+    entityType: "agent" | "team",
     entityId: string,
     dbId: string,
     headers: Record<string, string>,
     params?: URLSearchParams
   ): Promise<SessionEntry[]> {
     const url = new URL(`${endpoint}/sessions`);
-    url.searchParams.set('type', entityType);
-    url.searchParams.set('component_id', entityId);
-    url.searchParams.set('db_id', dbId);
+    url.searchParams.set("type", entityType);
+    url.searchParams.set("component_id", entityId);
+    url.searchParams.set("db_id", dbId);
 
     // Merge additional params if provided
     if (params) {
@@ -53,7 +53,7 @@ export class SessionManager {
    */
   async fetchSession(
     endpoint: string,
-    entityType: 'agent' | 'team',
+    entityType: "agent" | "team",
     sessionId: string,
     dbId: string,
     headers: Record<string, string>,
@@ -61,12 +61,12 @@ export class SessionManager {
     params?: URLSearchParams
   ): Promise<Array<RunSchema | TeamRunSchema>> {
     const url = new URL(`${endpoint}/sessions/${sessionId}/runs`);
-    url.searchParams.set('type', entityType);
+    url.searchParams.set("type", entityType);
     if (dbId) {
-      url.searchParams.set('db_id', dbId);
+      url.searchParams.set("db_id", dbId);
     }
     if (userId) {
-      url.searchParams.set('user_id', userId);
+      url.searchParams.set("user_id", userId);
     }
 
     // Merge additional params if provided
@@ -97,7 +97,7 @@ export class SessionManager {
   ): Promise<void> {
     const url = new URL(`${endpoint}/sessions/${sessionId}`);
     if (dbId) {
-      url.searchParams.set('db_id', dbId);
+      url.searchParams.set("db_id", dbId);
     }
 
     // Merge additional params if provided
@@ -108,7 +108,7 @@ export class SessionManager {
     }
 
     const response = await fetch(url.toString(), {
-      method: 'DELETE',
+      method: "DELETE",
       headers,
     });
 
@@ -116,7 +116,6 @@ export class SessionManager {
       throw new Error(`Failed to delete session: ${response.statusText}`);
     }
   }
-
 
   /**
    * Convert session runs array to chat messages
@@ -146,7 +145,7 @@ export class SessionManager {
       // Add user message (from run_input)
       if (run.run_input) {
         messages.push({
-          role: 'user',
+          role: "user",
           content: run.run_input,
           created_at: timestamp,
         });
@@ -159,10 +158,10 @@ export class SessionManager {
         for (const tool of run.tools) {
           const toolObj = tool as Record<string, unknown>;
           const toolCall = {
-            role: 'tool' as const,
-            content: (toolObj.content as string) ?? '',
-            tool_call_id: (toolObj.tool_call_id as string) ?? '',
-            tool_name: (toolObj.tool_name as string) ?? '',
+            role: "tool" as const,
+            content: (toolObj.content as string) ?? "",
+            tool_call_id: (toolObj.tool_call_id as string) ?? "",
+            tool_name: (toolObj.tool_name as string) ?? "",
             tool_args: (toolObj.tool_args as Record<string, string>) ?? {},
             tool_call_error: (toolObj.tool_call_error as boolean) ?? false,
             metrics: (toolObj.metrics as { time: number }) ?? { time: 0 },
@@ -177,15 +176,19 @@ export class SessionManager {
       if (run.reasoning_messages && Array.isArray(run.reasoning_messages)) {
         for (const msg of run.reasoning_messages) {
           const reasoningMsg = msg as Record<string, unknown>;
-          if (reasoningMsg.role === 'tool') {
+          if (reasoningMsg.role === "tool") {
             toolCalls.push({
-              role: 'tool',
-              content: (reasoningMsg.content as string) ?? '',
-              tool_call_id: (reasoningMsg.tool_call_id as string) ?? '',
-              tool_name: (reasoningMsg.tool_name as string) ?? '',
-              tool_args: (reasoningMsg.tool_args as Record<string, string>) ?? {},
-              tool_call_error: (reasoningMsg.tool_call_error as boolean) ?? false,
-              metrics: (reasoningMsg.metrics as { time: number }) ?? { time: 0 },
+              role: "tool",
+              content: (reasoningMsg.content as string) ?? "",
+              tool_call_id: (reasoningMsg.tool_call_id as string) ?? "",
+              tool_name: (reasoningMsg.tool_name as string) ?? "",
+              tool_args:
+                (reasoningMsg.tool_args as Record<string, string>) ?? {},
+              tool_call_error:
+                (reasoningMsg.tool_call_error as boolean) ?? false,
+              metrics: (reasoningMsg.metrics as { time: number }) ?? {
+                time: 0,
+              },
               created_at: (reasoningMsg.created_at as number) ?? timestamp,
             });
           }
@@ -193,10 +196,10 @@ export class SessionManager {
       }
 
       // Convert content to string if it's an object
-      let contentStr = '';
-      if (typeof run.content === 'string') {
+      let contentStr = "";
+      if (typeof run.content === "string") {
         contentStr = run.content;
-      } else if (run.content && typeof run.content === 'object') {
+      } else if (run.content && typeof run.content === "object") {
         contentStr = JSON.stringify(run.content);
       }
 
@@ -213,7 +216,7 @@ export class SessionManager {
 
       // Add agent response message
       messages.push({
-        role: 'agent',
+        role: "agent",
         content: contentStr,
         tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
         extra_data: extraData,

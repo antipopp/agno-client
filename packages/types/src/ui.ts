@@ -10,7 +10,7 @@
  */
 export interface BaseUIComponentSpec {
   /** Layout preference: inline with message or in artifact container */
-  layout?: 'inline' | 'artifact';
+  layout?: "inline" | "artifact";
   /** Optional title for the component */
   title?: string;
   /** Optional description */
@@ -35,9 +35,17 @@ export interface ChartSeries {
  * Chart component specification
  */
 export interface ChartComponentSpec extends BaseUIComponentSpec {
-  type: 'chart';
+  type: "chart";
   /** Chart component name (e.g., 'BarChart', 'LineChart', 'PieChart') */
-  component: 'BarChart' | 'LineChart' | 'PieChart' | 'AreaChart' | 'ComposedChart' | 'RadarChart' | 'ScatterChart' | string;
+  component:
+    | "BarChart"
+    | "LineChart"
+    | "PieChart"
+    | "AreaChart"
+    | "ComposedChart"
+    | "RadarChart"
+    | "ScatterChart"
+    | string;
   /** Chart configuration */
   props: {
     /** Chart data array */
@@ -76,7 +84,7 @@ export interface ChartComponentSpec extends BaseUIComponentSpec {
     [key: string]: any;
   };
   /** Streaming mode: 'replace' replaces data, 'append' adds to existing data */
-  streamMode?: 'replace' | 'append';
+  streamMode?: "replace" | "append";
 }
 
 /**
@@ -96,7 +104,7 @@ export interface CardData {
   /** Action buttons */
   actions?: {
     label: string;
-    variant?: 'default' | 'secondary' | 'outline' | 'ghost';
+    variant?: "default" | "secondary" | "outline" | "ghost";
     onClick?: string; // Event name or action identifier
   }[];
 }
@@ -105,7 +113,7 @@ export interface CardData {
  * Card grid component specification
  */
 export interface CardGridComponentSpec extends BaseUIComponentSpec {
-  type: 'card-grid';
+  type: "card-grid";
   props: {
     /** Array of cards to display */
     cards: CardData[];
@@ -118,7 +126,7 @@ export interface CardGridComponentSpec extends BaseUIComponentSpec {
       xl?: number;
     };
     /** Card variant */
-    variant?: 'default' | 'bordered' | 'elevated';
+    variant?: "default" | "bordered" | "elevated";
   };
 }
 
@@ -135,11 +143,11 @@ export interface TableColumn {
   /** Sortable */
   sortable?: boolean;
   /** Cell renderer type */
-  cellType?: 'text' | 'number' | 'date' | 'badge' | 'link' | 'custom';
+  cellType?: "text" | "number" | "date" | "badge" | "link" | "custom";
   /** Format options */
   format?: {
     /** Number format (e.g., 'currency', 'percent') */
-    type?: 'currency' | 'percent' | 'decimal';
+    type?: "currency" | "percent" | "decimal";
     /** Locale for formatting */
     locale?: string;
     /** Currency code (for currency format) */
@@ -151,7 +159,7 @@ export interface TableColumn {
  * Table component specification
  */
 export interface TableComponentSpec extends BaseUIComponentSpec {
-  type: 'table';
+  type: "table";
   props: {
     /** Table data rows */
     data: Record<string, any>[];
@@ -167,7 +175,7 @@ export interface TableComponentSpec extends BaseUIComponentSpec {
       pageSizeOptions?: number[];
     };
     /** Table density */
-    density?: 'comfortable' | 'compact';
+    density?: "comfortable" | "compact";
   };
 }
 
@@ -175,7 +183,7 @@ export interface TableComponentSpec extends BaseUIComponentSpec {
  * Markdown component specification
  */
 export interface MarkdownComponentSpec extends BaseUIComponentSpec {
-  type: 'markdown';
+  type: "markdown";
   props: {
     /** Markdown content */
     content: string;
@@ -189,7 +197,7 @@ export interface MarkdownComponentSpec extends BaseUIComponentSpec {
  * Uses a render function that must be registered at runtime.
  */
 export interface CustomComponentSpec extends BaseUIComponentSpec {
-  type: 'custom';
+  type: "custom";
   /** Unique key for looking up the render function */
   renderKey: string;
   /** Props passed to the custom render function */
@@ -201,12 +209,12 @@ export interface CustomComponentSpec extends BaseUIComponentSpec {
  * Can contain multiple child components
  */
 export interface ArtifactComponentSpec extends BaseUIComponentSpec {
-  type: 'artifact';
+  type: "artifact";
   props: {
     /** Child components to render in the artifact */
     content: UIComponentSpec[];
     /** Artifact variant */
-    variant?: 'default' | 'bordered' | 'elevated';
+    variant?: "default" | "bordered" | "elevated";
   };
 }
 
@@ -259,6 +267,6 @@ export type CustomRenderFunction = (props: Record<string, any>) => any; // React
  * Helper type for tool handlers that can return various formats
  */
 export type GenerativeToolHandlerReturn =
-  | ToolHandlerResult  // New format: { data, ui }
-  | UIComponentSpec    // Just UI spec (data = ui spec)
-  | any;               // Legacy format: any data (backward compatible)
+  | ToolHandlerResult // New format: { data, ui }
+  | UIComponentSpec // Just UI spec (data = ui spec)
+  | any; // Legacy format: any data (backward compatible)

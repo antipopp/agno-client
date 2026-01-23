@@ -1,12 +1,12 @@
-import { RunEvent } from './events';
-import {
-  ToolCall,
-  MessageExtraData,
-  ImageData,
-  VideoData,
+import type { RunEvent } from "./events";
+import type {
   AudioData,
+  ImageData,
+  MessageExtraData,
   ResponseAudioData,
-} from './messages';
+  ToolCall,
+  VideoData,
+} from "./messages";
 
 /**
  * Model information
@@ -22,7 +22,7 @@ export interface Model {
  */
 export interface MessageContext {
   query: string;
-  docs?: Array<Record<string, object>>;
+  docs?: Record<string, object>[];
   time?: number;
 }
 
@@ -113,18 +113,18 @@ export interface RunSchema {
   content?: string | object | null;
   run_response_format?: string | null;
   reasoning_content?: string | null;
-  reasoning_steps?: Array<Record<string, unknown>> | null;
+  reasoning_steps?: Record<string, unknown>[] | null;
   metrics?: Record<string, unknown> | null;
-  messages?: Array<Record<string, unknown>> | null;
-  tools?: Array<Record<string, unknown>> | null;
-  events?: Array<Record<string, unknown>> | null;
+  messages?: Record<string, unknown>[] | null;
+  tools?: Record<string, unknown>[] | null;
+  events?: Record<string, unknown>[] | null;
   created_at?: string | null;
-  references?: Array<Record<string, unknown>> | null;
-  reasoning_messages?: Array<Record<string, unknown>> | null;
-  images?: Array<Record<string, unknown>> | null;
-  videos?: Array<Record<string, unknown>> | null;
-  audio?: Array<Record<string, unknown>> | null;
-  files?: Array<Record<string, unknown>> | null;
+  references?: Record<string, unknown>[] | null;
+  reasoning_messages?: Record<string, unknown>[] | null;
+  images?: Record<string, unknown>[] | null;
+  videos?: Record<string, unknown>[] | null;
+  audio?: Record<string, unknown>[] | null;
+  files?: Record<string, unknown>[] | null;
   response_audio?: Record<string, unknown> | null;
   input_media?: Record<string, unknown> | null;
 }
@@ -138,21 +138,21 @@ export interface TeamRunSchema {
   team_id?: string | null;
   content?: string | object | null;
   reasoning_content?: string | null;
-  reasoning_steps?: Array<Record<string, unknown>> | null;
+  reasoning_steps?: Record<string, unknown>[] | null;
   run_input?: string | null;
   run_response_format?: string | null;
   metrics?: Record<string, unknown> | null;
-  tools?: Array<Record<string, unknown>> | null;
-  messages?: Array<Record<string, unknown>> | null;
-  events?: Array<Record<string, unknown>> | null;
+  tools?: Record<string, unknown>[] | null;
+  messages?: Record<string, unknown>[] | null;
+  events?: Record<string, unknown>[] | null;
   created_at?: string | null;
-  references?: Array<Record<string, unknown>> | null;
-  reasoning_messages?: Array<Record<string, unknown>> | null;
+  references?: Record<string, unknown>[] | null;
+  reasoning_messages?: Record<string, unknown>[] | null;
   input_media?: Record<string, unknown> | null;
-  images?: Array<Record<string, unknown>> | null;
-  videos?: Array<Record<string, unknown>> | null;
-  audio?: Array<Record<string, unknown>> | null;
-  files?: Array<Record<string, unknown>> | null;
+  images?: Record<string, unknown>[] | null;
+  videos?: Record<string, unknown>[] | null;
+  audio?: Record<string, unknown>[] | null;
+  files?: Record<string, unknown>[] | null;
   response_audio?: Record<string, unknown> | null;
 }
 
@@ -182,7 +182,7 @@ export interface AgentSessionDetailSchema {
   agent_data?: Record<string, unknown> | null;
   metrics?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
-  chat_history?: Array<Record<string, unknown>> | null;
+  chat_history?: Record<string, unknown>[] | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -200,7 +200,7 @@ export interface TeamSessionDetailSchema {
   metrics?: Record<string, unknown> | null;
   team_data?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
-  chat_history?: Array<Record<string, unknown>> | null;
+  chat_history?: Record<string, unknown>[] | null;
   created_at?: string | null;
   updated_at?: string | null;
   total_tokens?: number | null;
@@ -252,7 +252,7 @@ export interface RunResponseContent {
   agent_id?: string;
   session_id?: string;
   tool?: ToolCall;
-  tools?: Array<ToolCall>;
+  tools?: ToolCall[];
   created_at: number;
   extra_data?: MessageExtraData;
   images?: ImageData[];

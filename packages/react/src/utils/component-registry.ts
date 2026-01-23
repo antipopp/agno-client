@@ -15,7 +15,7 @@ export type ComponentRenderer = (props: any) => any; // React.ReactNode in React
  */
 export class ComponentRegistry {
   private static instance: ComponentRegistry;
-  private components: Map<string, ComponentRenderer> = new Map();
+  private readonly components: Map<string, ComponentRenderer> = new Map();
 
   private constructor() {
     // Private constructor for singleton
@@ -93,7 +93,10 @@ export function getComponentRegistry(): ComponentRegistry {
 /**
  * Helper to register a chart component
  */
-export function registerChartComponent(name: string, renderer: ComponentRenderer): void {
+export function registerChartComponent(
+  name: string,
+  renderer: ComponentRenderer
+): void {
   getComponentRegistry().register(`chart:${name}`, renderer);
 }
 

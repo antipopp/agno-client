@@ -1,42 +1,45 @@
 import {
   PromptInput,
   PromptInputBody,
-  PromptInputTextarea,
   PromptInputFooter,
-  PromptInputTools,
-  PromptInputSubmit,
   type PromptInputMessage,
-} from '@/components/ai-elements/prompt-input'
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
 
 interface ChatInputProps {
-  onSend: (message: string) => void
-  disabled?: boolean
-  placeholder?: string
+  onSend: (message: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
 export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     // Extract text from the message
-    const text = message.text?.trim()
+    const text = message.text?.trim();
 
     if (text) {
-      onSend(text)
+      onSend(text);
     }
-  }
+  };
 
-  const status = disabled ? 'submitted' : undefined
+  const status = disabled ? "submitted" : undefined;
 
   return (
     <PromptInput
-      onSubmit={handleSubmit}
       accept="image/*"
-      multiple
       className="w-full"
+      multiple
+      onSubmit={handleSubmit}
     >
       <PromptInputBody>
         <PromptInputTextarea
-          placeholder={placeholder || 'Type your message... (Enter to send, Shift+Enter for new line)'}
           disabled={disabled}
+          placeholder={
+            placeholder ||
+            "Type your message... (Enter to send, Shift+Enter for new line)"
+          }
         />
       </PromptInputBody>
       <PromptInputFooter>
@@ -44,5 +47,5 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         <PromptInputSubmit disabled={disabled} status={status} />
       </PromptInputFooter>
     </PromptInput>
-  )
+  );
 }

@@ -15,7 +15,7 @@ export interface AgnoClientConfig {
   /**
    * Mode: 'agent' or 'team'
    */
-  mode?: 'agent' | 'team';
+  mode?: "agent" | "team";
 
   /**
    * Agent ID (required if mode is 'agent')
@@ -104,17 +104,17 @@ export interface ClientState {
   /**
    * Available agents
    */
-  agents: import('./api').AgentDetails[];
+  agents: import("./api").AgentDetails[];
 
   /**
    * Available teams
    */
-  teams: import('./api').TeamDetails[];
+  teams: import("./api").TeamDetails[];
 
   /**
    * Available sessions
    */
-  sessions: import('./api').SessionEntry[];
+  sessions: import("./api").SessionEntry[];
 
   /**
    * Whether the run is paused (HITL)
@@ -129,5 +129,5 @@ export interface ClientState {
   /**
    * Tools awaiting external execution
    */
-  toolsAwaitingExecution?: import('./messages').ToolCall[];
+  toolsAwaitingExecution?: import("./messages").ToolCall[];
 }

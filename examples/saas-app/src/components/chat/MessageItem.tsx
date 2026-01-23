@@ -1,16 +1,22 @@
-import { Response } from '@/components/ai-elements/response'
-import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '@/components/ai-elements/tool'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import type { ChatMessage } from '@antipopp/agno-types'
-import { Bot, User } from 'lucide-react'
+import type { ChatMessage } from "@antipopp/agno-types";
+import { Bot, User } from "lucide-react";
+import { Response } from "@/components/ai-elements/response";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface MessageItemProps {
-  message: ChatMessage
+  message: ChatMessage;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const isUser = message.role === 'user'
+  const isUser = message.role === "user";
 
   return (
     <div className="space-y-2 py-3">
@@ -21,10 +27,10 @@ export function MessageItem({ message }: MessageItemProps) {
         ) : (
           <Bot className="h-4 w-4 text-primary" />
         )}
-        <Badge variant={isUser ? 'secondary' : 'default'} className="text-xs">
-          {isUser ? 'You' : 'AI Assistant'}
+        <Badge className="text-xs" variant={isUser ? "secondary" : "default"}>
+          {isUser ? "You" : "AI Assistant"}
         </Badge>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {new Date(message.created_at).toLocaleTimeString()}
         </span>
       </div>
@@ -42,18 +48,24 @@ export function MessageItem({ message }: MessageItemProps) {
           <Separator className="my-2" />
           <div className="space-y-2 pl-6">
             {message.tool_calls.map((tool: any, idx: number) => (
-              <Tool key={tool.tool_call_id || idx} defaultOpen={false}>
+              <Tool defaultOpen={false} key={tool.tool_call_id || idx}>
                 <ToolHeader
+                  state={
+                    tool.tool_call_error ? "output-error" : "output-available"
+                  }
                   title={tool.tool_name}
                   type="tool-use"
-                  state={tool.tool_call_error ? 'output-error' : 'output-available'}
                 />
                 <ToolContent>
                   <ToolInput input={tool.tool_args} />
                   {tool.content && (
                     <ToolOutput
+                      errorText={
+                        tool.tool_call_error
+                          ? "Tool execution failed"
+                          : undefined
+                      }
                       output={tool.content}
-                      errorText={tool.tool_call_error ? 'Tool execution failed' : undefined}
                     />
                   )}
                 </ToolContent>
@@ -63,5 +75,5 @@ export function MessageItem({ message }: MessageItemProps) {
         </>
       )}
     </div>
-  )
+  );
 }

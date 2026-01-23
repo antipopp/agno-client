@@ -1,26 +1,60 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const revenueData = [
-  { date: '2025-01-01', revenue: '$45,231', growth: '+12.5%', status: 'On Track' },
-  { date: '2025-01-02', revenue: '$52,120', growth: '+15.3%', status: 'On Track' },
-  { date: '2025-01-03', revenue: '$48,900', growth: '+8.1%', status: 'On Track' },
-  { date: '2025-01-04', revenue: '$61,450', growth: '+25.6%', status: 'Exceeding' },
-  { date: '2025-01-05', revenue: '$43,780', growth: '+5.2%', status: 'On Track' },
-]
+  {
+    date: "2025-01-01",
+    revenue: "$45,231",
+    growth: "+12.5%",
+    status: "On Track",
+  },
+  {
+    date: "2025-01-02",
+    revenue: "$52,120",
+    growth: "+15.3%",
+    status: "On Track",
+  },
+  {
+    date: "2025-01-03",
+    revenue: "$48,900",
+    growth: "+8.1%",
+    status: "On Track",
+  },
+  {
+    date: "2025-01-04",
+    revenue: "$61,450",
+    growth: "+25.6%",
+    status: "Exceeding",
+  },
+  {
+    date: "2025-01-05",
+    revenue: "$43,780",
+    growth: "+5.2%",
+    status: "On Track",
+  },
+];
 
 const metrics = [
-  { title: 'Total Revenue', value: '$251,481', change: '+13.5%' },
-  { title: 'Monthly Growth', value: '15.3%', change: '+2.1%' },
-  { title: 'Active Users', value: '12,847', change: '+8.2%' },
-]
+  { title: "Total Revenue", value: "$251,481", change: "+13.5%" },
+  { title: "Monthly Growth", value: "15.3%", change: "+2.1%" },
+  { title: "Active Users", value: "12,847", change: "+8.2%" },
+];
 
 export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your business metrics</p>
+        <h2 className="font-bold text-3xl tracking-tight">Dashboard</h2>
+        <p className="text-muted-foreground">
+          Overview of your business metrics
+        </p>
       </div>
 
       {/* Metrics Cards */}
@@ -28,12 +62,15 @@ export function Dashboard() {
         {metrics.map((metric) => (
           <Card key={metric.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+              <CardTitle className="font-medium text-sm">
+                {metric.title}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">{metric.change}</span> from last period
+              <div className="font-bold text-2xl">{metric.value}</div>
+              <p className="text-muted-foreground text-xs">
+                <span className="text-green-600">{metric.change}</span> from
+                last period
               </p>
             </CardContent>
           </Card>
@@ -63,10 +100,10 @@ export function Dashboard() {
                   <TableCell className="text-green-600">{row.growth}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        row.status === 'Exceeding'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold text-xs ${
+                        row.status === "Exceeding"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
                       }`}
                     >
                       {row.status}
@@ -79,5 +116,5 @@ export function Dashboard() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

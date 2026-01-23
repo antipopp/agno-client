@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import type { AgentDetails, TeamDetails } from '@antipopp/agno-types';
-import { useAgnoClient } from '../context/AgnoContext';
+import type { AgentDetails, TeamDetails } from "@antipopp/agno-types";
+import { useCallback, useState } from "react";
+import { useAgnoClient } from "../context/AgnoContext";
 
 /**
  * Hook for common actions like initialization, fetching agents/teams
@@ -13,65 +13,83 @@ export function useAgnoActions() {
   /**
    * Initialize the client (check status and fetch agents/teams)
    */
-  const initialize = useCallback(async (options?: { params?: Record<string, string> }): Promise<{
-    agents: AgentDetails[];
-    teams: TeamDetails[];
-  }> => {
-    setIsInitializing(true);
-    setError(undefined);
-    try {
-      const result = await client.initialize(options);
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [client]);
+  const initialize = useCallback(
+    async (options?: {
+      params?: Record<string, string>;
+    }): Promise<{
+      agents: AgentDetails[];
+      teams: TeamDetails[];
+    }> => {
+      setIsInitializing(true);
+      setError(undefined);
+      try {
+        const result = await client.initialize(options);
+        return result;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setIsInitializing(false);
+      }
+    },
+    [client]
+  );
 
   /**
    * Check endpoint status
    */
-  const checkStatus = useCallback(async (options?: { params?: Record<string, string> }): Promise<boolean> => {
-    setError(undefined);
-    try {
-      return await client.checkStatus(options);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      return false;
-    }
-  }, [client]);
+  const checkStatus = useCallback(
+    async (options?: { params?: Record<string, string> }): Promise<boolean> => {
+      setError(undefined);
+      try {
+        return await client.checkStatus(options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        return false;
+      }
+    },
+    [client]
+  );
 
   /**
    * Fetch agents
    */
-  const fetchAgents = useCallback(async (options?: { params?: Record<string, string> }): Promise<AgentDetails[]> => {
-    setError(undefined);
-    try {
-      return await client.fetchAgents(options);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      throw err;
-    }
-  }, [client]);
+  const fetchAgents = useCallback(
+    async (options?: {
+      params?: Record<string, string>;
+    }): Promise<AgentDetails[]> => {
+      setError(undefined);
+      try {
+        return await client.fetchAgents(options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      }
+    },
+    [client]
+  );
 
   /**
    * Fetch teams
    */
-  const fetchTeams = useCallback(async (options?: { params?: Record<string, string> }): Promise<TeamDetails[]> => {
-    setError(undefined);
-    try {
-      return await client.fetchTeams(options);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      throw err;
-    }
-  }, [client]);
+  const fetchTeams = useCallback(
+    async (options?: {
+      params?: Record<string, string>;
+    }): Promise<TeamDetails[]> => {
+      setError(undefined);
+      try {
+        return await client.fetchTeams(options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      }
+    },
+    [client]
+  );
 
   /**
    * Update client configuration

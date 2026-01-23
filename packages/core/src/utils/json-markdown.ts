@@ -6,6 +6,6 @@ export function getJsonMarkdown(content: unknown): string {
     const jsonString = JSON.stringify(content, null, 2);
     return `\`\`\`json\n${jsonString}\n\`\`\``;
   } catch {
-    return '```\nError formatting JSON\n```';
+    return "```\nError formatting JSON\n```";
   }
 }

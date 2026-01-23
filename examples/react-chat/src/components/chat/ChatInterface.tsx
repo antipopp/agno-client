@@ -1,62 +1,67 @@
-import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from '@/components/ai-elements/conversation'
-import { useAgnoChat, useAgnoToolExecution, type ToolHandler } from '@antipopp/agno-react'
-import { Loader2, MessageSquare, Wrench } from 'lucide-react'
-import { toast } from 'sonner'
-import { ChatInput } from './ChatInput'
-import { MessageItem } from './MessageItem'
-import { StreamingIndicator } from './StreamingIndicator'
-import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
+import {
+  type ToolHandler,
+  useAgnoChat,
+  useAgnoToolExecution,
+} from "@antipopp/agno-react";
+import { Loader2, MessageSquare, Wrench } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { EXAMPLE_GENERATIVE_TOOLS } from "@/tools/exampleGenerativeTools";
+import { ChatInput } from "./ChatInput";
+import { MessageItem } from "./MessageItem";
+import { StreamingIndicator } from "./StreamingIndicator";
 
 export function ChatInterface() {
-  const { messages, sendMessage, isStreaming, error } = useAgnoChat()
+  const { messages, sendMessage, isStreaming, error } = useAgnoChat();
 
   // Combine example generative tools with other tool handlers
   const toolHandlers: Record<string, ToolHandler> = {
     // Example: show alert (legacy tool)
     show_alert: async (args: Record<string, any>) => {
-      const content = args.content as string
+      const content = args.content as string;
 
       // Also show as toast notification
-      toast.info('Alert from Agent', {
+      toast.info("Alert from Agent", {
         description: content,
-      })
+      });
 
       return {
         success: true,
-        message: 'Alert displayed successfully',
-        content: content,
-      }
+        message: "Alert displayed successfully",
+        content,
+      };
     },
 
     // Add all generative UI example tools
     ...EXAMPLE_GENERATIVE_TOOLS,
-  }
+  };
 
   // Use tool execution hook with auto-execution enabled
-  const {
-    isPaused,
-    isExecuting,
-    pendingTools,
-    executionError,
-  } = useAgnoToolExecution(toolHandlers, true)
+  const { isPaused, isExecuting, pendingTools, executionError } =
+    useAgnoToolExecution(toolHandlers, true);
 
   const handleSend = async (message: string) => {
     try {
-      await sendMessage(message)
+      await sendMessage(message);
     } catch (err) {
-      toast.error(`Failed to send message: ${error || err}`)
+      toast.error(`Failed to send message: ${error || err}`);
     }
-  }
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      <Conversation className="relative w-full" style={{ height: '500px' }}>
+    <div className="flex h-full flex-col">
+      <Conversation className="relative w-full" style={{ height: "500px" }}>
         <ConversationContent>
           {messages.length === 0 ? (
             <ConversationEmptyState
+              description="Start a conversation to see messages here"
               icon={<MessageSquare className="size-12" />}
               title="No messages yet"
-              description="Start a conversation to see messages here"
             />
           ) : (
             messages.map((message, index) => (
@@ -68,17 +73,23 @@ export function ChatInterface() {
       </Conversation>
 
       {(isPaused || isExecuting) && (
-        <div className="px-4 py-2 border-t border-border bg-accent/50">
+        <div className="border-border border-t bg-accent/50 px-4 py-2">
           <div className="flex items-center gap-2 text-sm">
             {isExecuting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Executing {pendingTools.length} tool{pendingTools.length !== 1 ? 's' : ''}...</span>
+                <span>
+                  Executing {pendingTools.length} tool
+                  {pendingTools.length !== 1 ? "s" : ""}...
+                </span>
               </>
             ) : (
               <>
                 <Wrench className="h-4 w-4" />
-                <span>Preparing to execute {pendingTools.length} tool{pendingTools.length !== 1 ? 's' : ''}...</span>
+                <span>
+                  Preparing to execute {pendingTools.length} tool
+                  {pendingTools.length !== 1 ? "s" : ""}...
+                </span>
               </>
             )}
           </div>
@@ -86,24 +97,24 @@ export function ChatInterface() {
       )}
 
       {isStreaming && (
-        <div className="px-4 py-2 border-t border-border">
+        <div className="border-border border-t px-4 py-2">
           <StreamingIndicator />
         </div>
       )}
 
       {(error || executionError) && (
-        <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm border-t border-destructive">
+        <div className="border-destructive border-t bg-destructive/10 px-4 py-2 text-destructive text-sm">
           {error || executionError}
         </div>
-      )} 
-    
-      <div className="px-4 py-3 border-t border-border bg-background">
+      )}
+
+      <div className="border-border border-t bg-background px-4 py-3">
         <ChatInput
-          onSend={handleSend}
           disabled={isStreaming || isPaused}
+          onSend={handleSend}
           placeholder="Type your message..."
         />
       </div>
     </div>
-  )
+  );
 }
