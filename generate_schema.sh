@@ -3,6 +3,42 @@
 # Ensure the script exits if any command fails
 set -e
 
+# Check if agno is installed and on the latest version
+check_agno_version() {
+    echo "Checking Agno version..."
+
+    # Get installed version
+    INSTALLED_VERSION=$(pip show agno 2>/dev/null | grep "^Version:" | cut -d' ' -f2)
+
+    if [[ -z "$INSTALLED_VERSION" ]]; then
+        echo "Error: Agno is not installed. Install it with: pip install agno"
+        exit 1
+    fi
+
+    # Get latest release from GitHub API
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/agno-agi/agno/releases/latest | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+
+    if [[ -z "$LATEST_VERSION" ]]; then
+        echo "Warning: Could not fetch latest version from GitHub. Proceeding with installed version."
+        return 0
+    fi
+
+    echo "Installed: $INSTALLED_VERSION"
+    echo "Latest:    $LATEST_VERSION"
+
+    if [[ "$INSTALLED_VERSION" != "$LATEST_VERSION" ]]; then
+        echo ""
+        echo "Error: Version mismatch. Please update agno to the latest version:"
+        echo "  pip install --upgrade agno"
+        exit 1
+    fi
+
+    echo "Running on latest version."
+    echo ""
+}
+
+check_agno_version
+
 OUTPUT_FILE="agentos.yaml"
 TEMP_PYTHON_SCRIPT="generate_schema_temp.py"
 
