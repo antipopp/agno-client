@@ -81,6 +81,18 @@ export class ComponentRegistry {
   clear(): void {
     this.components.clear();
   }
+
+  /**
+   * Reset the singleton instance.
+   * Call this during cleanup (e.g., when AgnoProvider unmounts) to prevent memory leaks.
+   * After calling this, getInstance() will create a fresh instance.
+   */
+  static resetInstance(): void {
+    if (ComponentRegistry.instance) {
+      ComponentRegistry.instance.clear();
+      ComponentRegistry.instance = undefined as unknown as ComponentRegistry;
+    }
+  }
 }
 
 /**

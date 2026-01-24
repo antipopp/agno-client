@@ -16,6 +16,9 @@ export type ToolHandler = (args: Record<string, any>) => Promise<any>;
 /**
  * Runtime registry for custom render functions (not serializable)
  * These are React components/functions that can't be stored in JSON
+ *
+ * Note: This is a module-level Map for runtime storage of React components.
+ * Call clearCustomRenderRegistry() during cleanup to prevent memory leaks.
  */
 const customRenderRegistry = new Map<string, CustomRenderFunction>();
 
@@ -33,6 +36,14 @@ function registerCustomRender(renderFn: CustomRenderFunction): string {
  */
 export function getCustomRender(key: string): CustomRenderFunction | undefined {
   return customRenderRegistry.get(key);
+}
+
+/**
+ * Clear all custom render functions from the registry.
+ * Call this during cleanup (e.g., when AgnoProvider unmounts) to prevent memory leaks.
+ */
+export function clearCustomRenderRegistry(): void {
+  customRenderRegistry.clear();
 }
 
 /**

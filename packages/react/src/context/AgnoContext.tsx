@@ -2,6 +2,8 @@ import { AgnoClient } from "@antipopp/agno-client";
 import type { AgnoClientConfig } from "@antipopp/agno-types";
 import type React from "react";
 import { createContext, useContext, useEffect, useRef } from "react";
+import { clearCustomRenderRegistry } from "../hooks/useAgnoToolExecution";
+import { ComponentRegistry } from "../utils/component-registry";
 
 /**
  * Context for providing AgnoClient instance
@@ -15,6 +17,7 @@ export interface AgnoProviderProps {
 
 /**
  * Provider component that creates and manages an AgnoClient instance.
+ * Handles cleanup of all module-level registries on unmount to prevent memory leaks.
  */
 export function AgnoProvider({ config, children }: AgnoProviderProps) {
   const clientRef = useRef<AgnoClient | null>(null);
@@ -31,7 +34,12 @@ export function AgnoProvider({ config, children }: AgnoProviderProps) {
 
   useEffect(() => {
     return () => {
-      client.removeAllListeners();
+      // Dispose the client (clears event listeners, message store, pending UI specs)
+      client.dispose();
+
+      // Clear module-level registries to prevent memory leaks
+      clearCustomRenderRegistry();
+      ComponentRegistry.resetInstance();
     };
   }, [client]);
 
