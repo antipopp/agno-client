@@ -93,6 +93,16 @@ export function useAgnoChat() {
     [client]
   );
 
+  const cancelRun = useCallback(async () => {
+    try {
+      await client.cancelRun();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [client]);
+
   /**
    * Clear all messages
    */
@@ -106,9 +116,12 @@ export function useAgnoChat() {
     messages,
     sendMessage,
     clearMessages,
+    cancelRun,
     isStreaming: state.isStreaming,
     isRefreshing: state.isRefreshing,
     isPaused: state.isPaused,
+    isCancelling: state.isCancelling,
+    currentRunId: state.currentRunId,
     error,
     state,
   };

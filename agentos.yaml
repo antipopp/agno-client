@@ -1927,7 +1927,7 @@ components:
           title: Name
           type: string
         type:
-          description: Type of content source (s3, gcs, sharepoint, github)
+          description: Type of content source (s3, gcs, sharepoint, github, azureblob)
           title: Type
           type: string
       required:
@@ -5095,6 +5095,7 @@ paths:
                 readersForType:
                   .csv:
                     - csv
+                    - field_labeled_csv
                   .doc:
                     - docx
                   .docx:
@@ -5108,9 +5109,13 @@ paths:
                   .txt:
                     - text
                   .xls:
-                    - csv
+                    - excel
                   .xlsx:
-                    - csv
+                    - excel
+                  application/vnd.ms-excel:
+                    - excel
+                  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+                    - excel
                   file:
                     - csv
                     - gcs

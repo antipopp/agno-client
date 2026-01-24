@@ -48,6 +48,7 @@ export class AgnoClient extends EventEmitter {
   private readonly state: ClientState;
   private readonly pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
   private runCompletedSuccessfully = false;
+  private currentRunId: string | undefined;
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -59,6 +60,7 @@ export class AgnoClient extends EventEmitter {
     this.state = {
       isStreaming: false,
       isRefreshing: false,
+      isCancelling: false,
       isEndpointActive: false,
       agents: [],
       teams: [],
@@ -107,6 +109,63 @@ export class AgnoClient extends EventEmitter {
     this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
     this.emit("message:update", this.messageStore.getMessages());
     this.emit("state:change", this.getState());
+  }
+
+  /**
+   * Cancel an active or paused run
+   */
+  async cancelRun(): Promise<void> {
+    if (!(this.state.isStreaming || this.state.isPaused)) {
+      throw new Error("No active or paused run to cancel");
+    }
+
+    const runUrl = this.configManager.getRunUrl();
+    if (!runUrl) {
+      throw new Error("No agent or team selected");
+    }
+
+    // Get the run ID - either from paused state or current active run
+    const runId = this.state.pausedRunId || this.currentRunId;
+    if (!runId) {
+      throw new Error("No run ID available to cancel");
+    }
+
+    // Build cancel URL: POST /agents/{id}/runs/{run_id}/cancel
+    const cancelUrl = `${runUrl}/${runId}/cancel`;
+
+    const headers = this.configManager.buildRequestHeaders();
+
+    this.state.isCancelling = true;
+    this.emit("state:change", this.getState());
+
+    try {
+      const response = await fetch(cancelUrl, {
+        method: "POST",
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to cancel run");
+      }
+
+      this.state.isStreaming = false;
+      this.state.isPaused = false;
+      this.state.isCancelling = false;
+      this.state.pausedRunId = undefined;
+      this.state.toolsAwaitingExecution = undefined;
+      this.currentRunId = undefined;
+
+      this.emit("run:cancelled", { runId });
+      this.emit("state:change", this.getState());
+    } catch (error) {
+      this.state.isCancelling = false;
+      this.emit("state:change", this.getState());
+      throw new Error(
+        `Error cancelling run: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 
   /**
@@ -215,6 +274,7 @@ export class AgnoClient extends EventEmitter {
         },
         onComplete: async () => {
           this.state.isStreaming = false;
+          this.currentRunId = undefined;
           this.emit("stream:end");
           this.emit("message:complete", this.messageStore.getMessages());
           this.emit("state:change", this.getState());
@@ -243,6 +303,14 @@ export class AgnoClient extends EventEmitter {
     messageContent: string
   ): void {
     const event = chunk.event as RunEvent;
+
+    // Track run ID when run starts
+    if (
+      (event === RunEvent.RunStarted || event === RunEvent.TeamRunStarted) &&
+      chunk.run_id
+    ) {
+      this.currentRunId = chunk.run_id;
+    }
 
     // Handle session creation
     if (

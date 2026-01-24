@@ -83,6 +83,7 @@ describe("Config types", () => {
       const state: ClientState = {
         isStreaming: false,
         isRefreshing: false,
+        isCancelling: false,
         isEndpointActive: true,
         agents: [],
         teams: [],
@@ -97,6 +98,7 @@ describe("Config types", () => {
       const state: ClientState = {
         isStreaming: false,
         isRefreshing: false,
+        isCancelling: false,
         isEndpointActive: true,
         agents: [],
         teams: [],
@@ -125,6 +127,7 @@ describe("Config types", () => {
       const state: ClientState = {
         isStreaming: false,
         isRefreshing: false,
+        isCancelling: false,
         errorMessage: "Connection failed",
         isEndpointActive: false,
         agents: [],
@@ -133,6 +136,20 @@ describe("Config types", () => {
         isPaused: false,
       };
       expect(state.errorMessage).toBe("Connection failed");
+    });
+
+    it("should support cancelling state", () => {
+      const state: ClientState = {
+        isStreaming: true,
+        isRefreshing: false,
+        isCancelling: true,
+        isEndpointActive: true,
+        agents: [],
+        teams: [],
+        sessions: [],
+        isPaused: false,
+      };
+      expect(state.isCancelling).toBe(true);
     });
   });
 

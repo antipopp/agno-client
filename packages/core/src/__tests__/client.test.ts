@@ -307,6 +307,99 @@ describe("AgnoClient", () => {
     });
   });
 
+  describe("cancelRun", () => {
+    it("should throw if no active run", async () => {
+      await expect(client.cancelRun()).rejects.toThrow(
+        "No active or paused run to cancel"
+      );
+    });
+
+    it("should cancel active run and reset state", async () => {
+      const sendPromise = client.sendMessage("Hello");
+
+      // Wait for the first message:update event, which indicates streaming has started
+      // and currentRunId has been set from the RunStarted event
+      await new Promise<void>((resolve) => {
+        client.once("message:update", () => resolve());
+      });
+
+      expect(client.getState().isStreaming).toBe(true);
+
+      await client.cancelRun();
+      await sendPromise;
+
+      // Verify state is reset after cancel
+      const state = client.getState();
+      expect(state.isStreaming).toBe(false);
+      expect(state.isCancelling).toBe(false);
+      expect(state.isPaused).toBe(false);
+    });
+
+    it("should set isCancelling to true during cancel request", async () => {
+      const stateChanges: boolean[] = [];
+
+      const sendPromise = client.sendMessage("Hello");
+
+      await new Promise<void>((resolve) => {
+        client.once("message:update", () => resolve());
+      });
+
+      // Track isCancelling state changes
+      client.on("state:change", (state) => {
+        stateChanges.push(state.isCancelling);
+      });
+
+      await client.cancelRun();
+      await sendPromise;
+
+      // First state:change should have isCancelling=true, last should have isCancelling=false
+      expect(stateChanges[0]).toBe(true);
+      expect(stateChanges.at(-1)).toBe(false);
+    });
+
+    it("should emit run:cancelled event with runId", async () => {
+      const handler = vi.fn();
+      client.on("run:cancelled", handler);
+
+      const sendPromise = client.sendMessage("Hello");
+
+      await new Promise<void>((resolve) => {
+        client.once("message:update", () => resolve());
+      });
+
+      await client.cancelRun();
+      await sendPromise;
+
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ runId: expect.any(String) })
+      );
+    });
+
+    it("should reset isCancelling on error", async () => {
+      // Override the cancel endpoint to return an error
+      server.use(
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/cancel",
+          () => {
+            return new HttpResponse(null, { status: 500 });
+          }
+        )
+      );
+
+      const sendPromise = client.sendMessage("Hello");
+
+      await new Promise<void>((resolve) => {
+        client.once("message:update", () => resolve());
+      });
+
+      await expect(client.cancelRun()).rejects.toThrow("Error cancelling run");
+      await sendPromise;
+
+      // isCancelling should be reset to false even on error
+      expect(client.getState().isCancelling).toBe(false);
+    });
+  });
+
   describe("continueRun", () => {
     it("should throw if in team mode", async () => {
       const teamClient = new AgnoClient({

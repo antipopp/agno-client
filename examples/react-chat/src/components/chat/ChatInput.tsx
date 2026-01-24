@@ -1,3 +1,4 @@
+import type { ChatStatus } from "ai";
 import {
   PromptInput,
   PromptInputBody,
@@ -10,12 +11,25 @@ import {
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onCancel: () => void;
+  status: ChatStatus;
   disabled?: boolean;
   placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  onCancel,
+  status,
+  disabled,
+  placeholder,
+}: ChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
+    if (status === "streaming") {
+      onCancel();
+      return;
+    }
+
     // Extract text from the message
     const text = message.text?.trim();
 
@@ -23,8 +37,6 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
       onSend(text);
     }
   };
-
-  const status = disabled ? "submitted" : undefined;
 
   return (
     <PromptInput

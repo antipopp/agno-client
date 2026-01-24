@@ -3,7 +3,9 @@ import {
   useAgnoChat,
   useAgnoToolExecution,
 } from "@antipopp/agno-react";
+import type { ChatStatus } from "ai";
 import { Loader2, MessageSquare, Wrench } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Conversation,
@@ -17,7 +19,17 @@ import { MessageItem } from "./MessageItem";
 import { StreamingIndicator } from "./StreamingIndicator";
 
 export function ChatInterface() {
-  const { messages, sendMessage, isStreaming, error } = useAgnoChat();
+  const {
+    messages,
+    sendMessage,
+    cancelRun,
+    isCancelling,
+    isRefreshing,
+    isStreaming,
+    error,
+  } = useAgnoChat();
+
+  const [chatStatus, setChatStatus] = useState<ChatStatus>("ready");
 
   // Combine example generative tools with other tool handlers
   const toolHandlers: Record<string, ToolHandler> = {
@@ -52,6 +64,28 @@ export function ChatInterface() {
       toast.error(`Failed to send message: ${error || err}`);
     }
   };
+
+  const handleCancel = async () => {
+    try {
+      await cancelRun();
+    } catch (err) {
+      toast.error(`Failed to cancel run: ${error || err}`);
+    }
+  };
+
+  useEffect(() => {
+    if (isStreaming && !error) {
+      setChatStatus("streaming");
+      return;
+    }
+
+    if (error) {
+      setChatStatus("error");
+      return;
+    }
+
+    setChatStatus("ready");
+  }, [error, isStreaming]);
 
   return (
     <div className="flex h-full flex-col">
@@ -110,9 +144,11 @@ export function ChatInterface() {
 
       <div className="border-border border-t bg-background px-4 py-3">
         <ChatInput
-          disabled={isStreaming || isPaused}
+          disabled={isCancelling || isRefreshing}
+          onCancel={handleCancel}
           onSend={handleSend}
           placeholder="Type your message..."
+          status={chatStatus}
         />
       </div>
     </div>
