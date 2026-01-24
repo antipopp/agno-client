@@ -924,4 +924,35 @@ export class AgnoClient extends EventEmitter {
 
     return { agents, teams };
   }
+
+  /**
+   * Dispose of the client and clean up all resources.
+   * Call this method when the client is no longer needed to prevent memory leaks.
+   * After calling dispose(), the client instance should not be reused.
+   */
+  dispose(): void {
+    // Remove all event listeners
+    this.removeAllListeners();
+
+    // Clear message store
+    this.messageStore.clear();
+
+    // Clear pending UI specs
+    this.pendingUISpecs.clear();
+
+    // Reset event processor
+    this.eventProcessor.reset();
+
+    // Reset state
+    this.state.isStreaming = false;
+    this.state.isRefreshing = false;
+    this.state.isEndpointActive = false;
+    this.state.agents = [];
+    this.state.teams = [];
+    this.state.sessions = [];
+    this.state.isPaused = false;
+    this.state.pausedRunId = undefined;
+    this.state.toolsAwaitingExecution = undefined;
+    this.state.errorMessage = undefined;
+  }
 }

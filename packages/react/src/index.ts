@@ -50,6 +50,7 @@ export type {
   ToolHandler,
 } from "./hooks/useAgnoToolExecution";
 export {
+  clearCustomRenderRegistry,
   getCustomRender,
   useAgnoToolExecution,
 } from "./hooks/useAgnoToolExecution";
