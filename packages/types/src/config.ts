@@ -92,6 +92,11 @@ export interface ClientState {
   isRefreshing: boolean;
 
   /**
+   * Whether a run is currently being cancelled
+   */
+  isCancelling: boolean;
+
+  /**
    * Current error message (if any)
    */
   errorMessage?: string;
@@ -125,6 +130,11 @@ export interface ClientState {
    * Current paused run ID
    */
   pausedRunId?: string;
+
+  /**
+   * Current run ID
+   */
+  currentRunId?: string;
 
   /**
    * Tools awaiting external execution

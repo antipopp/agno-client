@@ -96,7 +96,7 @@ export const handlers = [
   }),
 
   // Agent run (streaming)
-  http.post("http://localhost:7777/agents/:agentId/runs", async () => {
+  http.post("http://localhost:7777/agents/:agentId/runs", () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
@@ -160,7 +160,7 @@ export const handlers = [
   }),
 
   // Team run (streaming)
-  http.post("http://localhost:7777/teams/:teamId/runs", async () => {
+  http.post("http://localhost:7777/teams/:teamId/runs", () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
@@ -201,7 +201,7 @@ export const handlers = [
   // Continue paused run
   http.post(
     "http://localhost:7777/agents/:agentId/runs/:runId/continue",
-    async () => {
+    () => {
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
@@ -238,4 +238,9 @@ export const handlers = [
       });
     }
   ),
+
+  // Cancel agent run - returns simple success response
+  http.post("http://localhost:7777/agents/:agentId/runs/:runId/cancel", () => {
+    return HttpResponse.json({ success: true }, { status: 200 });
+  }),
 ];
