@@ -1,0 +1,60 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Publish @antipopp/agno-types
+        if: ${{ !inputs.dry_run }}
+        run: pnpm --filter @antipopp/agno-types publish --access public --no-git-checks
+
+      - name: Publish @antipopp/agno-client
+        if: ${{ !inputs.dry_run }}
+        run: pnpm --filter @antipopp/agno-client publish --access public --no-git-checks
+
+      - name: Publish @antipopp/agno-react
+        if: ${{ !inputs.dry_run }}
+        run: pnpm --filter @antipopp/agno-react publish --access public --no-git-checks
+
+      - name: Dry run notice
+        if: ${{ inputs.dry_run }}
+        run: echo "Dry run completed. Build and typecheck passed. No packages were published."
