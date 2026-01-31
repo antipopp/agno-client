@@ -49,6 +49,7 @@ export class AgnoClient extends EventEmitter {
   private readonly pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
   private runCompletedSuccessfully = false;
   private currentRunId: string | undefined;
+  private currentAbortController: AbortController | null = null;
 
   constructor(config: AgnoClientConfig) {
     super();
@@ -135,9 +136,17 @@ export class AgnoClient extends EventEmitter {
 
     const headers = this.configManager.buildRequestHeaders();
 
+    // Abort the active fetch stream so it doesn't hang
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = null;
+    }
+
     this.state.isCancelling = true;
     this.emit("state:change", this.getState());
 
+    // Best-effort backend cancel — the run may have already completed
+    // after we aborted the fetch stream, so treat failure as a warning.
     try {
       const response = await fetch(cancelUrl, {
         method: "POST",
@@ -145,27 +154,47 @@ export class AgnoClient extends EventEmitter {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to cancel run");
+        Logger.warn(
+          `[AgnoClient] Backend cancel returned ${response.status} — run may have already completed`
+        );
       }
-
-      this.state.isStreaming = false;
-      this.state.isPaused = false;
-      this.state.isCancelling = false;
-      this.state.pausedRunId = undefined;
-      this.state.toolsAwaitingExecution = undefined;
-      this.currentRunId = undefined;
-
-      this.emit("run:cancelled", { runId });
-      this.emit("state:change", this.getState());
     } catch (error) {
-      this.state.isCancelling = false;
-      this.emit("state:change", this.getState());
-      throw new Error(
-        `Error cancelling run: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+      Logger.warn(
+        `[AgnoClient] Backend cancel failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+
+    // Always clean up client state — the stream is already aborted
+    this.state.isStreaming = false;
+    this.state.isPaused = false;
+    this.state.isCancelling = false;
+    this.state.pausedRunId = undefined;
+    this.state.toolsAwaitingExecution = undefined;
+    this.currentRunId = undefined;
+
+    this.emit("run:cancelled", { runId });
+    this.emit("state:change", this.getState());
+  }
+
+  /**
+   * Abort the active stream without calling the backend cancel endpoint.
+   * Since streamResponse handles AbortError by returning silently
+   * (no onComplete/onError called), state cleanup is done here.
+   */
+  abortStream(): void {
+    if (!this.state.isStreaming) {
+      return;
+    }
+
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = null;
+    }
+
+    this.state.isStreaming = false;
+    this.currentRunId = undefined;
+    this.emit("stream:end");
+    this.emit("state:change", this.getState());
   }
 
   /**
@@ -246,11 +275,14 @@ export class AgnoClient extends EventEmitter {
       const headers = this.configManager.buildRequestHeaders(options?.headers);
       const params = this.configManager.buildQueryString(options?.params);
 
+      this.currentAbortController = new AbortController();
+
       await streamResponse({
         apiUrl: runUrl,
         headers,
         params,
         requestBody: formData,
+        signal: this.currentAbortController.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(
             chunk,
@@ -270,9 +302,11 @@ export class AgnoClient extends EventEmitter {
           }
         },
         onError: (error) => {
+          this.currentAbortController = null;
           this.handleError(error, newSessionId);
         },
         onComplete: async () => {
+          this.currentAbortController = null;
           this.state.isStreaming = false;
           this.currentRunId = undefined;
           this.emit("stream:end");
@@ -287,6 +321,7 @@ export class AgnoClient extends EventEmitter {
         },
       });
     } catch (error) {
+      this.currentAbortController = null;
       this.handleError(
         error instanceof Error ? error : new Error(String(error)),
         newSessionId
@@ -443,6 +478,12 @@ export class AgnoClient extends EventEmitter {
       return;
     }
 
+    // Guard: Don't start refresh if a new stream is already active
+    if (this.state.isStreaming) {
+      Logger.debug("[AgnoClient] Skipping refresh: stream is active");
+      return;
+    }
+
     this.state.isRefreshing = true;
     this.emit("state:change", this.getState());
 
@@ -480,6 +521,14 @@ export class AgnoClient extends EventEmitter {
         userId,
         params
       );
+
+      // Guard: Re-check after async fetch — a new stream may have started
+      if (this.state.isStreaming) {
+        Logger.debug(
+          "[AgnoClient] Aborting refresh: stream started during fetch"
+        );
+        return; // finally block still cleans up isRefreshing
+      }
 
       const messages = this.sessionManager.convertSessionToMessages(response);
 
@@ -831,19 +880,24 @@ export class AgnoClient extends EventEmitter {
     const headers = this.configManager.buildRequestHeaders(options?.headers);
     const params = this.configManager.buildQueryString(options?.params);
 
+    this.currentAbortController = new AbortController();
+
     try {
       await streamResponse({
         apiUrl: continueUrl,
         headers,
         params,
         requestBody: formData,
+        signal: this.currentAbortController.signal,
         onChunk: (chunk: RunResponse) => {
           this.handleChunk(chunk, currentSessionId, "");
         },
         onError: (error) => {
+          this.currentAbortController = null;
           this.handleError(error, currentSessionId);
         },
         onComplete: async () => {
+          this.currentAbortController = null;
           this.state.isStreaming = false;
           this.state.pausedRunId = undefined;
           this.state.toolsAwaitingExecution = undefined;
@@ -859,6 +913,7 @@ export class AgnoClient extends EventEmitter {
         },
       });
     } catch (error) {
+      this.currentAbortController = null;
       this.handleError(
         error instanceof Error ? error : new Error(String(error)),
         currentSessionId
@@ -999,6 +1054,12 @@ export class AgnoClient extends EventEmitter {
    * After calling dispose(), the client instance should not be reused.
    */
   dispose(): void {
+    // Abort any active stream
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = null;
+    }
+
     // Remove all event listeners
     this.removeAllListeners();
 
