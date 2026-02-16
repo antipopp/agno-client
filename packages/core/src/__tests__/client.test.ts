@@ -444,6 +444,216 @@ describe("AgnoClient", () => {
         ])
       ).rejects.toThrow("No paused run to continue");
     });
+
+    it("should preserve paused state when continue returns 409", async () => {
+      server.use(
+        http.post("http://localhost:7777/agents/:agentId/runs", () => {
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunStarted",
+                    content_type: "text/plain",
+                    run_id: "run-paused-409",
+                    session_id: "session-paused-409",
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunPaused",
+                    content_type: "application/json",
+                    run_id: "run-paused-409",
+                    session_id: "session-paused-409",
+                    tools_awaiting_external_execution: [
+                      {
+                        role: "tool",
+                        content: null,
+                        tool_call_id: "tool-409",
+                        tool_name: "confirm_action",
+                        tool_args: {},
+                        tool_call_error: false,
+                        metrics: { time: 0 },
+                        created_at: 1_700_000_000,
+                        external_execution: true,
+                      },
+                    ],
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.close();
+            },
+          });
+
+          return new HttpResponse(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+            },
+          });
+        }),
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/continue",
+          () => {
+            return HttpResponse.json(
+              { detail: "Run is not paused" },
+              { status: 409 }
+            );
+          }
+        )
+      );
+
+      await client.sendMessage("pause me");
+
+      const stateBeforeContinue = client.getState();
+      expect(stateBeforeContinue.isPaused).toBe(true);
+      expect(stateBeforeContinue.pausedRunId).toBe("run-paused-409");
+      expect(stateBeforeContinue.toolsAwaitingExecution).toHaveLength(1);
+
+      const runContinuedHandler = vi.fn();
+      client.on("run:continued", runContinuedHandler);
+
+      const pendingTool = stateBeforeContinue.toolsAwaitingExecution?.[0];
+
+      await expect(
+        client.continueRun([
+          {
+            ...pendingTool!,
+            result: JSON.stringify({ ok: true }),
+          },
+        ])
+      ).rejects.toThrow("Run is not paused");
+
+      const stateAfterContinue = client.getState();
+      expect(stateAfterContinue.isStreaming).toBe(false);
+      expect(stateAfterContinue.isPaused).toBe(true);
+      expect(stateAfterContinue.pausedRunId).toBe("run-paused-409");
+      expect(stateAfterContinue.toolsAwaitingExecution).toHaveLength(1);
+      expect(runContinuedHandler).not.toHaveBeenCalled();
+    });
+
+    it("should emit run:continued when continue stream starts without RunContinued", async () => {
+      server.use(
+        http.post("http://localhost:7777/agents/:agentId/runs", () => {
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunStarted",
+                    content_type: "text/plain",
+                    run_id: "run-paused-fallback",
+                    session_id: "session-paused-fallback",
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunPaused",
+                    content_type: "application/json",
+                    run_id: "run-paused-fallback",
+                    session_id: "session-paused-fallback",
+                    tools_awaiting_external_execution: [
+                      {
+                        role: "tool",
+                        content: null,
+                        tool_call_id: "tool-fallback",
+                        tool_name: "confirm_action",
+                        tool_args: {},
+                        tool_call_error: false,
+                        metrics: { time: 0 },
+                        created_at: 1_700_000_000,
+                        external_execution: true,
+                      },
+                    ],
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.close();
+            },
+          });
+
+          return new HttpResponse(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+            },
+          });
+        }),
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/continue",
+          () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      event: "RunContent",
+                      content: "continued",
+                      content_type: "text/plain",
+                      created_at: Math.floor(Date.now() / 1000),
+                    })
+                  )
+                );
+
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      event: "RunCompleted",
+                      content: "continued complete",
+                      content_type: "text/plain",
+                      created_at: Math.floor(Date.now() / 1000),
+                    })
+                  )
+                );
+
+                controller.close();
+              },
+            });
+
+            return new HttpResponse(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+              },
+            });
+          }
+        )
+      );
+
+      await client.sendMessage("pause me");
+
+      const stateBeforeContinue = client.getState();
+      const runContinuedHandler = vi.fn();
+      client.on("run:continued", runContinuedHandler);
+
+      const pendingTool = stateBeforeContinue.toolsAwaitingExecution?.[0];
+      expect(pendingTool).toBeDefined();
+
+      await client.continueRun([
+        {
+          ...pendingTool!,
+          result: JSON.stringify({ ok: true }),
+        },
+      ]);
+
+      const stateAfterContinue = client.getState();
+      expect(runContinuedHandler).toHaveBeenCalledTimes(1);
+      expect(stateAfterContinue.isPaused).toBe(false);
+      expect(stateAfterContinue.pausedRunId).toBeUndefined();
+      expect(stateAfterContinue.toolsAwaitingExecution).toBeUndefined();
+    });
   });
 
   describe("addToolCallsToLastMessage", () => {

@@ -406,13 +406,22 @@ export function useAgnoToolExecution(
 
   // Auto-execute when paused (if enabled)
   useEffect(() => {
-    if (autoExecute && isPaused && !isExecuting && pendingTools.length > 0) {
-      executeAndContinue();
+    if (
+      autoExecute &&
+      isPaused &&
+      !isExecuting &&
+      !executionError &&
+      pendingTools.length > 0
+    ) {
+      executeAndContinue().catch(() => {
+        // executionError state is already set by executeAndContinue
+      });
     }
   }, [
     autoExecute,
     isPaused,
     isExecuting,
+    executionError,
     pendingTools.length,
     executeAndContinue,
   ]);
