@@ -59,17 +59,43 @@ export interface ReasoningSteps {
  * Image data
  */
 export interface ImageData {
-  revised_prompt: string;
   url: string;
+  revised_prompt?: string;
+  original_prompt?: string;
+  alt_text?: string;
+  id?: string;
+  mime_type?: string;
+  format?: string;
+}
+
+/**
+ * File attachment data
+ */
+export interface FileData {
+  id?: string;
+  url?: string;
+  filename?: string;
+  name?: string;
+  mime_type?: string;
+  format?: string;
+  size?: number;
 }
 
 /**
  * Video data
  */
 export interface VideoData {
-  id: number;
-  eta: number;
-  url: string;
+  url?: string;
+  id?: number | string;
+  eta?: number | string;
+  mime_type?: string;
+  format?: string;
+  original_prompt?: string;
+  revised_prompt?: string;
+  width?: number;
+  height?: number;
+  fps?: number;
+  duration?: number;
 }
 
 /**
@@ -79,10 +105,12 @@ export interface AudioData {
   base64_audio?: string;
   mime_type?: string;
   url?: string;
-  id?: string;
+  id?: string | number;
   content?: string;
   channels?: number;
   sample_rate?: number;
+  format?: string;
+  duration?: number;
 }
 
 /**
@@ -137,6 +165,7 @@ export interface ChatMessage {
   images?: ImageData[];
   videos?: VideoData[];
   audio?: AudioData[];
+  files?: FileData[];
   response_audio?: ResponseAudioData;
   created_at: number;
   streamingError?: boolean;

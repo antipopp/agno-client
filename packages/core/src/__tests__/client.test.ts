@@ -576,6 +576,42 @@ describe("AgnoClient", () => {
       expect(capturedFileCount).toBe(2);
       expect(capturedFileNames).toEqual(["file-0", "file-1"]);
     });
+
+    it("should show uploaded attachments on the optimistic user message", async () => {
+      await client.sendMessage("Analyze these", {
+        files: [
+          new Blob(["image bytes"], { type: "image/png" }),
+          new Blob(["notes"], { type: "text/plain" }),
+        ],
+      });
+
+      const userMessage = client
+        .getMessages()
+        .find((message) => message.role === "user");
+
+      expect(userMessage).toBeDefined();
+
+      const attachmentCount =
+        (userMessage?.images?.length ?? 0) +
+        (userMessage?.videos?.length ?? 0) +
+        (userMessage?.audio?.length ?? 0) +
+        (userMessage?.files?.length ?? 0);
+
+      expect(attachmentCount).toBeGreaterThan(0);
+      expect(
+        userMessage?.files?.some((file) => file.mime_type === "text/plain")
+      ).toBe(true);
+
+      const hasImageAttachment =
+        (userMessage?.images?.length ?? 0) > 0 ||
+        Boolean(
+          userMessage?.files?.some((file) =>
+            file.mime_type?.startsWith("image/")
+          )
+        );
+
+      expect(hasImageAttachment).toBe(true);
+    });
   });
 
   describe("cancelRun", () => {

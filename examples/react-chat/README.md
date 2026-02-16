@@ -10,6 +10,7 @@ This example application demonstrates:
 - ✅ **Real-time message streaming** with live updates
 - ✅ **Agent/Team configuration** with dynamic endpoint management
 - ✅ **Session management** (create, load, and switch between sessions)
+- ✅ **File uploads with messages** (picker, drag/drop, and paste)
 - ✅ **Tool call execution** with detailed display of arguments and results
 - ✅ **Reasoning steps** visualization
 - ✅ **Media support** (images, videos, audio)
@@ -118,8 +119,12 @@ If you want to change the auto-selected agent/team:
 ### 3. Start Chatting
 
 1. Type your message in the input box at the bottom
-2. Press **Enter** or click the **Send** button
-3. Watch as the agent responds in real-time with streaming updates
+2. Optionally click the **+** button to attach files (or drag/drop / paste files)
+3. Press **Enter** or click the **Send** button to send message + attachments together
+4. Watch as the agent responds in real-time with streaming updates
+
+Supported attachments in the demo include common image/audio/video files plus
+documents such as PDF, TXT, CSV, JSON, MD, DOCX, HTML, CSS, XML, RTF, JS, and PY.
 
 ### 4. Manage Sessions
 

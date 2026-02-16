@@ -1,6 +1,7 @@
 import type { RunEvent } from "./events";
 import type {
   AudioData,
+  FileData,
   ImageData,
   MessageExtraData,
   ResponseAudioData,
@@ -121,11 +122,11 @@ export interface RunSchema {
   created_at?: string | null;
   references?: Record<string, unknown>[] | null;
   reasoning_messages?: Record<string, unknown>[] | null;
-  images?: Record<string, unknown>[] | null;
-  videos?: Record<string, unknown>[] | null;
-  audio?: Record<string, unknown>[] | null;
-  files?: Record<string, unknown>[] | null;
-  response_audio?: Record<string, unknown> | null;
+  images?: ImageData[] | null;
+  videos?: VideoData[] | null;
+  audio?: AudioData[] | null;
+  files?: FileData[] | null;
+  response_audio?: ResponseAudioData | null;
   input_media?: Record<string, unknown> | null;
 }
 
@@ -149,11 +150,11 @@ export interface TeamRunSchema {
   references?: Record<string, unknown>[] | null;
   reasoning_messages?: Record<string, unknown>[] | null;
   input_media?: Record<string, unknown> | null;
-  images?: Record<string, unknown>[] | null;
-  videos?: Record<string, unknown>[] | null;
-  audio?: Record<string, unknown>[] | null;
-  files?: Record<string, unknown>[] | null;
-  response_audio?: Record<string, unknown> | null;
+  images?: ImageData[] | null;
+  videos?: VideoData[] | null;
+  audio?: AudioData[] | null;
+  files?: FileData[] | null;
+  response_audio?: ResponseAudioData | null;
 }
 
 /**
@@ -225,9 +226,11 @@ export interface RunResponse {
   tools?: ToolCall[];
   created_at: number;
   extra_data?: MessageExtraData;
+  image?: ImageData;
   images?: ImageData[];
   videos?: VideoData[];
   audio?: AudioData[];
+  files?: FileData[];
   response_audio?: ResponseAudioData;
   // HITL fields
   is_paused?: boolean;
@@ -255,9 +258,11 @@ export interface RunResponseContent {
   tools?: ToolCall[];
   created_at: number;
   extra_data?: MessageExtraData;
+  image?: ImageData;
   images?: ImageData[];
   videos?: VideoData[];
   audio?: AudioData[];
+  files?: FileData[];
   response_audio?: ResponseAudioData;
 }
 

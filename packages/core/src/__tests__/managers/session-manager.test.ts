@@ -283,5 +283,102 @@ describe("SessionManager", () => {
       expect(messages[1].audio).toBeDefined();
       expect(messages[1].response_audio).toBeDefined();
     });
+
+    it("should map input_media attachments to the user message", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "Review attachments",
+          content: "Done",
+          input_media: {
+            images: [{ content: "aGVsbG8=", mime_type: "image/png" }],
+            audios: [{ content: "Zm9v", mime_type: "audio/wav" }],
+            files: [{ filename: "notes.txt", mime_type: "text/plain" }],
+          },
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[0].images?.[0].url).toContain("data:image/png;base64,");
+      expect(messages[0].audio?.[0].url).toContain("data:audio/wav;base64,");
+      expect(messages[0].files?.[0].filename).toBe("notes.txt");
+    });
+
+    it("should map user message media when input_media is missing", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "Describe this",
+          content: "Done",
+          messages: [
+            { role: "system", content: "System prompt" },
+            {
+              role: "user",
+              content: "Describe this",
+              images: [{ content: "aGVsbG8=", mime_type: "image/png" }],
+              files: [{ filename: "notes.txt", mime_type: "text/plain" }],
+            },
+            { role: "assistant", content: "Done" },
+          ],
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[0].images?.[0].url).toContain("data:image/png;base64,");
+      expect(messages[0].files?.[0].filename).toBe("notes.txt");
+    });
+
+    it("should prefer input_media over messages media", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "Describe this",
+          content: "Done",
+          input_media: {
+            images: [{ content: "aW5wdXQ=", mime_type: "image/png" }],
+          },
+          messages: [
+            {
+              role: "user",
+              content: "Describe this",
+              images: [{ content: "bWVzc2FnZQ==", mime_type: "image/png" }],
+            },
+          ],
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[0].images?.[0].url).toContain("aW5wdXQ=");
+      expect(messages[0].images?.[0].url).not.toContain("bWVzc2FnZQ==");
+    });
+
+    it("should include output files on the agent message", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "Generate report",
+          content: "Report generated",
+          files: [
+            {
+              filename: "report.pdf",
+              mime_type: "application/pdf",
+              url: "https://example.com/report.pdf",
+            },
+          ],
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[1].files).toHaveLength(1);
+      expect(messages[1].files?.[0].filename).toBe("report.pdf");
+    });
   });
 });

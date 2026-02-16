@@ -36,6 +36,7 @@ export { type ClientEvent, RunEvent } from "./events";
 export type {
   AudioData,
   ChatMessage,
+  FileData,
   ImageData,
   MessageExtraData,
   ReasoningMessage,

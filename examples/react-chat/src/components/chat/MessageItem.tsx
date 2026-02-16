@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Lightbulb,
   Music,
+  Paperclip,
   Video,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -278,15 +279,15 @@ export function MessageItem({ message }: MessageItemProps) {
                 <ImageIcon className="h-4 w-4" />
                 Images ({message.images.length})
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {message.images.map((img) => (
                   <div
-                    className="space-y-1"
+                    className="max-w-sm space-y-1"
                     key={`${img.url}-${img.revised_prompt || ""}`}
                   >
                     <img
                       alt={img.revised_prompt || "Generated image"}
-                      className="w-full rounded border"
+                      className="h-auto max-h-80 w-full rounded border bg-muted/20 object-contain"
                       height={1024}
                       src={img.url}
                       width={1024}
@@ -361,6 +362,50 @@ export function MessageItem({ message }: MessageItemProps) {
                     {renderAudioContent(audio)}
                   </div>
                 ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Files */}
+        {message.files && message.files.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 font-medium text-sm">
+                <Paperclip className="h-4 w-4" />
+                Files ({message.files.length})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {message.files.map((file, index) => {
+                  const label =
+                    file.filename || file.name || `Attachment ${index + 1}`;
+                  const key = `${label}-${file.mime_type || "file"}-${index}`;
+
+                  if (file.url) {
+                    return (
+                      <a
+                        className="rounded border bg-muted/40 px-3 py-1 text-xs transition-colors hover:bg-muted"
+                        download={label}
+                        href={file.url}
+                        key={key}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {label}
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <div
+                      className="rounded border bg-muted/40 px-3 py-1 text-xs"
+                      key={key}
+                    >
+                      {label}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </>
