@@ -84,6 +84,65 @@ function createSlowStreamHandler() {
   return { handler, resolveStream };
 }
 
+/**
+ * Creates an MSW handler that keeps the stream open without emitting RunStarted
+ * until explicitly resolved. Useful for testing cancel-before-run-id scenarios.
+ */
+function createDelayedStartStreamHandler() {
+  let resolveStart: () => void = () => undefined;
+  let resolveStream: () => void = () => undefined;
+
+  const startSignal = new Promise<void>((resolve) => {
+    resolveStart = resolve;
+  });
+
+  const streamDone = new Promise<void>((resolve) => {
+    resolveStream = resolve;
+  });
+
+  const handler = http.post(
+    "http://localhost:7777/agents/:agentId/runs",
+    () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          startSignal.then(() => {
+            try {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunStarted",
+                    content_type: "text/plain",
+                    run_id: "run-delayed",
+                    session_id: "session-delayed",
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+            } catch {
+              return;
+            }
+
+            streamDone.then(() => {
+              try {
+                controller.close();
+              } catch {
+                // Stream may already be closed by abort
+              }
+            });
+          });
+        },
+      });
+
+      return new HttpResponse(stream, {
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    }
+  );
+
+  return { handler, resolveStart, resolveStream };
+}
+
 describe("AgnoClient", () => {
   let client: AgnoClient;
 
@@ -613,6 +672,170 @@ describe("AgnoClient", () => {
       expect(state.isCancelling).toBe(false);
       expect(state.isStreaming).toBe(false);
       expect(state.isPaused).toBe(false);
+    });
+
+    it("should abort and clean up when run ID is not available yet", async () => {
+      const { handler, resolveStart, resolveStream } =
+        createDelayedStartStreamHandler();
+      let cancelCalled = false;
+
+      server.use(
+        handler,
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/cancel",
+          () => {
+            cancelCalled = true;
+            return HttpResponse.json({ success: true }, { status: 200 });
+          }
+        )
+      );
+
+      const sendPromise = client.sendMessage("Hello");
+
+      expect(client.getState().isStreaming).toBe(true);
+
+      await client.cancelRun();
+      await sendPromise;
+
+      expect(cancelCalled).toBe(false);
+      expect(client.getState().isStreaming).toBe(false);
+      expect(client.getState().isCancelling).toBe(false);
+      expect(client.getState().isPaused).toBe(false);
+
+      resolveStart();
+      resolveStream();
+    });
+
+    it("should emit message:error when backend cancel is unauthorized", async () => {
+      server.use(
+        http.post("http://localhost:7777/agents/:agentId/runs", () => {
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunStarted",
+                    content_type: "text/plain",
+                    run_id: "run-paused-auth",
+                    session_id: "session-paused-auth",
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunPaused",
+                    content_type: "application/json",
+                    run_id: "run-paused-auth",
+                    session_id: "session-paused-auth",
+                    tools_awaiting_external_execution: [],
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.close();
+            },
+          });
+
+          return new HttpResponse(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+            },
+          });
+        }),
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/cancel",
+          () => {
+            return new HttpResponse(null, { status: 401 });
+          }
+        )
+      );
+
+      const errorHandler = vi.fn();
+      client.on("message:error", errorHandler);
+
+      await client.sendMessage("Hello");
+      expect(client.getState().isPaused).toBe(true);
+
+      await client.cancelRun();
+
+      expect(errorHandler).toHaveBeenCalledWith(
+        expect.stringContaining("backend cancel was rejected (401)")
+      );
+      expect(client.getState().errorMessage).toContain(
+        "backend cancel was rejected (401)"
+      );
+      expect(client.getState().isCancelling).toBe(false);
+      expect(client.getState().isPaused).toBe(false);
+    });
+
+    it("should emit message:error when backend cancel request fails", async () => {
+      server.use(
+        http.post("http://localhost:7777/agents/:agentId/runs", () => {
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunStarted",
+                    content_type: "text/plain",
+                    run_id: "run-paused-network",
+                    session_id: "session-paused-network",
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    event: "RunPaused",
+                    content_type: "application/json",
+                    run_id: "run-paused-network",
+                    session_id: "session-paused-network",
+                    tools_awaiting_external_execution: [],
+                    created_at: Math.floor(Date.now() / 1000),
+                  })
+                )
+              );
+
+              controller.close();
+            },
+          });
+
+          return new HttpResponse(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+            },
+          });
+        }),
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs/:runId/cancel",
+          () => {
+            return HttpResponse.error();
+          }
+        )
+      );
+
+      const errorHandler = vi.fn();
+      client.on("message:error", errorHandler);
+
+      await client.sendMessage("Hello");
+      expect(client.getState().isPaused).toBe(true);
+
+      await client.cancelRun();
+
+      expect(errorHandler).toHaveBeenCalledWith(
+        expect.stringContaining("backend cancel failed")
+      );
+      expect(client.getState().errorMessage).toContain("backend cancel failed");
+      expect(client.getState().isCancelling).toBe(false);
+      expect(client.getState().isPaused).toBe(false);
     });
   });
 

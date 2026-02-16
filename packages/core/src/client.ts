@@ -125,21 +125,8 @@ export class AgnoClient extends EventEmitter {
       throw new Error("No active or paused run to cancel");
     }
 
-    const runUrl = this.configManager.getRunUrl();
-    if (!runUrl) {
-      throw new Error("No agent or team selected");
-    }
-
     // Get the run ID - either from paused state or current active run
     const runId = this.state.pausedRunId || this.currentRunId;
-    if (!runId) {
-      throw new Error("No run ID available to cancel");
-    }
-
-    // Build cancel URL: POST /agents/{id}/runs/{run_id}/cancel
-    const cancelUrl = `${runUrl}/${runId}/cancel`;
-
-    const headers = this.configManager.buildRequestHeaders();
 
     // Abort the active fetch stream so it doesn't hang
     if (this.currentAbortController) {
@@ -150,24 +137,9 @@ export class AgnoClient extends EventEmitter {
     this.state.isCancelling = true;
     this.emit("state:change", this.getState());
 
-    // Best-effort backend cancel — the run may have already completed
-    // after we aborted the fetch stream, so treat failure as a warning.
-    try {
-      const response = await fetch(cancelUrl, {
-        method: "POST",
-        headers,
-      });
-
-      if (!response.ok) {
-        Logger.warn(
-          `[AgnoClient] Backend cancel returned ${response.status} — run may have already completed`
-        );
-      }
-    } catch (error) {
-      Logger.warn(
-        `[AgnoClient] Backend cancel failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    const cancelErrorMessage = runId
+      ? await this.requestBackendCancel(runId)
+      : this.logMissingRunIdForCancel();
 
     // Always clean up client state — the stream is already aborted
     this.state.isStreaming = false;
@@ -177,8 +149,63 @@ export class AgnoClient extends EventEmitter {
     this.state.toolsAwaitingExecution = undefined;
     this.currentRunId = undefined;
 
+    if (cancelErrorMessage) {
+      this.state.errorMessage = cancelErrorMessage;
+      this.emit("message:error", cancelErrorMessage);
+    }
+
     this.emit("run:cancelled", { runId });
     this.emit("state:change", this.getState());
+  }
+
+  private logMissingRunIdForCancel(): undefined {
+    Logger.warn(
+      "[AgnoClient] No run ID available, skipping backend cancel request"
+    );
+    return undefined;
+  }
+
+  private async requestBackendCancel(
+    runId: string
+  ): Promise<string | undefined> {
+    const runUrl = this.configManager.getRunUrl();
+    if (!runUrl) {
+      const message =
+        "Run cancelled locally, but backend cancel could not be sent: no agent or team selected";
+      Logger.warn(`[AgnoClient] ${message}`);
+      return message;
+    }
+
+    const cancelUrl = `${runUrl}/${runId}/cancel`;
+    const headers = this.configManager.buildRequestHeaders();
+
+    try {
+      const response = await fetch(cancelUrl, {
+        method: "POST",
+        headers,
+      });
+
+      if (response.ok) {
+        return undefined;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        const message = `Run cancelled locally, but backend cancel was rejected (${response.status})`;
+        Logger.warn(`[AgnoClient] ${message}`);
+        return message;
+      }
+
+      Logger.warn(
+        `[AgnoClient] Backend cancel returned ${response.status} — run may have already completed`
+      );
+      return undefined;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const message = `Run cancelled locally, but backend cancel failed: ${reason}`;
+
+      Logger.warn(`[AgnoClient] ${message}`);
+      return message;
+    }
   }
 
   /**
