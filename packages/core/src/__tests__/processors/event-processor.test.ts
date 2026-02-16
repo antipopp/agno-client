@@ -88,6 +88,148 @@ describe("processToolCall", () => {
     expect(result).toHaveLength(2);
   });
 
+  describe("HITL field preservation", () => {
+    it("should preserve result when existing tool has external_execution: true", () => {
+      const existing: ToolCall[] = [
+        {
+          role: "tool",
+          content: null,
+          tool_call_id: "call-1",
+          tool_name: "frontend_tool",
+          tool_args: {},
+          tool_call_error: false,
+          metrics: { time: 100 },
+          created_at: 1_700_000_000,
+          external_execution: true,
+          result: "frontend-computed-result",
+        },
+      ];
+
+      const incoming: ToolCall = {
+        role: "tool",
+        content: "backend echo",
+        tool_call_id: "call-1",
+        tool_name: "frontend_tool",
+        tool_args: {},
+        tool_call_error: false,
+        metrics: { time: 200 },
+        created_at: 1_700_000_000,
+        result: "backend-result",
+      };
+
+      const result = processToolCall(incoming, existing);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].result).toBe("frontend-computed-result");
+    });
+
+    it("should preserve ui_component when incoming chunk lacks it", () => {
+      const uiSpec = {
+        type: "markdown" as const,
+        props: { content: "# Chart placeholder" },
+      };
+      const existing: ToolCall[] = [
+        {
+          role: "tool",
+          content: null,
+          tool_call_id: "call-1",
+          tool_name: "ui_tool",
+          tool_args: {},
+          tool_call_error: false,
+          metrics: { time: 100 },
+          created_at: 1_700_000_000,
+          ui_component: uiSpec,
+        },
+      ];
+
+      const incoming: ToolCall = {
+        role: "tool",
+        content: "updated",
+        tool_call_id: "call-1",
+        tool_name: "ui_tool",
+        tool_args: {},
+        tool_call_error: false,
+        metrics: { time: 200 },
+        created_at: 1_700_000_000,
+      };
+
+      const result = processToolCall(incoming, existing);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].ui_component).toEqual(uiSpec);
+    });
+
+    it("should still update result for non-external tools", () => {
+      const existing: ToolCall[] = [
+        {
+          role: "tool",
+          content: null,
+          tool_call_id: "call-1",
+          tool_name: "backend_tool",
+          tool_args: {},
+          tool_call_error: false,
+          metrics: { time: 100 },
+          created_at: 1_700_000_000,
+          result: "old-result",
+        },
+      ];
+
+      const incoming: ToolCall = {
+        role: "tool",
+        content: "updated",
+        tool_call_id: "call-1",
+        tool_name: "backend_tool",
+        tool_args: {},
+        tool_call_error: false,
+        metrics: { time: 200 },
+        created_at: 1_700_000_000,
+        result: "new-result",
+      };
+
+      const result = processToolCall(incoming, existing);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].result).toBe("new-result");
+    });
+
+    it("should preserve ui_component even when incoming explicitly sets undefined", () => {
+      const uiSpec = {
+        type: "markdown" as const,
+        props: { content: "Form placeholder" },
+      };
+      const existing: ToolCall[] = [
+        {
+          role: "tool",
+          content: null,
+          tool_call_id: "call-1",
+          tool_name: "ui_tool",
+          tool_args: {},
+          tool_call_error: false,
+          metrics: { time: 100 },
+          created_at: 1_700_000_000,
+          ui_component: uiSpec,
+        },
+      ];
+
+      const incoming: ToolCall = {
+        role: "tool",
+        content: "updated",
+        tool_call_id: "call-1",
+        tool_name: "ui_tool",
+        tool_args: {},
+        tool_call_error: false,
+        metrics: { time: 200 },
+        created_at: 1_700_000_000,
+        ui_component: undefined,
+      };
+
+      const result = processToolCall(incoming, existing);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].ui_component).toEqual(uiSpec);
+    });
+  });
+
   it("should fall back to name-timestamp ID matching", () => {
     const existing: ToolCall[] = [
       {

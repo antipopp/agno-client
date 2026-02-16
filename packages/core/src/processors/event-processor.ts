@@ -29,10 +29,22 @@ export function processToolCall(
 
   if (existingToolCallIndex >= 0) {
     const updatedToolCalls = [...prevToolCalls];
-    updatedToolCalls[existingToolCallIndex] = {
-      ...updatedToolCalls[existingToolCallIndex],
-      ...toolCall,
-    };
+    const existing = updatedToolCalls[existingToolCallIndex];
+    const merged = { ...existing, ...toolCall };
+
+    // Preserve frontend execution results — the backend may echo
+    // the tool call with its own result, but the frontend result
+    // (set during HITL execution) takes precedence.
+    if (existing.external_execution && existing.result !== undefined) {
+      merged.result = existing.result;
+    }
+
+    // Preserve ui_component — this is a frontend-only field.
+    if (existing.ui_component !== undefined && !toolCall.ui_component) {
+      merged.ui_component = existing.ui_component;
+    }
+
+    updatedToolCalls[existingToolCallIndex] = merged;
     return updatedToolCalls;
   }
   return [...prevToolCalls, toolCall];
