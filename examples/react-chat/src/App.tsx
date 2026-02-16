@@ -34,6 +34,9 @@ const INITIAL_CONFIG: AgnoClientConfig = {
   agentId: import.meta.env.VITE_AGNO_AGENT_ID || undefined,
   teamId: import.meta.env.VITE_AGNO_TEAM_ID || undefined,
   dbId: import.meta.env.VITE_AGNO_DB_ID || undefined,
+  dependencies: {
+    user_name: "Test User",
+  },
 };
 
 function App() {

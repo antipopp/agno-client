@@ -42,7 +42,7 @@ const TestToolExecutionComponent = ({
       <div data-testid="is-executing">{isExecuting ? "true" : "false"}</div>
       <div data-testid="pending-tools">{JSON.stringify(pendingTools)}</div>
       <div data-testid="error">{executionError || "none"}</div>
-      <button data-testid="execute" onClick={executeAndContinue}>
+      <button data-testid="execute" onClick={executeAndContinue} type="button">
         Execute
       </button>
     </div>
@@ -80,9 +80,9 @@ const AutoExecuteFailureComponent = ({
   useEffect(() => {
     const continueSpy = vi
       .spyOn(client, "continueRun")
-      .mockImplementation(async () => {
+      .mockImplementation(() => {
         onContinueAttempt();
-        throw new Error("Run is not paused");
+        return Promise.reject(new Error("Run is not paused"));
       });
 
     client.emit("run:paused", {
@@ -219,8 +219,13 @@ describe("processToolResult", () => {
       const { uiComponent } = processToolResult(result, baseTool);
 
       expect(uiComponent?.type).toBe("custom");
-      expect(uiComponent?.renderKey).toBeDefined();
-      expect(uiComponent?.render).toBeUndefined(); // Function not stored
+
+      if (!(uiComponent && uiComponent.type === "custom")) {
+        throw new Error("Expected custom UI component");
+      }
+
+      expect(uiComponent.renderKey).toBeDefined();
+      expect("render" in uiComponent).toBe(false); // Function not stored
     });
   });
 });
@@ -270,7 +275,9 @@ describe("useAgnoToolExecution", () => {
 
   describe("team mode warning", () => {
     it("should log warning in team mode", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
 
       render(
         <AgnoProvider config={teamConfig}>

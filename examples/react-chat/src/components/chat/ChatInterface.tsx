@@ -34,19 +34,23 @@ export function ChatInterface() {
   // Combine example generative tools with other tool handlers
   const toolHandlers: Record<string, ToolHandler> = {
     // Example: show alert (legacy tool)
-    show_alert: async (args: Record<string, any>) => {
-      const content = args.content as string;
+    show_alert: (args) => {
+      const payload = typeof args === "string" ? { content: args } : args;
+      const content =
+        typeof payload.content === "string"
+          ? payload.content
+          : String(payload.content ?? "");
 
       // Also show as toast notification
       toast.info("Alert from Agent", {
         description: content,
       });
 
-      return {
+      return Promise.resolve({
         success: true,
         message: "Alert displayed successfully",
         content,
-      };
+      });
     },
 
     // Add all generative UI example tools
@@ -98,8 +102,11 @@ export function ChatInterface() {
               title="No messages yet"
             />
           ) : (
-            messages.map((message, index) => (
-              <MessageItem key={index} message={message} />
+            messages.map((message) => (
+              <MessageItem
+                key={`${message.created_at}-${message.role}-${message.content.slice(0, 32)}`}
+                message={message}
+              />
             ))
           )}
         </ConversationContent>

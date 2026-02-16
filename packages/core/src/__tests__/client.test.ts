@@ -3,6 +3,38 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgnoClient } from "../client";
 import { server } from "./mocks/server";
 
+function createSimpleSuccessStream(): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(
+          JSON.stringify({
+            event: "RunStarted",
+            content_type: "text/plain",
+            run_id: "run-test",
+            session_id: "session-test",
+            created_at: Math.floor(Date.now() / 1000),
+          })
+        )
+      );
+
+      controller.enqueue(
+        encoder.encode(
+          JSON.stringify({
+            event: "RunCompleted",
+            content: "done",
+            content_type: "text/plain",
+            created_at: Math.floor(Date.now() / 1000),
+          })
+        )
+      );
+
+      controller.close();
+    },
+  });
+}
+
 describe("AgnoClient", () => {
   let client: AgnoClient;
 
@@ -305,6 +337,137 @@ describe("AgnoClient", () => {
 
       expect(client.getMessages()[0].content).toBe("Hello from FormData");
     });
+
+    it("should include global dependencies in run requests", async () => {
+      const dependencyClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        dependencies: {
+          tenantId: "tenant-1",
+          locale: "en-US",
+        },
+      });
+
+      let capturedDependencies: string | null = null;
+
+      server.use(
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs",
+          async ({ request }) => {
+            const formData = await request.formData();
+            const dependenciesValue = formData.get("dependencies");
+            capturedDependencies =
+              typeof dependenciesValue === "string" ? dependenciesValue : null;
+
+            return new HttpResponse(createSimpleSuccessStream(), {
+              headers: {
+                "Content-Type": "text/event-stream",
+              },
+            });
+          }
+        )
+      );
+
+      await dependencyClient.sendMessage("Hello");
+
+      expect(capturedDependencies).not.toBeNull();
+      if (!capturedDependencies) {
+        throw new Error("Expected dependencies to be present in request");
+      }
+      expect(JSON.parse(capturedDependencies)).toEqual({
+        tenantId: "tenant-1",
+        locale: "en-US",
+      });
+    });
+
+    it("should merge and override per-request dependencies", async () => {
+      const dependencyClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        dependencies: {
+          tenantId: "tenant-1",
+          plan: "free",
+        },
+      });
+
+      let capturedDependencies: string | null = null;
+
+      server.use(
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs",
+          async ({ request }) => {
+            const formData = await request.formData();
+            const dependenciesValue = formData.get("dependencies");
+            capturedDependencies =
+              typeof dependenciesValue === "string" ? dependenciesValue : null;
+
+            return new HttpResponse(createSimpleSuccessStream(), {
+              headers: {
+                "Content-Type": "text/event-stream",
+              },
+            });
+          }
+        )
+      );
+
+      await dependencyClient.sendMessage("Hello", {
+        dependencies: {
+          plan: "pro",
+          feature: "rag",
+        },
+      });
+
+      expect(capturedDependencies).not.toBeNull();
+      if (!capturedDependencies) {
+        throw new Error("Expected dependencies to be present in request");
+      }
+      expect(JSON.parse(capturedDependencies)).toEqual({
+        tenantId: "tenant-1",
+        plan: "pro",
+        feature: "rag",
+      });
+    });
+
+    it("should append files from per-request options", async () => {
+      let capturedFileCount = 0;
+      let capturedFileNames: string[] = [];
+
+      server.use(
+        http.post(
+          "http://localhost:7777/agents/:agentId/runs",
+          async ({ request }) => {
+            const formData = await request.formData();
+            const files = formData.getAll("files");
+
+            capturedFileCount = files.length;
+            capturedFileNames = files.map((item, index) => {
+              if (typeof item === "string") {
+                return item;
+              }
+              return item.name || `file-${index}`;
+            });
+
+            return new HttpResponse(createSimpleSuccessStream(), {
+              headers: {
+                "Content-Type": "text/event-stream",
+              },
+            });
+          }
+        )
+      );
+
+      await client.sendMessage("Hello", {
+        files: [
+          new Blob(["file one"], { type: "text/plain" }),
+          new Blob(["file two"], { type: "text/plain" }),
+        ],
+      });
+
+      expect(capturedFileCount).toBe(2);
+      expect(capturedFileNames).toEqual(["file-0", "file-1"]);
+    });
   });
 
   describe("cancelRun", () => {
@@ -520,11 +683,16 @@ describe("AgnoClient", () => {
       client.on("run:continued", runContinuedHandler);
 
       const pendingTool = stateBeforeContinue.toolsAwaitingExecution?.[0];
+      expect(pendingTool).toBeDefined();
+
+      if (!pendingTool) {
+        throw new Error("Expected pending tool before continue");
+      }
 
       await expect(
         client.continueRun([
           {
-            ...pendingTool!,
+            ...pendingTool,
             result: JSON.stringify({ ok: true }),
           },
         ])
@@ -641,9 +809,13 @@ describe("AgnoClient", () => {
       const pendingTool = stateBeforeContinue.toolsAwaitingExecution?.[0];
       expect(pendingTool).toBeDefined();
 
+      if (!pendingTool) {
+        throw new Error("Expected pending tool before continue");
+      }
+
       await client.continueRun([
         {
-          ...pendingTool!,
+          ...pendingTool,
           result: JSON.stringify({ ok: true }),
         },
       ]);
@@ -724,14 +896,26 @@ describe("AgnoClient", () => {
       client.addToolCallsToLastMessage([toolCall]);
 
       // Hydrate with UI
-      const uiSpec = { type: "chart", data: { values: [1, 2, 3] } };
+      const uiSpec = {
+        type: "chart" as const,
+        component: "BarChart",
+        props: {
+          data: [
+            { label: "A", values: 1 },
+            { label: "B", values: 2 },
+            { label: "C", values: 3 },
+          ],
+          xKey: "label",
+          bars: [{ key: "values" }],
+        },
+      };
       client.hydrateToolCallUI("ui-call", uiSpec);
 
       const lastMessage = client.getMessages()[client.getMessages().length - 1];
       const hydratedCall = lastMessage.tool_calls?.find(
         (t) => t.tool_call_id === "ui-call"
       );
-      expect((hydratedCall as any)?.ui_component).toEqual(uiSpec);
+      expect(hydratedCall?.ui_component).toEqual(uiSpec);
     });
   });
 

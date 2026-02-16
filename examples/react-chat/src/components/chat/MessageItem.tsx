@@ -8,6 +8,7 @@ import {
   Music,
   Video,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Artifact } from "@/components/ai-elements/artifact";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { Response } from "@/components/ai-elements/response";
@@ -43,9 +44,37 @@ export function MessageItem({ message }: MessageItemProps) {
     return tool.tool_call_error ? "output-error" : "output-available";
   };
 
+  const renderAudioContent = (
+    audio: NonNullable<ChatMessage["audio"]>[0]
+  ): ReactNode => {
+    if (audio.url) {
+      return (
+        <audio className="w-full" controls src={audio.url}>
+          <track kind="captions" label="No captions available" srcLang="en" />
+        </audio>
+      );
+    }
+
+    if (audio.base64_audio) {
+      return (
+        <audio
+          className="w-full"
+          controls
+          src={`data:${audio.mime_type || "audio/wav"};base64,${audio.base64_audio}`}
+        >
+          <track kind="captions" label="No captions available" srcLang="en" />
+        </audio>
+      );
+    }
+
+    return (
+      <div className="rounded bg-muted p-2 text-xs">Audio data unavailable</div>
+    );
+  };
+
   // Extract tool calls with UI components for prominent rendering
   const toolsWithUI =
-    message.tool_calls?.filter((tool) => (tool as any).ui_component) || [];
+    message.tool_calls?.filter((tool) => tool.ui_component) || [];
 
   return (
     <Message
@@ -77,7 +106,11 @@ export function MessageItem({ message }: MessageItemProps) {
         {toolsWithUI.length > 0 && (
           <div className="space-y-4">
             {toolsWithUI.map((tool) => {
-              const uiComponent = (tool as any).ui_component;
+              if (!tool.ui_component) {
+                return null;
+              }
+
+              const uiComponent = tool.ui_component;
               return (
                 <div key={tool.tool_call_id}>
                   {uiComponent.layout === "artifact" ? (
@@ -112,7 +145,12 @@ export function MessageItem({ message }: MessageItemProps) {
             <Separator />
             <div className="space-y-2">
               {message.tool_calls.map((tool, idx) => (
-                <Tool defaultOpen={idx === 0} key={tool.tool_call_id || idx}>
+                <Tool
+                  defaultOpen={idx === 0}
+                  key={
+                    tool.tool_call_id || `${tool.tool_name}-${tool.created_at}`
+                  }
+                >
                   <ToolHeader
                     state={getToolState(tool)}
                     title={tool.tool_name}
@@ -151,7 +189,10 @@ export function MessageItem({ message }: MessageItemProps) {
                 </div>
                 <Accordion className="w-full" type="multiple">
                   {message.extra_data.reasoning_steps.map((step, idx) => (
-                    <AccordionItem key={idx} value={`reasoning-${idx}`}>
+                    <AccordionItem
+                      key={`${step.title || "step"}-${step.result}-${step.reasoning}`}
+                      value={`${step.title || "step"}-${step.result}-${step.reasoning}`}
+                    >
                       <AccordionTrigger className="py-2 text-sm">
                         {step.title || `Step ${idx + 1}`}
                       </AccordionTrigger>
@@ -199,15 +240,21 @@ export function MessageItem({ message }: MessageItemProps) {
                   References ({message.extra_data.references.length})
                 </div>
                 <div className="space-y-2">
-                  {message.extra_data.references.map((refData, idx) => (
-                    <div className="space-y-1 text-xs" key={idx}>
+                  {message.extra_data.references.map((refData) => (
+                    <div
+                      className="space-y-1 text-xs"
+                      key={`${refData.query || "reference"}-${refData.references.length}`}
+                    >
                       {refData.query && (
                         <div className="font-medium">
                           Query: {refData.query}
                         </div>
                       )}
-                      {refData.references.map((ref, refIdx) => (
-                        <div className="rounded bg-muted p-2" key={refIdx}>
+                      {refData.references.map((ref) => (
+                        <div
+                          className="rounded bg-muted p-2"
+                          key={`${ref.name}-${ref.meta_data.chunk}-${ref.content.slice(0, 32)}`}
+                        >
                           <div className="mb-1 italic">"{ref.content}"</div>
                           <div className="text-muted-foreground">
                             Source: {ref.name} (chunk {ref.meta_data.chunk}/
@@ -232,12 +279,17 @@ export function MessageItem({ message }: MessageItemProps) {
                 Images ({message.images.length})
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {message.images.map((img, idx) => (
-                  <div className="space-y-1" key={idx}>
+                {message.images.map((img) => (
+                  <div
+                    className="space-y-1"
+                    key={`${img.url}-${img.revised_prompt || ""}`}
+                  >
                     <img
                       alt={img.revised_prompt || "Generated image"}
                       className="w-full rounded border"
+                      height={1024}
                       src={img.url}
+                      width={1024}
                     />
                     {img.revised_prompt && (
                       <p className="text-muted-foreground text-xs italic">
@@ -261,14 +313,20 @@ export function MessageItem({ message }: MessageItemProps) {
                 Videos ({message.videos.length})
               </div>
               <div className="space-y-2">
-                {message.videos.map((video, idx) => (
-                  <div key={idx}>
+                {message.videos.map((video) => (
+                  <div key={video.url || `video-${video.id}-${video.eta}`}>
                     {video.url ? (
                       <video
                         className="w-full rounded border"
                         controls
                         src={video.url}
-                      />
+                      >
+                        <track
+                          kind="captions"
+                          label="No captions available"
+                          srcLang="en"
+                        />
+                      </video>
                     ) : (
                       <div className="rounded bg-muted p-2 text-xs">
                         Video ID: {video.id} (ETA: {video.eta}s)
@@ -291,21 +349,16 @@ export function MessageItem({ message }: MessageItemProps) {
                 Audio ({message.audio.length})
               </div>
               <div className="space-y-2">
-                {message.audio.map((audio, idx) => (
-                  <div key={idx}>
-                    {audio.url ? (
-                      <audio className="w-full" controls src={audio.url} />
-                    ) : audio.base64_audio ? (
-                      <audio
-                        className="w-full"
-                        controls
-                        src={`data:${audio.mime_type || "audio/wav"};base64,${audio.base64_audio}`}
-                      />
-                    ) : (
-                      <div className="rounded bg-muted p-2 text-xs">
-                        Audio data unavailable
-                      </div>
-                    )}
+                {message.audio.map((audio) => (
+                  <div
+                    key={
+                      audio.url ||
+                      audio.id ||
+                      audio.base64_audio?.slice(0, 24) ||
+                      `${audio.mime_type || "audio"}-${audio.sample_rate || "na"}`
+                    }
+                  >
+                    {renderAudioContent(audio)}
                   </div>
                 ))}
               </div>
@@ -332,7 +385,13 @@ export function MessageItem({ message }: MessageItemProps) {
                   className="w-full"
                   controls
                   src={`data:audio/wav;base64,${message.response_audio.content}`}
-                />
+                >
+                  <track
+                    kind="captions"
+                    label="No captions available"
+                    srcLang="en"
+                  />
+                </audio>
               )}
             </div>
           </>

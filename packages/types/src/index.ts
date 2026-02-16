@@ -27,6 +27,7 @@ export type {
 export type {
   AgnoClientConfig,
   ClientState,
+  SendMessageOptions,
   StreamOptions,
 } from "./config";
 // Events

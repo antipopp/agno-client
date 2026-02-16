@@ -1,4 +1,4 @@
-import type { ChatMessage, ClientState } from "@antipopp/agno-types";
+import type { ChatMessage, ClientState, ToolCall } from "@antipopp/agno-types";
 import { useCallback, useEffect, useState } from "react";
 import { useAgnoClient } from "../context/AgnoContext";
 
@@ -35,16 +35,13 @@ export function useAgnoChat() {
     };
 
     // Handle UI render event from frontend tool execution
-    const handleUIRender = (event: any) => {
+    const handleUIRender = (event: { tools: ToolCall[] }) => {
       const { tools } = event;
 
       // Update each tool call with its UI component
       for (const tool of tools) {
-        if ((tool as any).ui_component) {
-          client.hydrateToolCallUI(
-            tool.tool_call_id,
-            (tool as any).ui_component
-          );
+        if (tool.ui_component) {
+          client.hydrateToolCallUI(tool.tool_call_id, tool.ui_component);
         }
       }
     };
@@ -76,10 +73,7 @@ export function useAgnoChat() {
   const sendMessage = useCallback(
     async (
       message: string | FormData,
-      options?: {
-        headers?: Record<string, string>;
-        params?: Record<string, string>;
-      }
+      options?: Parameters<typeof client.sendMessage>[1]
     ) => {
       setError(undefined);
       try {

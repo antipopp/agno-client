@@ -5,10 +5,12 @@
  * Allows registering custom components at runtime.
  */
 
+import type { ReactNode } from "react";
+
 /**
  * Component renderer function type
  */
-export type ComponentRenderer = (props: any) => any; // React.ReactNode in React context
+export type ComponentRenderer = (props: Record<string, unknown>) => ReactNode;
 
 /**
  * Component registry class
@@ -42,9 +44,9 @@ export class ComponentRegistry {
    * Register multiple components at once
    */
   registerBatch(components: Record<string, ComponentRenderer>): void {
-    Object.entries(components).forEach(([type, renderer]) => {
+    for (const [type, renderer] of Object.entries(components)) {
       this.register(type, renderer);
-    });
+    }
   }
 
   /**

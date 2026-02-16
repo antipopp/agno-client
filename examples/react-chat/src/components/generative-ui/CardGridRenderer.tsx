@@ -49,12 +49,12 @@ export function CardGridRenderer(props: CardGridComponentSpec["props"]) {
       gridCols.xl ? `xl:grid-cols-${gridCols.xl}` : ""
     }`.trim();
 
-  const cardVariantClass =
-    variant === "bordered"
-      ? "border-2"
-      : variant === "elevated"
-        ? "shadow-lg"
-        : "";
+  let cardVariantClass = "";
+  if (variant === "bordered") {
+    cardVariantClass = "border-2";
+  } else if (variant === "elevated") {
+    cardVariantClass = "shadow-lg";
+  }
 
   return (
     <div className={gridClass}>
@@ -65,7 +65,9 @@ export function CardGridRenderer(props: CardGridComponentSpec["props"]) {
               <img
                 alt={card.title}
                 className="h-full w-full object-cover"
+                height={720}
                 src={card.image}
+                width={1280}
               />
             </div>
           )}
@@ -89,9 +91,9 @@ export function CardGridRenderer(props: CardGridComponentSpec["props"]) {
           )}
           {card.actions && card.actions.length > 0 && (
             <CardFooter className="flex gap-2">
-              {card.actions.map((action, index) => (
+              {card.actions.map((action) => (
                 <Button
-                  key={index}
+                  key={`${card.id}-${action.onClick || action.label}`}
                   onClick={() => {
                     // Emit custom event for action handling
                     if (action.onClick) {
