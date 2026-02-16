@@ -163,6 +163,15 @@ describe("ConfigManager", () => {
     });
   });
 
+  describe("dependencies methods", () => {
+    it("should get and set dependencies", () => {
+      expect(manager.getDependencies()).toBeUndefined();
+
+      manager.setDependencies({ tenantId: "tenant-1" });
+      expect(manager.getDependencies()).toEqual({ tenantId: "tenant-1" });
+    });
+  });
+
   describe("getRunUrl", () => {
     it("should return null if no entity ID", () => {
       expect(manager.getRunUrl()).toBeNull();
@@ -293,6 +302,37 @@ describe("ConfigManager", () => {
 
       expect(params).toBeInstanceOf(URLSearchParams);
       expect(params.toString()).toBe("test=value");
+    });
+  });
+
+  describe("buildDependencies", () => {
+    it("should return undefined if no dependencies configured", () => {
+      const dependencies = manager.buildDependencies();
+      expect(dependencies).toBeUndefined();
+    });
+
+    it("should include global dependencies", () => {
+      manager.setDependencies({ tenantId: "tenant-1", locale: "en-US" });
+
+      const dependencies = manager.buildDependencies();
+
+      expect(dependencies).toEqual({ tenantId: "tenant-1", locale: "en-US" });
+    });
+
+    it("should merge per-request dependencies with global dependencies", () => {
+      manager.setDependencies({ tenantId: "tenant-1" });
+
+      const dependencies = manager.buildDependencies({ feature: "rag" });
+
+      expect(dependencies).toEqual({ tenantId: "tenant-1", feature: "rag" });
+    });
+
+    it("should allow per-request dependencies to override global dependencies", () => {
+      manager.setDependencies({ locale: "en-US", tier: "free" });
+
+      const dependencies = manager.buildDependencies({ tier: "pro" });
+
+      expect(dependencies).toEqual({ locale: "en-US", tier: "pro" });
     });
   });
 });

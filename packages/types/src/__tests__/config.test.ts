@@ -61,6 +61,19 @@ describe("Config types", () => {
       expect(config.params?.version).toBe("v2");
     });
 
+    it("should support global dependencies", () => {
+      const config: AgnoClientConfig = {
+        endpoint: "http://localhost:7777",
+        dependencies: {
+          tenantId: "tenant-123",
+          featureFlags: {
+            useRag: true,
+          },
+        },
+      };
+      expect(config.dependencies?.tenantId).toBe("tenant-123");
+    });
+
     it("should support userId for session linking", () => {
       const config: AgnoClientConfig = {
         endpoint: "http://localhost:7777",
@@ -172,6 +185,22 @@ describe("Config types", () => {
       expect(options.params?.temperature).toBe("0.7");
     });
 
+    it("should support dependencies", () => {
+      const options: StreamOptions = {
+        dependencies: {
+          locale: "en-US",
+        },
+      };
+      expect(options.dependencies?.locale).toBe("en-US");
+    });
+
+    it("should support files", () => {
+      const options: StreamOptions = {
+        files: [new Blob(["hello"], { type: "text/plain" })],
+      };
+      expect(options.files).toHaveLength(1);
+    });
+
     it("should support timeout", () => {
       const options: StreamOptions = {
         timeout: 30_000,
@@ -198,6 +227,12 @@ describe("Config types", () => {
     it("StreamOptions.timeout should be optional number", () => {
       expectTypeOf<StreamOptions["timeout"]>().toEqualTypeOf<
         number | undefined
+      >();
+    });
+
+    it("AgnoClientConfig.dependencies should be optional record", () => {
+      expectTypeOf<AgnoClientConfig["dependencies"]>().toEqualTypeOf<
+        Record<string, unknown> | undefined
       >();
     });
   });

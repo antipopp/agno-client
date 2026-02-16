@@ -175,6 +175,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get global dependencies
+   */
+  getDependencies(): Record<string, unknown> | undefined {
+    return this.config.dependencies;
+  }
+
+  /**
+   * Set global dependencies
+   */
+  setDependencies(dependencies: Record<string, unknown> | undefined): void {
+    this.updateField("dependencies", dependencies);
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {
@@ -261,5 +275,37 @@ export class ConfigManager {
     }
 
     return new URLSearchParams(params);
+  }
+
+  /**
+   * Build dependencies by merging global dependencies and per-request dependencies.
+   * Merge order (lowest to highest precedence):
+   * 1. Global dependencies from config
+   * 2. Per-request dependencies (overrides global)
+   *
+   * @param perRequestDependencies - Optional dependencies for this specific request
+   * @returns Merged dependencies object, or undefined if no dependencies are configured
+   */
+  buildDependencies(
+    perRequestDependencies?: Record<string, unknown>
+  ): Record<string, unknown> | undefined {
+    const dependencies: Record<string, unknown> = {};
+
+    // 1. Apply global dependencies from config
+    const globalDependencies = this.getDependencies();
+    if (globalDependencies) {
+      Object.assign(dependencies, globalDependencies);
+    }
+
+    // 2. Apply per-request dependencies (overrides global)
+    if (perRequestDependencies) {
+      Object.assign(dependencies, perRequestDependencies);
+    }
+
+    if (Object.keys(dependencies).length === 0) {
+      return undefined;
+    }
+
+    return dependencies;
   }
 }

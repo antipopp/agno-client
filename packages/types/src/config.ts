@@ -55,6 +55,41 @@ export interface AgnoClientConfig {
    * Per-request parameters will override global parameters with the same key.
    */
   params?: Record<string, string>;
+
+  /**
+   * Global dependencies passed to run endpoints.
+   * These dependencies are merged with per-request dependencies,
+   * and per-request dependencies override global dependencies by key.
+   */
+  dependencies?: Record<string, unknown>;
+}
+
+/**
+ * Message run options
+ */
+export interface SendMessageOptions {
+  /**
+   * Custom headers to include in the request
+   */
+  headers?: Record<string, string>;
+
+  /**
+   * Custom query parameters to append to the request URL
+   */
+  params?: Record<string, string>;
+
+  /**
+   * Per-request dependencies passed to run endpoints.
+   * These dependencies are merged with global dependencies from config,
+   * and per-request dependencies override global dependencies by key.
+   */
+  dependencies?: Record<string, unknown>;
+
+  /**
+   * Files to upload with the message.
+   * Files are appended to multipart form data using the `files` field.
+   */
+  files?: Array<File | Blob>;
 }
 
 /**
@@ -70,6 +105,16 @@ export interface StreamOptions {
    * Custom query parameters to append to the request URL
    */
   params?: Record<string, string>;
+
+  /**
+   * Per-request dependencies passed to run endpoints
+   */
+  dependencies?: Record<string, unknown>;
+
+  /**
+   * Files to upload with the message
+   */
+  files?: Array<File | Blob>;
 
   /**
    * Request timeout in milliseconds
