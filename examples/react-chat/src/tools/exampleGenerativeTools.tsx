@@ -33,15 +33,31 @@ function getRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
+function normalizeArgs(
+  args: string | Record<string, unknown>
+): Record<string, unknown> {
+  if (typeof args === "string") {
+    return { content: args };
+  }
+
+  return args;
+}
+
 /**
  * Example 1: Render a revenue chart
  * Backend fetches the data, frontend renders the chart
  */
-export function render_revenue_chart(args: Record<string, unknown>) {
-  const data = getRecordArray(args.data);
-  const period = typeof args.period === "string" ? args.period : "monthly";
+export function render_revenue_chart(args: string | Record<string, unknown>) {
+  const normalizedArgs = normalizeArgs(args);
+  const data = getRecordArray(normalizedArgs.data);
+  const period =
+    typeof normalizedArgs.period === "string"
+      ? normalizedArgs.period
+      : "monthly";
   const chartType =
-    typeof args.chartType === "string" ? args.chartType : "auto";
+    typeof normalizedArgs.chartType === "string"
+      ? normalizedArgs.chartType
+      : "auto";
 
   if (!data || data.length === 0) {
     return Promise.resolve({
@@ -88,10 +104,13 @@ export function render_revenue_chart(args: Record<string, unknown>) {
  * Example 2: Render rental cars as a card grid
  * Backend fetches car data from MCP/database, frontend renders the cards
  */
-export function render_rental_cars(args: Record<string, unknown>) {
-  const data = getRecordArray(args.data);
+export function render_rental_cars(args: string | Record<string, unknown>) {
+  const normalizedArgs = normalizeArgs(args);
+  const data = getRecordArray(normalizedArgs.data);
   const location =
-    typeof args.location === "string" ? args.location : "Unknown";
+    typeof normalizedArgs.location === "string"
+      ? normalizedArgs.location
+      : "Unknown";
 
   if (!data || data.length === 0) {
     return Promise.resolve({
@@ -146,10 +165,15 @@ export function render_rental_cars(args: Record<string, unknown>) {
  * Example 3: Product comparison table
  * Backend fetches product data, frontend renders the comparison table
  */
-export function render_product_comparison(args: Record<string, unknown>) {
-  const data = getRecordArray(args.data);
+export function render_product_comparison(
+  args: string | Record<string, unknown>
+) {
+  const normalizedArgs = normalizeArgs(args);
+  const data = getRecordArray(normalizedArgs.data);
   const category =
-    typeof args.category === "string" ? args.category : "products";
+    typeof normalizedArgs.category === "string"
+      ? normalizedArgs.category
+      : "products";
 
   if (!data || data.length === 0) {
     return Promise.resolve({
@@ -194,9 +218,13 @@ export function render_product_comparison(args: Record<string, unknown>) {
  * Example 4: Custom dashboard
  * Backend fetches dashboard metrics, frontend renders as cards
  */
-export function render_dashboard(args: Record<string, unknown>) {
-  const data = getRecord(args.data);
-  const userId = typeof args.userId === "string" ? args.userId : undefined;
+export function render_dashboard(args: string | Record<string, unknown>) {
+  const normalizedArgs = normalizeArgs(args);
+  const data = getRecord(normalizedArgs.data);
+  const userId =
+    typeof normalizedArgs.userId === "string"
+      ? normalizedArgs.userId
+      : undefined;
 
   if (Object.keys(data).length === 0) {
     return Promise.resolve({
@@ -244,12 +272,17 @@ export function render_dashboard(args: Record<string, unknown>) {
  * Example 5: Smart chart with auto-detection
  * Backend provides data, frontend intelligently chooses the best visualization
  */
-export function render_visualization(args: Record<string, unknown>) {
-  const data = getRecordArray(args.data);
+export function render_visualization(args: string | Record<string, unknown>) {
+  const normalizedArgs = normalizeArgs(args);
+  const data = getRecordArray(normalizedArgs.data);
   const query =
-    typeof args.query === "string" ? args.query : "Data Visualization";
+    typeof normalizedArgs.query === "string"
+      ? normalizedArgs.query
+      : "Data Visualization";
   const chartType =
-    typeof args.chartType === "string" ? args.chartType : undefined;
+    typeof normalizedArgs.chartType === "string"
+      ? normalizedArgs.chartType
+      : undefined;
 
   if (!data || data.length === 0) {
     return Promise.resolve({

@@ -279,9 +279,10 @@ export function BarChartRenderer(props: ChartComponentSpec["props"]) {
   }
 
   const config = generateChartConfig(bars);
+  const chartTitle = typeof title === "string" ? title : "bar_chart";
 
   return (
-    <ChartWithMenu chartTitle={title || "bar_chart"} data={data}>
+    <ChartWithMenu chartTitle={chartTitle} data={data}>
       <ChartContainer className="h-[350px]" config={config}>
         <BarChart data={data} height={height as number}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -326,9 +327,10 @@ export function LineChartRenderer(props: ChartComponentSpec["props"]) {
   }
 
   const config = generateChartConfig(lines);
+  const chartTitle = typeof title === "string" ? title : "line_chart";
 
   return (
-    <ChartWithMenu chartTitle={title || "line_chart"} data={data}>
+    <ChartWithMenu chartTitle={chartTitle} data={data}>
       <ChartContainer className="h-[350px]" config={config}>
         <LineChart data={data} height={height as number}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -375,9 +377,10 @@ export function AreaChartRenderer(props: ChartComponentSpec["props"]) {
   }
 
   const config = generateChartConfig(areas);
+  const chartTitle = typeof title === "string" ? title : "area_chart";
 
   return (
-    <ChartWithMenu chartTitle={title || "area_chart"} data={data}>
+    <ChartWithMenu chartTitle={chartTitle} data={data}>
       <ChartContainer className="h-[350px]" config={config}>
         <AreaChart data={data} height={height as number}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -421,9 +424,10 @@ export function PieChartRenderer(props: ChartComponentSpec["props"]) {
       label: String(item[pie.nameKey || "name"] ?? "segment"),
     }))
   );
+  const chartTitle = typeof title === "string" ? title : "pie_chart";
 
   return (
-    <ChartWithMenu chartTitle={title || "pie_chart"} data={data}>
+    <ChartWithMenu chartTitle={chartTitle} data={data}>
       <ChartContainer className="h-[350px]" config={config}>
         <PieChart height={height as number}>
           <Pie
