@@ -30,7 +30,7 @@ const TestChatComponent = ({
       <div data-testid="messages">{JSON.stringify(messages)}</div>
       <div data-testid="streaming">{isStreaming ? "true" : "false"}</div>
       <div data-testid="error">{error || "none"}</div>
-      <button data-testid="clear" onClick={clearMessages}>
+      <button data-testid="clear" onClick={clearMessages} type="button">
         Clear
       </button>
     </div>
@@ -102,7 +102,12 @@ describe("useAgnoChat", () => {
         </AgnoProvider>
       );
 
-      expect(capturedState!.isStreaming).toBe(false);
+      if (!capturedState) {
+        throw new Error("Expected hook state to be captured");
+      }
+
+      const state = capturedState as ReturnType<typeof useAgnoChat>;
+      expect(state.isStreaming).toBe(false);
     });
 
     it("should provide isRefreshing state", () => {
@@ -118,7 +123,12 @@ describe("useAgnoChat", () => {
         </AgnoProvider>
       );
 
-      expect(capturedState!.isRefreshing).toBe(false);
+      if (!capturedState) {
+        throw new Error("Expected hook state to be captured");
+      }
+
+      const state = capturedState as ReturnType<typeof useAgnoChat>;
+      expect(state.isRefreshing).toBe(false);
     });
 
     it("should provide isPaused state", () => {
@@ -134,7 +144,12 @@ describe("useAgnoChat", () => {
         </AgnoProvider>
       );
 
-      expect(capturedState!.isPaused).toBe(false);
+      if (!capturedState) {
+        throw new Error("Expected hook state to be captured");
+      }
+
+      const state = capturedState as ReturnType<typeof useAgnoChat>;
+      expect(state.isPaused).toBe(false);
     });
 
     it("should provide state object", () => {
@@ -150,10 +165,15 @@ describe("useAgnoChat", () => {
         </AgnoProvider>
       );
 
-      expect(capturedState!.state).toBeDefined();
-      expect(capturedState!.state.isStreaming).toBe(false);
-      expect(capturedState!.state.isRefreshing).toBe(false);
-      expect(capturedState!.state.isPaused).toBe(false);
+      if (!capturedState) {
+        throw new Error("Expected hook state to be captured");
+      }
+
+      const state = capturedState as ReturnType<typeof useAgnoChat>;
+      expect(state.state).toBeDefined();
+      expect(state.state.isStreaming).toBe(false);
+      expect(state.state.isRefreshing).toBe(false);
+      expect(state.state.isPaused).toBe(false);
     });
   });
 });

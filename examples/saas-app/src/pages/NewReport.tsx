@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, type UseFormReturn, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import * as z from "zod";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,56 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const REPORT_CATEGORIES = [
+  "financial",
+  "sales",
+  "marketing",
+  "customer",
+  "product",
+] as const;
+
+function toToolArgs(
+  args: Record<string, unknown> | string
+): Record<string, unknown> {
+  return typeof args === "string" ? {} : args;
+}
+
+function isReportCategory(value: unknown): value is FormValues["category"] {
+  return (
+    typeof value === "string" &&
+    REPORT_CATEGORIES.includes(value as FormValues["category"])
+  );
+}
+
+function applyToolArgsToForm(
+  form: UseFormReturn<FormValues>,
+  args: Record<string, unknown>
+): string[] {
+  const filledFields: string[] = [];
+
+  const stringFieldMap = [
+    { argKey: "name", formKey: "name" as const },
+    { argKey: "description", formKey: "description" as const },
+    { argKey: "start_date", formKey: "startDate" as const },
+    { argKey: "end_date", formKey: "endDate" as const },
+  ];
+
+  for (const { argKey, formKey } of stringFieldMap) {
+    const value = args[argKey];
+    if (typeof value === "string") {
+      form.setValue(formKey, value);
+      filledFields.push(argKey);
+    }
+  }
+
+  if (isReportCategory(args.category)) {
+    form.setValue("category", args.category);
+    filledFields.push("category");
+  }
+
+  return filledFields;
+}
 
 export function NewReport() {
   const navigate = useNavigate();
@@ -76,35 +126,23 @@ export function NewReport() {
   // Define tool handler for filling the form (overrides global handler when on this page)
   const toolHandlers: Record<string, ToolHandler> = useMemo(
     () => ({
-      fill_report_form: async (args: Record<string, any>) => {
-        try {
-          // Update form data using react-hook-form's setValue
-          if (args.name) {
-            form.setValue("name", args.name);
-          }
-          if (args.description) {
-            form.setValue("description", args.description);
-          }
-          if (args.category) {
-            form.setValue("category", args.category);
-          }
-          if (args.start_date) {
-            form.setValue("startDate", args.start_date);
-          }
-          if (args.end_date) {
-            form.setValue("endDate", args.end_date);
-          }
+      fill_report_form: (args: Record<string, unknown> | string) => {
+        const parsedArgs = toToolArgs(args);
 
-          return {
+        try {
+          const filledFields = applyToolArgsToForm(form, parsedArgs);
+
+          return Promise.resolve({
             success: true,
             message: "Form filled successfully",
-            filled_fields: Object.keys(args),
-          };
-        } catch (error: any) {
-          return {
+            filled_fields: filledFields,
+          });
+        } catch (error) {
+          return Promise.resolve({
             success: false,
-            error: error.message || "Failed to fill form",
-          };
+            error:
+              error instanceof Error ? error.message : "Failed to fill form",
+          });
         }
       },
     }),

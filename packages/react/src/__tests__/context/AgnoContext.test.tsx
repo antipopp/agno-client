@@ -103,7 +103,7 @@ describe("AgnoContext", () => {
       // Suppress console.error for this test
       const consoleSpy = vi
         .spyOn(console, "error")
-        .mockImplementation(() => {});
+        .mockImplementation(() => undefined);
 
       expect(() => {
         render(<TestComponent />);

@@ -16,6 +16,13 @@ export function AICopilot() {
   // This enables the event listener for run:paused events
   const { isPaused, isExecuting, pendingTools } = useAgnoToolExecution();
 
+  let statusMessage = "AI is thinking...";
+  if (isExecuting) {
+    statusMessage = "Executing tools...";
+  } else if (isPaused) {
+    statusMessage = `Processing ${pendingTools.length} tool(s)...`;
+  }
+
   const handleSend = async (message: string) => {
     try {
       await sendMessage(message);
@@ -49,8 +56,11 @@ export function AICopilot() {
               />
             ) : (
               <div className="space-y-1">
-                {messages.map((message, index) => (
-                  <MessageItem key={index} message={message} />
+                {messages.map((message) => (
+                  <MessageItem
+                    key={`${message.created_at}-${message.role}-${message.content.slice(0, 32)}`}
+                    message={message}
+                  />
                 ))}
               </div>
             )}
@@ -64,13 +74,7 @@ export function AICopilot() {
         <div className="border-border border-t bg-accent/50 px-4 py-2">
           <div className="flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>
-              {isExecuting
-                ? "Executing tools..."
-                : isPaused
-                  ? `Processing ${pendingTools.length} tool(s)...`
-                  : "AI is thinking..."}
-            </span>
+            <span>{statusMessage}</span>
           </div>
         </div>
       )}

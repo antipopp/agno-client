@@ -28,7 +28,7 @@ export interface ChartSeries {
   /** Color (CSS color or theme variable) */
   color?: string;
   /** Chart-specific options (e.g., strokeWidth, fillOpacity) */
-  options?: Record<string, any>;
+  options?: Record<string, unknown>;
 }
 
 /**
@@ -49,7 +49,7 @@ export interface ChartComponentSpec extends BaseUIComponentSpec {
   /** Chart configuration */
   props: {
     /** Chart data array */
-    data: any[];
+    data: Record<string, unknown>[];
     /** X-axis key */
     xKey?: string;
     /** Y-axis keys (for bar/line charts) */
@@ -78,10 +78,10 @@ export interface ChartComponentSpec extends BaseUIComponentSpec {
     /** Show tooltip */
     showTooltip?: boolean;
     /** Axis configurations */
-    xAxis?: Record<string, any>;
-    yAxis?: Record<string, any>;
+    xAxis?: Record<string, unknown>;
+    yAxis?: Record<string, unknown>;
     /** Additional Recharts props (escape hatch for advanced customization) */
-    [key: string]: any;
+    [key: string]: unknown;
   };
   /** Streaming mode: 'replace' replaces data, 'append' adds to existing data */
   streamMode?: "replace" | "append";
@@ -100,7 +100,7 @@ export interface CardData {
   /** Image URL */
   image?: string;
   /** Metadata fields */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Action buttons */
   actions?: {
     label: string;
@@ -162,7 +162,7 @@ export interface TableComponentSpec extends BaseUIComponentSpec {
   type: "table";
   props: {
     /** Table data rows */
-    data: Record<string, any>[];
+    data: Record<string, unknown>[];
     /** Column configurations */
     columns: TableColumn[];
     /** Enable sorting */
@@ -201,7 +201,7 @@ export interface CustomComponentSpec extends BaseUIComponentSpec {
   /** Unique key for looking up the render function */
   renderKey: string;
   /** Props passed to the custom render function */
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -253,7 +253,7 @@ export interface GenerativeUIData {
  */
 export interface ToolHandlerResult {
   /** Data to send back to the agent */
-  data: any;
+  data: unknown;
   /** UI component specification to render */
   ui?: UIComponentSpec;
 }
@@ -261,7 +261,7 @@ export interface ToolHandlerResult {
 /**
  * Custom render function type (stored in runtime registry, not serializable)
  */
-export type CustomRenderFunction = (props: Record<string, any>) => any; // React.ReactNode in React context
+export type CustomRenderFunction = (props: Record<string, unknown>) => unknown; // React.ReactNode in React context
 
 /**
  * Helper type for tool handlers that can return various formats
@@ -269,4 +269,9 @@ export type CustomRenderFunction = (props: Record<string, any>) => any; // React
 export type GenerativeToolHandlerReturn =
   | ToolHandlerResult // New format: { data, ui }
   | UIComponentSpec // Just UI spec (data = ui spec)
-  | any; // Legacy format: any data (backward compatible)
+  | string
+  | number
+  | boolean
+  | null
+  | Record<string, unknown>
+  | unknown[]; // Legacy format: arbitrary data (backward compatible)

@@ -44,6 +44,18 @@ const reportsData = [
 ];
 
 export function Reports() {
+  const getStatusClass = (status: string): string => {
+    if (status === "Completed") {
+      return "bg-green-100 text-green-800";
+    }
+
+    if (status === "In Progress") {
+      return "bg-blue-100 text-blue-800";
+    }
+
+    return "bg-gray-100 text-gray-800";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -77,13 +89,7 @@ export function Reports() {
                   <TableCell>{report.createdDate}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold text-xs ${
-                        report.status === "Completed"
-                          ? "bg-green-100 text-green-800"
-                          : report.status === "In Progress"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
-                      }`}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold text-xs ${getStatusClass(report.status)}`}
                     >
                       {report.status}
                     </span>

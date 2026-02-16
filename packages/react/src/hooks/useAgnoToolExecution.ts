@@ -11,7 +11,31 @@ import { useToolHandlers } from "../context/ToolHandlerContext";
 /**
  * Tool handler function type (now supports generative UI)
  */
-export type ToolHandler = (args: Record<string, any>) => Promise<any>;
+export type ToolHandler = (
+  args: Record<string, unknown> | string
+) => Promise<unknown>;
+
+interface ToolResultProcessing {
+  resultData: string;
+  uiComponent?: UIComponentSpec;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getCustomRenderFunction(
+  value: UIComponentSpec
+): CustomRenderFunction | undefined {
+  if (value.type !== "custom") {
+    return undefined;
+  }
+
+  const maybeRender = (value as UIComponentSpec & { render?: unknown }).render;
+  return typeof maybeRender === "function"
+    ? (maybeRender as CustomRenderFunction)
+    : undefined;
+}
 
 /**
  * Runtime registry for custom render functions (not serializable)
@@ -29,6 +53,82 @@ function registerCustomRender(renderFn: CustomRenderFunction): string {
   const key = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   customRenderRegistry.set(key, renderFn);
   return key;
+}
+
+function toSerializableUIComponent(spec: UIComponentSpec): UIComponentSpec {
+  const renderFn = getCustomRenderFunction(spec);
+  if (!renderFn) {
+    return spec;
+  }
+
+  const { render: _render, ...uiWithoutRender } = spec as UIComponentSpec & {
+    render?: unknown;
+  };
+  return {
+    ...uiWithoutRender,
+    renderKey: registerCustomRender(renderFn),
+  } as UIComponentSpec;
+}
+
+async function executeToolCall(
+  tool: ToolCall,
+  handlers: Record<string, ToolHandler>
+): Promise<ToolCall> {
+  const handler = handlers[tool.tool_name];
+  if (!handler) {
+    return {
+      ...tool,
+      result: JSON.stringify({
+        error: `No handler registered for ${tool.tool_name}`,
+      }),
+    };
+  }
+
+  try {
+    const result = await handler(tool.tool_args);
+    const { resultData, uiComponent } = processToolResult(result, tool);
+
+    return {
+      ...tool,
+      result: resultData,
+      ui_component: uiComponent,
+    };
+  } catch (error) {
+    return {
+      ...tool,
+      result: JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    };
+  }
+}
+
+async function hydrateToolUIForSession(
+  tools: ToolCall[],
+  handlers: Record<string, ToolHandler>,
+  onHydrate: (toolCallId: string, uiComponent: UIComponentSpec) => void
+): Promise<void> {
+  for (const tool of tools) {
+    if (tool.ui_component) {
+      continue;
+    }
+
+    const handler = handlers[tool.tool_name];
+    if (!handler) {
+      continue;
+    }
+
+    try {
+      const result = await handler(tool.tool_args);
+      const { uiComponent } = processToolResult(result, tool);
+
+      if (uiComponent) {
+        onHydrate(tool.tool_call_id, uiComponent);
+      }
+    } catch (error) {
+      console.error(`Failed to hydrate UI for ${tool.tool_name}:`, error);
+    }
+  }
 }
 
 /**
@@ -49,17 +149,15 @@ export function clearCustomRenderRegistry(): void {
 /**
  * Check if a value is a ToolHandlerResult with UI spec
  */
-function isToolHandlerResult(value: any): value is ToolHandlerResult {
-  return (
-    value && typeof value === "object" && ("data" in value || "ui" in value)
-  );
+function isToolHandlerResult(value: unknown): value is ToolHandlerResult {
+  return isRecord(value) && ("data" in value || "ui" in value);
 }
 
 /**
  * Check if a value is a UIComponentSpec
  */
-function isUIComponentSpec(value: any): value is UIComponentSpec {
-  return value && typeof value === "object" && "type" in value;
+function isUIComponentSpec(value: unknown): value is UIComponentSpec {
+  return isRecord(value) && typeof value.type === "string";
 }
 
 /**
@@ -67,30 +165,16 @@ function isUIComponentSpec(value: any): value is UIComponentSpec {
  * Exported for use in session loading UI hydration
  */
 export function processToolResult(
-  result: any,
+  result: unknown,
   _tool: ToolCall
-): {
-  resultData: string;
-  uiComponent?: any;
-} {
+): ToolResultProcessing {
   // Case 1: ToolHandlerResult with data and ui
   if (isToolHandlerResult(result)) {
     const { data, ui } = result;
 
-    let uiComponent: any;
+    let uiComponent: UIComponentSpec | undefined;
     if (ui) {
-      // Handle custom render functions
-      if (ui.type === "custom" && typeof (ui as any).render === "function") {
-        const renderKey = registerCustomRender((ui as any).render);
-        uiComponent = {
-          ...ui,
-          renderKey,
-          render: undefined, // Don't store the function itself
-        };
-      } else {
-        // Serializable UI spec
-        uiComponent = ui;
-      }
+      uiComponent = toSerializableUIComponent(ui);
     }
 
     return {
@@ -101,20 +185,7 @@ export function processToolResult(
 
   // Case 2: Direct UI component spec (no separate data)
   if (isUIComponentSpec(result)) {
-    let uiComponent: any;
-    if (
-      result.type === "custom" &&
-      typeof (result as any).render === "function"
-    ) {
-      const renderKey = registerCustomRender((result as any).render);
-      uiComponent = {
-        ...result,
-        renderKey,
-        render: undefined,
-      };
-    } else {
-      uiComponent = result;
-    }
+    const uiComponent = toSerializableUIComponent(result);
 
     return {
       resultData: JSON.stringify(result),
@@ -236,45 +307,13 @@ export function useAgnoToolExecution(
     setExecutionError(undefined);
 
     try {
-      // Execute each tool
       const updatedTools = await Promise.all(
-        pendingTools.map(async (tool) => {
-          const handler = mergedHandlers[tool.tool_name];
-
-          if (!handler) {
-            return {
-              ...tool,
-              result: JSON.stringify({
-                error: `No handler registered for ${tool.tool_name}`,
-              }),
-            };
-          }
-
-          try {
-            const result = await handler(tool.tool_args);
-
-            // Process result to extract data and UI components
-            const { resultData, uiComponent } = processToolResult(result, tool);
-
-            return {
-              ...tool,
-              result: resultData,
-              ui_component: uiComponent,
-            } as ToolCall;
-          } catch (error) {
-            return {
-              ...tool,
-              result: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            };
-          }
-        })
+        pendingTools.map((tool) => executeToolCall(tool, mergedHandlers))
       );
 
       // Store UI components in the client's message store before continuing
       // This ensures the UI components are visible even if the backend doesn't echo them back
-      const toolsWithUI = updatedTools.filter((t) => (t as any).ui_component);
+      const toolsWithUI = updatedTools.filter((tool) => tool.ui_component);
       if (toolsWithUI.length > 0) {
         // Emit a custom event with the UI data
         client.emit("ui:render", {
@@ -302,37 +341,23 @@ export function useAgnoToolExecution(
    * Hydrate tool calls with UI when session loads
    */
   useEffect(() => {
-    const handleSessionLoaded = async (_sessionId: string) => {
-      const messages = client.getMessages();
+    const handleSessionLoaded = (_sessionId: string) => {
+      const tools = client
+        .getMessages()
+        .flatMap((message) => message.tool_calls || []);
 
-      for (const message of messages) {
-        if (!message.tool_calls) {
-          continue;
+      hydrateToolUIForSession(
+        tools,
+        mergedHandlers,
+        (toolCallId, uiComponent) => {
+          client.hydrateToolCallUI(toolCallId, uiComponent);
         }
-
-        for (const tool of message.tool_calls) {
-          // Skip if already has UI
-          if ((tool as any).ui_component) {
-            continue;
-          }
-
-          const handler = mergedHandlers[tool.tool_name];
-          if (!handler) {
-            continue;
-          }
-
-          try {
-            const result = await handler(tool.tool_args);
-            const { uiComponent } = processToolResult(result, tool);
-
-            if (uiComponent) {
-              client.hydrateToolCallUI(tool.tool_call_id, uiComponent);
-            }
-          } catch (err) {
-            console.error(`Failed to hydrate UI for ${tool.tool_name}:`, err);
-          }
-        }
-      }
+      ).catch((error) => {
+        console.error(
+          "[useAgnoToolExecution] Failed to hydrate session UI:",
+          error
+        );
+      });
     };
 
     client.on("session:loaded", handleSessionLoaded);
@@ -346,34 +371,9 @@ export function useAgnoToolExecution(
    * Returns the updated tools with results set
    */
   const executeTools = useCallback(
-    async (tools: ToolCall[]): Promise<ToolCall[]> => {
+    (tools: ToolCall[]): Promise<ToolCall[]> => {
       return Promise.all(
-        tools.map(async (tool) => {
-          const handler = mergedHandlers[tool.tool_name];
-          if (!handler) {
-            return tool;
-          }
-
-          try {
-            const result = await handler(tool.tool_args);
-
-            // Process result to extract data and UI components
-            const { resultData, uiComponent } = processToolResult(result, tool);
-
-            return {
-              ...tool,
-              result: resultData,
-              ui_component: uiComponent,
-            } as ToolCall;
-          } catch (error) {
-            return {
-              ...tool,
-              result: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            };
-          }
-        })
+        tools.map((tool) => executeToolCall(tool, mergedHandlers))
       );
     },
     [mergedHandlers]

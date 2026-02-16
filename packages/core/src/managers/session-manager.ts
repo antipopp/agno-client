@@ -1,10 +1,16 @@
 import type {
+  AudioData,
   ChatMessage,
+  ImageData,
+  MessageExtraData,
+  ResponseAudioData,
   RunSchema,
   SessionEntry,
   SessionsListResponse,
   TeamRunSchema,
   ToolCall,
+  ToolMetrics,
+  VideoData,
 } from "@antipopp/agno-types";
 
 /**
@@ -137,97 +143,108 @@ export class SessionManager {
     const messages: ChatMessage[] = [];
 
     for (const run of runs) {
-      // Parse created_at timestamp
-      const timestamp = run.created_at
-        ? new Date(run.created_at).getTime() / 1000
-        : Math.floor(Date.now() / 1000);
+      const timestamp = this.getRunTimestamp(run);
 
-      // Add user message (from run_input)
       if (run.run_input) {
-        messages.push({
-          role: "user",
-          content: run.run_input,
-          created_at: timestamp,
-        });
+        messages.push(this.buildUserMessage(run.run_input, timestamp));
       }
 
-      // Extract tool calls from tools array
-      const toolCalls: ToolCall[] = [];
+      const toolCalls = this.extractToolCalls(run, timestamp);
 
-      if (run.tools && Array.isArray(run.tools)) {
-        for (const tool of run.tools) {
-          const toolObj = tool as Record<string, unknown>;
-          const toolCall = {
-            role: "tool" as const,
-            content: (toolObj.content as string) ?? "",
-            tool_call_id: (toolObj.tool_call_id as string) ?? "",
-            tool_name: (toolObj.tool_name as string) ?? "",
-            tool_args: (toolObj.tool_args as Record<string, string>) ?? {},
-            tool_call_error: (toolObj.tool_call_error as boolean) ?? false,
-            metrics: (toolObj.metrics as { time: number }) ?? { time: 0 },
-            created_at: timestamp,
-          };
-
-          toolCalls.push(toolCall);
-        }
-      }
-
-      // Extract additional tool calls from reasoning_messages
-      if (run.reasoning_messages && Array.isArray(run.reasoning_messages)) {
-        for (const msg of run.reasoning_messages) {
-          const reasoningMsg = msg as Record<string, unknown>;
-          if (reasoningMsg.role === "tool") {
-            toolCalls.push({
-              role: "tool",
-              content: (reasoningMsg.content as string) ?? "",
-              tool_call_id: (reasoningMsg.tool_call_id as string) ?? "",
-              tool_name: (reasoningMsg.tool_name as string) ?? "",
-              tool_args:
-                (reasoningMsg.tool_args as Record<string, string>) ?? {},
-              tool_call_error:
-                (reasoningMsg.tool_call_error as boolean) ?? false,
-              metrics: (reasoningMsg.metrics as { time: number }) ?? {
-                time: 0,
-              },
-              created_at: (reasoningMsg.created_at as number) ?? timestamp,
-            });
-          }
-        }
-      }
-
-      // Convert content to string if it's an object
-      let contentStr = "";
-      if (typeof run.content === "string") {
-        contentStr = run.content;
-      } else if (run.content && typeof run.content === "object") {
-        contentStr = JSON.stringify(run.content);
-      }
-
-      // Build extra_data if there's any reasoning/reference content
-      // Cast to any to avoid type issues with generic Record<string, unknown> from API
-      const extraData =
-        run.reasoning_messages || run.reasoning_steps || run.references
-          ? ({
-              reasoning_messages: run.reasoning_messages,
-              reasoning_steps: run.reasoning_steps,
-              references: run.references,
-            } as any)
-          : undefined;
-
-      // Add agent response message
       messages.push({
         role: "agent",
-        content: contentStr,
+        content: this.normalizeRunContent(run.content),
         tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-        extra_data: extraData,
-        images: run.images as any,
-        videos: run.videos as any,
-        audio: run.audio as any,
-        response_audio: run.response_audio as any,
+        extra_data: this.buildExtraData(run),
+        images: run.images as ImageData[] | undefined,
+        videos: run.videos as VideoData[] | undefined,
+        audio: run.audio as AudioData[] | undefined,
+        response_audio: run.response_audio as ResponseAudioData | undefined,
         created_at: timestamp + 1, // Agent response is slightly after user message
       });
     }
 
     return messages;
+  }
+
+  private getRunTimestamp(run: RunSchema | TeamRunSchema): number {
+    return run.created_at
+      ? new Date(run.created_at).getTime() / 1000
+      : Math.floor(Date.now() / 1000);
+  }
+
+  private buildUserMessage(content: string, createdAt: number): ChatMessage {
+    return {
+      role: "user",
+      content,
+      created_at: createdAt,
+    };
+  }
+
+  private normalizeRunContent(content: RunSchema["content"]): string {
+    if (typeof content === "string") {
+      return content;
+    }
+
+    if (content && typeof content === "object") {
+      return JSON.stringify(content);
+    }
+
+    return "";
+  }
+
+  private buildToolCall(
+    rawTool: Record<string, unknown>,
+    fallbackTimestamp: number
+  ): ToolCall {
+    return {
+      role: "tool",
+      content: (rawTool.content as string) ?? "",
+      tool_call_id: (rawTool.tool_call_id as string) ?? "",
+      tool_name: (rawTool.tool_name as string) ?? "",
+      tool_args: (rawTool.tool_args as Record<string, string>) ?? {},
+      tool_call_error: (rawTool.tool_call_error as boolean) ?? false,
+      metrics: (rawTool.metrics as ToolMetrics) ?? { time: 0 },
+      created_at: (rawTool.created_at as number) ?? fallbackTimestamp,
+    };
+  }
+
+  private extractToolCalls(
+    run: RunSchema | TeamRunSchema,
+    timestamp: number
+  ): ToolCall[] {
+    const toolCalls: ToolCall[] = [];
+
+    if (run.tools && Array.isArray(run.tools)) {
+      for (const tool of run.tools) {
+        toolCalls.push(this.buildToolCall(tool, timestamp));
+      }
+    }
+
+    if (run.reasoning_messages && Array.isArray(run.reasoning_messages)) {
+      for (const message of run.reasoning_messages) {
+        if (message.role === "tool") {
+          toolCalls.push(this.buildToolCall(message, timestamp));
+        }
+      }
+    }
+
+    return toolCalls;
+  }
+
+  private buildExtraData(
+    run: RunSchema | TeamRunSchema
+  ): MessageExtraData | undefined {
+    if (!(run.reasoning_messages || run.reasoning_steps || run.references)) {
+      return undefined;
+    }
+
+    return {
+      reasoning_messages:
+        run.reasoning_messages as MessageExtraData["reasoning_messages"],
+      reasoning_steps:
+        run.reasoning_steps as MessageExtraData["reasoning_steps"],
+      references: run.references as MessageExtraData["references"],
+    };
   }
 }

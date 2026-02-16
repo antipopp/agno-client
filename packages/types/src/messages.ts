@@ -1,3 +1,5 @@
+import type { UIComponentSpec } from "./ui";
+
 /**
  * Tool call metrics
  */
@@ -22,9 +24,9 @@ export interface ToolCall {
   requires_confirmation?: boolean;
   requires_user_input?: boolean;
   confirmed?: boolean;
-  result?: any;
+  result?: unknown;
   // Generative UI field (serializable component spec only)
-  ui_component?: any; // UIComponentSpec - imported dynamically to avoid circular deps
+  ui_component?: UIComponentSpec;
 }
 
 /**
