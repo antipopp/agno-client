@@ -1,5 +1,10 @@
 import { useAgnoActions, useAgnoClient } from "@antipopp/agno-react";
-import type { AgentDetails, TeamDetails } from "@antipopp/agno-types";
+import type {
+  AgentDetails,
+  AgnoClientConfig,
+  ClientState,
+  TeamDetails,
+} from "@antipopp/agno-types";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -43,13 +48,13 @@ export function ConfigPanel() {
 
   // Listen to state changes
   useEffect(() => {
-    const handleStateChange = (state: any) => {
+    const handleStateChange = (state: ClientState) => {
       setIsEndpointActive(state.isEndpointActive);
       setAgents(state.agents || []);
       setTeams(state.teams || []);
     };
 
-    const handleConfigChange = (config: any) => {
+    const handleConfigChange = (config: AgnoClientConfig) => {
       setEndpoint(config.endpoint);
       setAuthToken(config.authToken || "");
       setMode(config.mode || "agent");
@@ -87,7 +92,7 @@ export function ConfigPanel() {
   };
 
   const handleApplyConfig = () => {
-    const updates: any = {
+    const updates: Partial<AgnoClientConfig> = {
       endpoint,
       authToken: authToken || undefined,
       mode,

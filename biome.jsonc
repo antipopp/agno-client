@@ -55,5 +55,55 @@
         "useAriaPropsForRole": "warn"
       }
     }
-  }
+  },
+
+  "overrides": [
+    {
+      "includes": ["examples/**/components/ui/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "useFocusableInteractive": "off",
+            "useAriaPropsForRole": "off",
+            "useKeyWithClickEvents": "off",
+            "noNoninteractiveElementInteractions": "off"
+          },
+          "correctness": {
+            "noNestedComponentDefinitions": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noDocumentCookie": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["examples/**/components/ai-elements/input-group.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "useKeyWithClickEvents": "off",
+            "noNoninteractiveElementInteractions": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["examples/**/components/ai-elements/prompt-input.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noEmptyBlockStatements": "off"
+          }
+        }
+      }
+    }
+  ]
 }

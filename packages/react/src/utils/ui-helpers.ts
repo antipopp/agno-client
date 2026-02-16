@@ -17,6 +17,9 @@ import type {
   UIComponentSpec,
 } from "@antipopp/agno-types";
 
+type DataRow = Record<string, unknown>;
+type SeriesInput = Array<{ key: string; label?: string; color?: string }>;
+
 /**
  * Chart helper options
  */
@@ -41,9 +44,9 @@ export interface ChartHelperOptions {
  * Create a bar chart specification
  */
 export function createBarChart(
-  data: any[],
+  data: DataRow[],
   xKey: string,
-  bars: Array<{ key: string; label?: string; color?: string }>,
+  bars: SeriesInput,
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
@@ -72,9 +75,9 @@ export function createBarChart(
  * Create a line chart specification
  */
 export function createLineChart(
-  data: any[],
+  data: DataRow[],
   xKey: string,
-  lines: Array<{ key: string; label?: string; color?: string }>,
+  lines: SeriesInput,
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
@@ -103,7 +106,7 @@ export function createLineChart(
  * Create a pie chart specification
  */
 export function createPieChart(
-  data: any[],
+  data: DataRow[],
   dataKey: string,
   nameKey: string,
   options?: ChartHelperOptions & { showLabel?: boolean }
@@ -132,9 +135,9 @@ export function createPieChart(
  * Create an area chart specification
  */
 export function createAreaChart(
-  data: any[],
+  data: DataRow[],
   xKey: string,
-  areas: Array<{ key: string; label?: string; color?: string }>,
+  areas: SeriesInput,
   options?: ChartHelperOptions
 ): ChartComponentSpec {
   return {
@@ -205,7 +208,7 @@ export function createCard(
   description?: string,
   options?: {
     image?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     actions?: CardData["actions"];
   }
 ): CardData {
@@ -239,7 +242,7 @@ export interface TableHelperOptions {
  * Create a table specification
  */
 export function createTable(
-  data: Record<string, any>[],
+  data: DataRow[],
   columns: TableColumn[],
   options?: TableHelperOptions
 ): TableComponentSpec {
@@ -332,7 +335,7 @@ export function createArtifact(
  * Smart chart creator - automatically chooses the best chart type based on data
  */
 export function createSmartChart(
-  data: any[],
+  data: DataRow[],
   options?: {
     title?: string;
     description?: string;
@@ -366,6 +369,7 @@ export function createSmartChart(
     (k) => k !== xKey && typeof firstItem[k] === "number"
   );
   const yKeys = options?.yKeys || numericKeys;
+  const firstValueKey = yKeys[0] ?? numericKeys[0];
 
   // Respect explicit preferredType first
   if (options?.preferredType) {
@@ -392,14 +396,25 @@ export function createSmartChart(
           options
         );
       case "pie":
-        return createPieChart(data, yKeys[0], xKey, options);
+        return createPieChart(data, firstValueKey ?? "value", xKey, options);
+      default:
+        return createBarChart(
+          data,
+          xKey,
+          yKeys.map((key) => ({ key })),
+          options
+        );
     }
   }
 
   // Auto-detect based on data characteristics
   // If only one value key and non-numeric xKey, consider pie chart
-  if (yKeys.length === 1 && typeof firstItem[xKey] === "string") {
-    return createPieChart(data, yKeys[0], xKey, options);
+  if (
+    yKeys.length === 1 &&
+    firstValueKey &&
+    typeof firstItem[xKey] === "string"
+  ) {
+    return createPieChart(data, firstValueKey, xKey, options);
   }
 
   // If xKey looks like a date/time, prefer line chart
@@ -430,7 +445,7 @@ export function createSmartChart(
  * Wrap data and UI into a ToolHandlerResult
  */
 export function createToolResult(
-  data: any,
+  data: unknown,
   ui: UIComponentSpec
 ): ToolHandlerResult {
   return { data, ui };
@@ -440,9 +455,9 @@ export function createToolResult(
  * Quick helper: create a tool result with a bar chart
  */
 export function resultWithBarChart(
-  data: any[],
+  data: DataRow[],
   xKey: string,
-  bars: Array<{ key: string; label?: string; color?: string }>,
+  bars: SeriesInput,
   options?: ChartHelperOptions
 ): ToolHandlerResult {
   return createToolResult(data, createBarChart(data, xKey, bars, options));
@@ -452,7 +467,7 @@ export function resultWithBarChart(
  * Quick helper: create a tool result with a smart chart
  */
 export function resultWithSmartChart(
-  data: any[],
+  data: DataRow[],
   options?: Parameters<typeof createSmartChart>[1]
 ): ToolHandlerResult {
   return createToolResult(data, createSmartChart(data, options));
@@ -472,7 +487,7 @@ export function resultWithCardGrid(
  * Quick helper: create a tool result with a table
  */
 export function resultWithTable(
-  data: Record<string, any>[],
+  data: DataRow[],
   columns: TableColumn[],
   options?: TableHelperOptions
 ): ToolHandlerResult {

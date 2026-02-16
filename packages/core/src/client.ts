@@ -4,15 +4,20 @@ import type {
   ChatMessage,
   ClientState,
   RunResponse,
+  SendMessageOptions,
   SessionEntry,
   TeamDetails,
   ToolCall,
+  UIComponentSpec,
 } from "@antipopp/agno-types";
 import { RunEvent } from "@antipopp/agno-types";
 import EventEmitter from "eventemitter3";
 import { ConfigManager } from "./managers/config-manager";
 import { SessionManager } from "./managers/session-manager";
-import { streamResponse } from "./parsers/stream-parser";
+import {
+  StreamResponseHttpError,
+  streamResponse,
+} from "./parsers/stream-parser";
 import { EventProcessor } from "./processors/event-processor";
 import { MessageStore } from "./stores/message-store";
 import { Logger } from "./utils/logger";
@@ -46,7 +51,7 @@ export class AgnoClient extends EventEmitter {
   private readonly sessionManager: SessionManager;
   private readonly eventProcessor: EventProcessor;
   private readonly state: ClientState;
-  private readonly pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
+  private readonly pendingUISpecs: Map<string, UIComponentSpec>; // toolCallId -> UIComponentSpec
   private runCompletedSuccessfully = false;
   private currentRunId: string | undefined;
   private currentAbortController: AbortController | null = null;
@@ -202,10 +207,7 @@ export class AgnoClient extends EventEmitter {
    */
   async sendMessage(
     message: string | FormData,
-    options?: {
-      headers?: Record<string, string>;
-      params?: Record<string, string>;
-    }
+    options?: SendMessageOptions
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error("Already streaming a message");
@@ -263,13 +265,32 @@ export class AgnoClient extends EventEmitter {
     let newSessionId = this.configManager.getSessionId();
 
     try {
-      formData.append("stream", "true");
-      formData.append("session_id", newSessionId ?? "");
+      formData.set("stream", "true");
+      formData.set("session_id", newSessionId ?? "");
 
       // Add user_id if configured
       const userId = this.configManager.getUserId();
       if (userId) {
-        formData.append("user_id", userId);
+        formData.set("user_id", userId);
+      }
+
+      // Add dependencies (merged global + per-request)
+      const dependencies = this.configManager.buildDependencies(
+        options?.dependencies
+      );
+      if (dependencies) {
+        formData.set("dependencies", JSON.stringify(dependencies));
+      }
+
+      // Add file uploads (per-request)
+      if (options?.files) {
+        options.files.forEach((file, index) => {
+          const filename =
+            typeof File !== "undefined" && file instanceof File && file.name
+              ? file.name
+              : `file-${index}`;
+          formData.append("files", file, filename);
+        });
       }
 
       const headers = this.configManager.buildRequestHeaders(options?.headers);
@@ -465,6 +486,49 @@ export class AgnoClient extends EventEmitter {
     this.emit("state:change", this.getState());
   }
 
+  private collectExistingUIComponents(): Map<string, UIComponentSpec> {
+    const existingUIComponents = new Map<string, UIComponentSpec>();
+
+    for (const message of this.messageStore.getMessages()) {
+      if (!message.tool_calls) {
+        continue;
+      }
+
+      for (const toolCall of message.tool_calls) {
+        if (toolCall.ui_component) {
+          existingUIComponents.set(
+            toolCall.tool_call_id,
+            toolCall.ui_component
+          );
+        }
+      }
+    }
+
+    return existingUIComponents;
+  }
+
+  private restoreUIComponents(
+    messages: ChatMessage[],
+    uiComponents: Map<string, UIComponentSpec>
+  ): void {
+    if (uiComponents.size === 0) {
+      return;
+    }
+
+    for (const message of messages) {
+      if (!message.tool_calls) {
+        continue;
+      }
+
+      for (const toolCall of message.tool_calls) {
+        const uiComponent = uiComponents.get(toolCall.tool_call_id);
+        if (uiComponent) {
+          toolCall.ui_component = uiComponent;
+        }
+      }
+    }
+  }
+
   /**
    * Refresh messages from the session API after run completion.
    * Replaces streamed messages with authoritative session data.
@@ -490,19 +554,7 @@ export class AgnoClient extends EventEmitter {
     try {
       // Preserve ui_component properties from existing tool calls before refresh
       // The API doesn't store these - they're added client-side during HITL execution
-      const existingUIComponents = new Map<string, any>();
-      for (const message of this.messageStore.getMessages()) {
-        if (message.tool_calls) {
-          for (const toolCall of message.tool_calls) {
-            if ((toolCall as any).ui_component) {
-              existingUIComponents.set(
-                toolCall.tool_call_id,
-                (toolCall as any).ui_component
-              );
-            }
-          }
-        }
-      }
+      const existingUIComponents = this.collectExistingUIComponents();
 
       const config = this.configManager.getConfig();
       const entityType = this.configManager.getMode();
@@ -533,21 +585,7 @@ export class AgnoClient extends EventEmitter {
       const messages = this.sessionManager.convertSessionToMessages(response);
 
       // Re-apply preserved ui_component properties to matching tool calls
-      if (existingUIComponents.size > 0) {
-        for (const message of messages) {
-          if (message.tool_calls) {
-            for (let i = 0; i < message.tool_calls.length; i++) {
-              const toolCall = message.tool_calls[i];
-              const uiComponent = existingUIComponents.get(
-                toolCall.tool_call_id
-              );
-              if (uiComponent) {
-                (message.tool_calls[i] as any).ui_component = uiComponent;
-              }
-            }
-          }
-        }
-      }
+      this.restoreUIComponents(messages, existingUIComponents);
 
       this.messageStore.setMessages(messages);
 
@@ -714,7 +752,7 @@ export class AgnoClient extends EventEmitter {
    * Hydrate a specific tool call with its UI component
    * If tool call doesn't exist yet, stores UI spec as pending
    */
-  hydrateToolCallUI(toolCallId: string, uiSpec: any): void {
+  hydrateToolCallUI(toolCallId: string, uiSpec: UIComponentSpec): void {
     // Find the message containing this tool call and update it
     const messages = this.messageStore.getMessages();
 
@@ -780,7 +818,7 @@ export class AgnoClient extends EventEmitter {
           const toolCall = updatedToolCalls[j];
           const pendingUI = this.pendingUISpecs.get(toolCall.tool_call_id);
 
-          if (pendingUI && !(toolCall as any).ui_component) {
+          if (pendingUI && !toolCall.ui_component) {
             updatedToolCalls[j] = {
               ...updatedToolCalls[j],
               ui_component: pendingUI,
@@ -805,9 +843,9 @@ export class AgnoClient extends EventEmitter {
 
     // Apply all updates at once
     if (updatedMessages.length > 0) {
-      updatedMessages.forEach(({ index, message }) => {
+      for (const { index, message } of updatedMessages) {
         this.messageStore.updateMessage(index, () => message);
-      });
+      }
 
       this.emit("message:update", this.messageStore.getMessages());
     }
@@ -848,19 +886,65 @@ export class AgnoClient extends EventEmitter {
       throw new Error("No agent or team selected");
     }
 
-    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
-    const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
+    const pausedRunId = this.state.pausedRunId;
 
-    this.state.isPaused = false;
+    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
+    const continueUrl = `${runUrl}/${pausedRunId}/continue`;
+
     this.state.isStreaming = true;
-    this.emit("run:continued", { runId: this.state.pausedRunId });
+    this.state.errorMessage = undefined;
     this.emit("state:change", this.getState());
 
+    let hasContinued = false;
+    let streamError: Error | undefined;
+
+    const markRunContinued = (runId?: string): void => {
+      if (hasContinued) {
+        return;
+      }
+
+      hasContinued = true;
+      this.state.isPaused = false;
+      this.state.toolsAwaitingExecution = undefined;
+
+      this.emit("run:continued", { runId: runId || pausedRunId });
+      this.emit("state:change", this.getState());
+    };
+
+    const handleContinueError = (error: Error): void => {
+      streamError = error;
+      this.state.isStreaming = false;
+      this.state.errorMessage = error.message;
+
+      const isConflictError =
+        error instanceof StreamResponseHttpError && error.status === 409;
+
+      // If continue request was not accepted (or explicitly rejected with 409),
+      // preserve paused state and pending tools so callers can retry.
+      if (isConflictError || !hasContinued) {
+        this.state.isPaused = true;
+      } else {
+        // Continue was acknowledged and failed afterwards. Treat as a streaming error.
+        this.state.isPaused = false;
+        this.state.pausedRunId = undefined;
+        this.state.toolsAwaitingExecution = undefined;
+        this.messageStore.updateLastMessage((msg) => ({
+          ...msg,
+          streamingError: true,
+        }));
+      }
+
+      this.emit("message:error", error.message);
+      this.emit("stream:end");
+      this.emit("state:change", this.getState());
+    };
+
     // Clean tools before sending to backend (remove UI-specific fields)
-    const cleanedTools = tools.map((tool) => {
-      const { ui_component, ...backendTool } = tool as any;
-      return backendTool;
-    });
+    const cleanedTools = tools.map(
+      ({ ui_component: _uiComponent, ...tool }) => {
+        return tool;
+      }
+    );
 
     const formData = new FormData();
     formData.append("tools", JSON.stringify(cleanedTools));
@@ -882,42 +966,57 @@ export class AgnoClient extends EventEmitter {
 
     this.currentAbortController = new AbortController();
 
-    try {
-      await streamResponse({
-        apiUrl: continueUrl,
-        headers,
-        params,
-        requestBody: formData,
-        signal: this.currentAbortController.signal,
-        onChunk: (chunk: RunResponse) => {
-          this.handleChunk(chunk, currentSessionId, "");
-        },
-        onError: (error) => {
-          this.currentAbortController = null;
-          this.handleError(error, currentSessionId);
-        },
-        onComplete: async () => {
-          this.currentAbortController = null;
-          this.state.isStreaming = false;
+    await streamResponse({
+      apiUrl: continueUrl,
+      headers,
+      params,
+      requestBody: formData,
+      signal: this.currentAbortController.signal,
+      onChunk: (chunk: RunResponse) => {
+        const event = chunk.event as RunEvent;
+
+        // Continue endpoint may emit RunContent directly without RunContinued.
+        if (!hasContinued && event !== RunEvent.RunPaused) {
+          markRunContinued(chunk.run_id);
+        }
+
+        this.handleChunk(chunk, currentSessionId, "");
+      },
+      onError: (error) => {
+        this.currentAbortController = null;
+        handleContinueError(error);
+      },
+      onComplete: async () => {
+        this.currentAbortController = null;
+
+        // If no explicit continuation event was sent, but stream completed
+        // without errors and without pausing again, treat it as continued.
+        if (!(hasContinued || this.state.isPaused)) {
+          markRunContinued(pausedRunId);
+        }
+
+        this.state.isStreaming = false;
+
+        // Preserve paused run context when a run pauses again during continue.
+        if (!this.state.isPaused) {
           this.state.pausedRunId = undefined;
           this.state.toolsAwaitingExecution = undefined;
-          this.emit("stream:end");
-          this.emit("message:complete", this.messageStore.getMessages());
-          this.emit("state:change", this.getState());
+        }
 
-          // Trigger refresh if run completed successfully
-          if (this.runCompletedSuccessfully) {
-            this.runCompletedSuccessfully = false;
-            await this.refreshSessionMessages();
-          }
-        },
-      });
-    } catch (error) {
-      this.currentAbortController = null;
-      this.handleError(
-        error instanceof Error ? error : new Error(String(error)),
-        currentSessionId
-      );
+        this.emit("stream:end");
+        this.emit("message:complete", this.messageStore.getMessages());
+        this.emit("state:change", this.getState());
+
+        // Trigger refresh if run completed successfully
+        if (this.runCompletedSuccessfully) {
+          this.runCompletedSuccessfully = false;
+          await this.refreshSessionMessages();
+        }
+      },
+    });
+
+    if (streamError) {
+      throw streamError;
     }
   }
 

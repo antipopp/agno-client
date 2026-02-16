@@ -60,14 +60,14 @@ describe("Message types", () => {
 
     it("should support all role types", () => {
       const roles: ChatMessage["role"][] = ["user", "agent", "system", "tool"];
-      roles.forEach((role) => {
+      for (const role of roles) {
         const message: ChatMessage = {
           role,
           content: "Test",
           created_at: 1_700_000_000,
         };
         expect(message.role).toBe(role);
-      });
+      }
     });
   });
 

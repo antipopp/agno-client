@@ -57,40 +57,40 @@ function isDevelopment(): boolean {
 /**
  * Logger class with sanitization and environment-aware logging
  */
-export class Logger {
+export const Logger = {
   /**
    * Log debug information (only in development)
    */
-  static debug(message: string, data?: unknown): void {
+  debug(message: string, data?: unknown): void {
     if (isDevelopment()) {
       const sanitized = data ? sanitizeObject(data) : undefined;
       console.debug(`[DEBUG] ${message}`, sanitized || "");
     }
-  }
+  },
 
   /**
    * Log informational messages (only in development)
    */
-  static info(message: string, data?: unknown): void {
+  info(message: string, data?: unknown): void {
     if (isDevelopment()) {
       const sanitized = data ? sanitizeObject(data) : undefined;
       console.info(`[INFO] ${message}`, sanitized || "");
     }
-  }
+  },
 
   /**
    * Log warnings (always logs)
    */
-  static warn(message: string, data?: unknown): void {
+  warn(message: string, data?: unknown): void {
     const sanitized = data ? sanitizeObject(data) : undefined;
     console.warn(`[WARN] ${message}`, sanitized || "");
-  }
+  },
 
   /**
    * Log errors (always logs)
    */
-  static error(message: string, data?: unknown): void {
+  error(message: string, data?: unknown): void {
     const sanitized = data ? sanitizeObject(data) : undefined;
     console.error(`[ERROR] ${message}`, sanitized || "");
-  }
-}
+  },
+};

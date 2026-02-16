@@ -70,6 +70,7 @@ new AgnoClient(config: AgnoClientConfig)
 - `userId` (string, optional) - User ID to link sessions to a specific user
 - `headers` (Record<string, string>, optional) - Global custom headers for all API requests
 - `params` (Record<string, string>, optional) - Global query parameters for all API requests
+- `dependencies` (Record<string, unknown>, optional) - Global run dependencies merged into all `sendMessage` requests
 
 ### Methods
 
@@ -83,8 +84,32 @@ await client.sendMessage('Hello!');
 // With FormData (for file uploads)
 const formData = new FormData();
 formData.append('message', 'Hello!');
-formData.append('file', fileBlob);
+formData.append('files', fileBlob);
 await client.sendMessage(formData);
+
+// With per-request files option
+await client.sendMessage('Hello!', {
+  files: [fileBlob]
+});
+
+// With global dependencies from config
+const dependencyClient = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  agentId: 'agent-123',
+  dependencies: {
+    tenantId: 'tenant-1',
+    locale: 'en-US'
+  }
+});
+await dependencyClient.sendMessage('Hello!');
+
+// Override/extend dependencies per request
+await dependencyClient.sendMessage('Hello!', {
+  dependencies: {
+    locale: 'fr-FR', // overrides global
+    feature: 'rag'   // merged new key
+  }
+});
 
 // With custom headers
 await client.sendMessage('Hello!', {
@@ -313,6 +338,10 @@ await client.continueRun(tools, {
 **Query Parameters:**
 1. Global params from `config.params` (lowest precedence)
 2. Per-request params (highest precedence - overrides global)
+
+**Dependencies (`sendMessage` only):**
+1. Global dependencies from `config.dependencies` (lowest precedence)
+2. Per-request dependencies from `sendMessage(..., { dependencies })` (highest precedence - overrides global)
 
 ```typescript
 const client = new AgnoClient({

@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface EventLog {
   timestamp: number;
   event: string;
-  data?: any;
+  data?: string;
 }
 
 export function StateInspector() {
@@ -40,7 +40,7 @@ export function StateInspector() {
     ];
 
     const handlers = events.map((eventName) => {
-      const handler = (data?: any) => {
+      const handler = (data?: unknown) => {
         setEventLog((prev) => [
           {
             timestamp: Date.now(),
@@ -55,9 +55,9 @@ export function StateInspector() {
     });
 
     return () => {
-      handlers.forEach(({ eventName, handler }) => {
+      for (const { eventName, handler } of handlers) {
         client.off(eventName, handler);
-      });
+      }
     };
   }, [client]);
 
@@ -270,8 +270,11 @@ export function StateInspector() {
                       No events yet
                     </div>
                   ) : (
-                    eventLog.map((log, idx) => (
-                      <Card className="p-2" key={idx}>
+                    eventLog.map((log) => (
+                      <Card
+                        className="p-2"
+                        key={`${log.timestamp}-${log.event}`}
+                      >
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <Badge className="text-xs" variant="outline">

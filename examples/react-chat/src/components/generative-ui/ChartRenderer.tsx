@@ -48,18 +48,36 @@ const DEFAULT_COLORS = [
   "hsl(var(--chart-5))",
 ];
 
+interface ChartDataRow {
+  [key: string]: unknown;
+}
+
+interface SeriesItem {
+  key: string;
+  label?: string;
+  color?: string;
+}
+
 /**
  * Generate chart config for ChartContainer
  */
-function generateChartConfig(series: any[] = [], _type = "bar") {
-  const config: Record<string, any> = {};
-  series.forEach((item, index) => {
+function generateChartConfig(series: SeriesItem[] = []) {
+  const config: Record<string, { label: string; color: string }> = {};
+  for (const [index, item] of series.entries()) {
     config[item.key] = {
       label: item.label || item.key,
       color: item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
     };
-  });
+  }
   return config;
+}
+
+function getColorForKey(key: string): string {
+  let hash = 0;
+  for (const character of key) {
+    hash += character.charCodeAt(0);
+  }
+  return DEFAULT_COLORS[Math.abs(hash) % DEFAULT_COLORS.length];
 }
 
 /**
@@ -75,16 +93,18 @@ function sanitizeFilename(filename: string): string {
 /**
  * Convert data array to CSV string
  */
-function convertToCSV(data: any[]): string {
+function convertToCSV(data: ChartDataRow[]): string {
   if (!data || data.length === 0) {
     return "";
   }
 
   // Get all unique keys from all objects
   const allKeys = new Set<string>();
-  data.forEach((row) => {
-    Object.keys(row).forEach((key) => allKeys.add(key));
-  });
+  for (const row of data) {
+    for (const key of Object.keys(row)) {
+      allKeys.add(key);
+    }
+  }
   const headers = Array.from(allKeys);
 
   // Create CSV header row
@@ -111,7 +131,7 @@ function convertToCSV(data: any[]): string {
 /**
  * Export data to CSV file
  */
-function exportToCSV(data: any[], filename: string) {
+function exportToCSV(data: ChartDataRow[], filename: string) {
   try {
     const csv = convertToCSV(data);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -190,7 +210,7 @@ function ChartWithMenu({
   chartTitle = "chart",
 }: {
   children: ReactNode;
-  data: any[];
+  data: ChartDataRow[];
   chartTitle?: string;
 }) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -258,7 +278,7 @@ export function BarChartRenderer(props: ChartComponentSpec["props"]) {
     );
   }
 
-  const config = generateChartConfig(bars, "bar");
+  const config = generateChartConfig(bars);
 
   return (
     <ChartWithMenu chartTitle={title || "bar_chart"} data={data}>
@@ -305,7 +325,7 @@ export function LineChartRenderer(props: ChartComponentSpec["props"]) {
     );
   }
 
-  const config = generateChartConfig(lines, "line");
+  const config = generateChartConfig(lines);
 
   return (
     <ChartWithMenu chartTitle={title || "line_chart"} data={data}>
@@ -354,7 +374,7 @@ export function AreaChartRenderer(props: ChartComponentSpec["props"]) {
     );
   }
 
-  const config = generateChartConfig(areas, "area");
+  const config = generateChartConfig(areas);
 
   return (
     <ChartWithMenu chartTitle={title || "area_chart"} data={data}>
@@ -397,10 +417,9 @@ export function PieChartRenderer(props: ChartComponentSpec["props"]) {
 
   const config = generateChartConfig(
     data.map((item) => ({
-      key: item[pie.nameKey || "name"],
-      label: item[pie.nameKey || "name"],
-    })),
-    "pie"
+      key: String(item[pie.nameKey || "name"] ?? "segment"),
+      label: String(item[pie.nameKey || "name"] ?? "segment"),
+    }))
   );
 
   return (
@@ -416,12 +435,18 @@ export function PieChartRenderer(props: ChartComponentSpec["props"]) {
             nameKey={pie.nameKey || "name"}
             outerRadius={100}
           >
-            {data.map((_entry, index) => (
-              <Cell
-                fill={DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-                key={`cell-${index}`}
-              />
-            ))}
+            {data.map((entry) => {
+              const segmentKey = String(
+                entry[pie.nameKey || "name"] ?? entry[pie.dataKey] ?? "segment"
+              );
+
+              return (
+                <Cell
+                  fill={getColorForKey(segmentKey)}
+                  key={`cell-${segmentKey}`}
+                />
+              );
+            })}
           </Pie>
           <ChartTooltip content={<ChartTooltipContent />} />
           {showLegend && <Legend />}

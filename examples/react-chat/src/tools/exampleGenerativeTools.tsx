@@ -14,47 +14,73 @@ import {
   type ToolHandlerResult,
 } from "@antipopp/agno-react";
 
+function getRecordArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (item): item is Record<string, unknown> =>
+      typeof item === "object" && item !== null
+  );
+}
+
+function getRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
 /**
  * Example 1: Render a revenue chart
  * Backend fetches the data, frontend renders the chart
  */
-export async function render_revenue_chart(args: Record<string, any>) {
-  const { data, period = "monthly", chartType = "auto" } = args;
+export function render_revenue_chart(args: Record<string, unknown>) {
+  const data = getRecordArray(args.data);
+  const period = typeof args.period === "string" ? args.period : "monthly";
+  const chartType =
+    typeof args.chartType === "string" ? args.chartType : "auto";
 
   if (!data || data.length === 0) {
-    return {
+    return Promise.resolve({
       data: { error: "No data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No data available to display" },
       },
-    };
+    });
   }
 
   // Agent decides: line chart for trends, bar chart for comparisons
   if (chartType === "line" || chartType === "trend") {
-    return resultWithSmartChart(data, {
-      title: `Revenue Trend - ${period}`,
-      description: "Revenue and expenses over time",
-      preferredType: "line",
-      layout: "artifact",
-    });
+    return Promise.resolve(
+      resultWithSmartChart(data, {
+        title: `Revenue Trend - ${period}`,
+        description: "Revenue and expenses over time",
+        preferredType: "line",
+        layout: "artifact",
+      })
+    );
   }
 
   // Default to bar chart
-  return resultWithBarChart(
-    data,
-    "month",
-    [
-      { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
-      { key: "expenses", label: "Expenses", color: "hsl(var(--chart-2))" },
-    ],
-    {
-      title: `Revenue Comparison - ${period}`,
-      description: "Compare revenue vs expenses",
-      layout: "artifact",
-      height: 400,
-    }
+  return Promise.resolve(
+    resultWithBarChart(
+      data,
+      "month",
+      [
+        { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
+        { key: "expenses", label: "Expenses", color: "hsl(var(--chart-2))" },
+      ],
+      {
+        title: `Revenue Comparison - ${period}`,
+        description: "Compare revenue vs expenses",
+        layout: "artifact",
+        height: 400,
+      }
+    )
   );
 }
 
@@ -62,32 +88,34 @@ export async function render_revenue_chart(args: Record<string, any>) {
  * Example 2: Render rental cars as a card grid
  * Backend fetches car data from MCP/database, frontend renders the cards
  */
-export async function render_rental_cars(args: Record<string, any>) {
-  const { data, location = "Unknown" } = args;
+export function render_rental_cars(args: Record<string, unknown>) {
+  const data = getRecordArray(args.data);
+  const location =
+    typeof args.location === "string" ? args.location : "Unknown";
 
   if (!data || data.length === 0) {
-    return {
+    return Promise.resolve({
       data: { error: "No cars found" },
       ui: {
         type: "markdown",
         props: { content: "**No rental cars available** at this location." },
       },
-    };
+    });
   }
 
   // Transform backend data to card format
   // Backend might return: [{ id, name, description, price_per_day, type, seats, image_url }]
-  const cards = data.map((car: any) => ({
-    id: car.id || `car-${Math.random()}`,
-    title: car.name || car.title || "Unknown Car",
-    description: car.description || "",
-    image: car.image_url || car.image,
+  const cards = data.map((car) => ({
+    id: (car.id as string) || `car-${Math.random()}`,
+    title: (car.name as string) || (car.title as string) || "Unknown Car",
+    description: (car.description as string) || "",
+    image: (car.image_url as string) || (car.image as string),
     metadata: {
       Price: car.price_per_day
-        ? `$${car.price_per_day}/day`
-        : car.price || "N/A",
-      Type: car.type || "N/A",
-      Seats: car.seats?.toString() || "N/A",
+        ? `$${String(car.price_per_day)}/day`
+        : (car.price as string) || "N/A",
+      Type: (car.type as string) || "N/A",
+      Seats: car.seats ? String(car.seats) : "N/A",
       Available: car.available ? "Yes" : "No",
     },
     actions: [
@@ -104,29 +132,33 @@ export async function render_rental_cars(args: Record<string, any>) {
     ],
   }));
 
-  return resultWithCardGrid(cards, {
-    title: `Available Cars in ${location}`,
-    description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
-    columns: { default: 1, md: 2, lg: 3 },
-    variant: "elevated",
-  });
+  return Promise.resolve(
+    resultWithCardGrid(cards, {
+      title: `Available Cars in ${location}`,
+      description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
+      columns: { default: 1, md: 2, lg: 3 },
+      variant: "elevated",
+    })
+  );
 }
 
 /**
  * Example 3: Product comparison table
  * Backend fetches product data, frontend renders the comparison table
  */
-export async function render_product_comparison(args: Record<string, any>) {
-  const { data, category = "products" } = args;
+export function render_product_comparison(args: Record<string, unknown>) {
+  const data = getRecordArray(args.data);
+  const category =
+    typeof args.category === "string" ? args.category : "products";
 
   if (!data || data.length === 0) {
-    return {
+    return Promise.resolve({
       data: { error: "No products provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No product data available to compare" },
       },
-    };
+    });
   }
 
   // Define columns based on the data structure
@@ -152,27 +184,28 @@ export async function render_product_comparison(args: Record<string, any>) {
     layout: "artifact",
   });
 
-  return {
+  return Promise.resolve({
     data,
     ui: tableSpec,
-  } as ToolHandlerResult;
+  } as ToolHandlerResult);
 }
 
 /**
  * Example 4: Custom dashboard
  * Backend fetches dashboard metrics, frontend renders as cards
  */
-export async function render_dashboard(args: Record<string, any>) {
-  const { data, userId } = args;
+export function render_dashboard(args: Record<string, unknown>) {
+  const data = getRecord(args.data);
+  const userId = typeof args.userId === "string" ? args.userId : undefined;
 
-  if (!data) {
-    return {
+  if (Object.keys(data).length === 0) {
+    return Promise.resolve({
       data: { error: "No dashboard data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No dashboard data available" },
       },
-    };
+    });
   }
 
   // Transform backend metrics into card format
@@ -180,46 +213,52 @@ export async function render_dashboard(args: Record<string, any>) {
     {
       id: "sales",
       title: "Total Sales",
-      description: `$${(data.totalSales || 0).toLocaleString()}`,
-      metadata: { Trend: data.salesTrend || "N/A" },
+      description: `$${Number(data.totalSales || 0).toLocaleString()}`,
+      metadata: { Trend: (data.salesTrend as string) || "N/A" },
     },
     {
       id: "customers",
       title: "New Customers",
-      description: `${data.newCustomers || 0}`,
-      metadata: { Trend: data.customerTrend || "N/A" },
+      description: `${Number(data.newCustomers || 0)}`,
+      metadata: { Trend: (data.customerTrend as string) || "N/A" },
     },
     {
       id: "projects",
       title: "Active Projects",
-      description: `${data.activeProjects || 0}`,
-      metadata: { Status: data.projectStatus || "N/A" },
+      description: `${Number(data.activeProjects || 0)}`,
+      metadata: { Status: (data.projectStatus as string) || "N/A" },
     },
   ];
 
-  return resultWithCardGrid(cards, {
-    title: userId ? `Dashboard for ${userId}` : "Dashboard Overview",
-    description: "Key metrics and insights",
-    columns: { default: 1, md: 3 },
-    variant: "elevated",
-  });
+  return Promise.resolve(
+    resultWithCardGrid(cards, {
+      title: userId ? `Dashboard for ${userId}` : "Dashboard Overview",
+      description: "Key metrics and insights",
+      columns: { default: 1, md: 3 },
+      variant: "elevated",
+    })
+  );
 }
 
 /**
  * Example 5: Smart chart with auto-detection
  * Backend provides data, frontend intelligently chooses the best visualization
  */
-export async function render_visualization(args: Record<string, any>) {
-  const { data, query = "Data Visualization", chartType } = args;
+export function render_visualization(args: Record<string, unknown>) {
+  const data = getRecordArray(args.data);
+  const query =
+    typeof args.query === "string" ? args.query : "Data Visualization";
+  const chartType =
+    typeof args.chartType === "string" ? args.chartType : undefined;
 
   if (!data || data.length === 0) {
-    return {
+    return Promise.resolve({
       data: { error: "No data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No data available to visualize" },
       },
-    };
+    });
   }
 
   // If chart type is explicitly requested, use it
@@ -247,14 +286,16 @@ export async function render_visualization(args: Record<string, any>) {
   }
 
   // Smart chart auto-detects the best visualization based on data structure
-  return resultWithSmartChart(data, {
-    title: `${query}`,
-    description: preferredType
-      ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization`
-      : "Automatically selected visualization type",
-    preferredType,
-    layout: "artifact",
-  });
+  return Promise.resolve(
+    resultWithSmartChart(data, {
+      title: `${query}`,
+      description: preferredType
+        ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization`
+        : "Automatically selected visualization type",
+      preferredType,
+      layout: "artifact",
+    })
+  );
 }
 
 /**

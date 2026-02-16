@@ -41,6 +41,10 @@ interface AgnoClientConfig {
   teamId?: string;
   dbId?: string;
   sessionId?: string;
+  userId?: string;
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+  dependencies?: Record<string, unknown>;
 }
 ```
 

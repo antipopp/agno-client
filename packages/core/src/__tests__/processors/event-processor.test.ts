@@ -124,7 +124,10 @@ describe("processToolCall", () => {
     });
 
     it("should preserve ui_component when incoming chunk lacks it", () => {
-      const uiSpec = { type: "chart", data: [1, 2, 3] };
+      const uiSpec = {
+        type: "markdown" as const,
+        props: { content: "# Chart placeholder" },
+      };
       const existing: ToolCall[] = [
         {
           role: "tool",
@@ -190,7 +193,10 @@ describe("processToolCall", () => {
     });
 
     it("should preserve ui_component even when incoming explicitly sets undefined", () => {
-      const uiSpec = { type: "form", fields: ["name"] };
+      const uiSpec = {
+        type: "markdown" as const,
+        props: { content: "Form placeholder" },
+      };
       const existing: ToolCall[] = [
         {
           role: "tool",
@@ -410,6 +416,10 @@ describe("EventProcessor", () => {
         const result1 = processor.processChunk(chunk1, baseMessage);
         expect(result1?.content).toBe("Hello");
 
+        if (!result1) {
+          throw new Error("Expected RunContent to produce an updated message");
+        }
+
         const chunk2: RunResponse = {
           event: RunEvent.RunContent,
           content: "Hello, World!",
@@ -417,7 +427,7 @@ describe("EventProcessor", () => {
           created_at: 1_700_000_000,
         };
 
-        const result2 = processor.processChunk(chunk2, result1!);
+        const result2 = processor.processChunk(chunk2, result1);
         expect(result2?.content).toBe("Hello, World!");
       });
 

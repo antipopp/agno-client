@@ -27,12 +27,17 @@ const TestActionsComponent = ({
         {hookResult.isInitializing ? "true" : "false"}
       </div>
       <div data-testid="error">{hookResult.error || "none"}</div>
-      <button data-testid="initialize" onClick={() => hookResult.initialize()}>
+      <button
+        data-testid="initialize"
+        onClick={() => hookResult.initialize()}
+        type="button"
+      >
         Initialize
       </button>
       <button
         data-testid="check-status"
         onClick={() => hookResult.checkStatus()}
+        type="button"
       >
         Check Status
       </button>
@@ -79,13 +84,20 @@ describe("useAgnoActions", () => {
       );
 
       expect(hookResult).not.toBeNull();
-      expect(typeof hookResult!.initialize).toBe("function");
-      expect(typeof hookResult!.checkStatus).toBe("function");
-      expect(typeof hookResult!.fetchAgents).toBe("function");
-      expect(typeof hookResult!.fetchTeams).toBe("function");
-      expect(typeof hookResult!.updateConfig).toBe("function");
-      expect(typeof hookResult!.isInitializing).toBe("boolean");
-      expect(hookResult!.error).toBeUndefined();
+
+      if (!hookResult) {
+        throw new Error("Expected hook result to be available");
+      }
+
+      const result = hookResult as ReturnType<typeof useAgnoActions>;
+
+      expect(typeof result.initialize).toBe("function");
+      expect(typeof result.checkStatus).toBe("function");
+      expect(typeof result.fetchAgents).toBe("function");
+      expect(typeof result.fetchTeams).toBe("function");
+      expect(typeof result.updateConfig).toBe("function");
+      expect(typeof result.isInitializing).toBe("boolean");
+      expect(result.error).toBeUndefined();
     });
   });
 
@@ -104,9 +116,15 @@ describe("useAgnoActions", () => {
         </AgnoProvider>
       );
 
+      if (!hookResult) {
+        throw new Error("Expected hook result to be available");
+      }
+
+      const result = hookResult as ReturnType<typeof useAgnoActions>;
+
       // Should not throw when calling updateConfig
       expect(() => {
-        hookResult?.updateConfig({ agentId: "new-agent" });
+        result.updateConfig({ agentId: "new-agent" });
       }).not.toThrow();
     });
   });

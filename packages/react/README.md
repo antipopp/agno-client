@@ -38,6 +38,10 @@ function App() {
         },
         params: {           // Optional: Global query params for all requests
           locale: 'en-US'
+        },
+        dependencies: {     // Optional: Global run dependencies for sendMessage
+          tenantId: 'tenant-1',
+          locale: 'en-US'
         }
       }}
     >
@@ -133,8 +137,13 @@ await sendMessage('Hello!');
 // Send with FormData (for file uploads)
 const formData = new FormData();
 formData.append('message', 'Hello!');
-formData.append('file', file);
+formData.append('files', file);
 await sendMessage(formData);
+
+// Send with files option
+await sendMessage('Hello!', {
+  files: [file]
+});
 
 // Send with custom headers
 await sendMessage('Hello!', {
@@ -150,6 +159,14 @@ await sendMessage('Hello!', {
 await sendMessage('Hello!', {
   headers: { 'X-Request-ID': '12345' },
   params: { debug: 'true' }
+});
+
+// Send with per-request dependencies (merged with/override provider config)
+await sendMessage('Hello!', {
+  dependencies: {
+    locale: 'fr-FR', // overrides global dependency
+    feature: 'rag'   // merged as a new dependency key
+  }
 });
 ```
 

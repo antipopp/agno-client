@@ -1,7 +1,8 @@
 import type { AgnoClientConfig, ToolCall } from "@antipopp/agno-types";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect, useMemo } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { AgnoProvider } from "../../context/AgnoContext";
+import { AgnoProvider, useAgnoClient } from "../../context/AgnoContext";
 import {
   processToolResult,
   useAgnoToolExecution,
@@ -41,9 +42,67 @@ const TestToolExecutionComponent = ({
       <div data-testid="is-executing">{isExecuting ? "true" : "false"}</div>
       <div data-testid="pending-tools">{JSON.stringify(pendingTools)}</div>
       <div data-testid="error">{executionError || "none"}</div>
-      <button data-testid="execute" onClick={executeAndContinue}>
+      <button data-testid="execute" onClick={executeAndContinue} type="button">
         Execute
       </button>
+    </div>
+  );
+};
+
+const pausedTool: ToolCall = {
+  role: "tool",
+  content: null,
+  tool_call_id: "tool-auto-1",
+  tool_name: "test_tool",
+  tool_args: {},
+  tool_call_error: false,
+  metrics: { time: 0 },
+  created_at: 1_700_000_000,
+};
+
+const AutoExecuteFailureComponent = ({
+  onContinueAttempt,
+}: {
+  onContinueAttempt: () => void;
+}) => {
+  const client = useAgnoClient();
+  const handlers = useMemo(
+    () => ({
+      test_tool: vi.fn().mockResolvedValue({ ok: true }),
+    }),
+    []
+  );
+  const { isPaused, isExecuting, executionError } = useAgnoToolExecution(
+    handlers,
+    true
+  );
+
+  useEffect(() => {
+    const continueSpy = vi
+      .spyOn(client, "continueRun")
+      .mockImplementation(() => {
+        onContinueAttempt();
+        return Promise.reject(new Error("Run is not paused"));
+      });
+
+    client.emit("run:paused", {
+      runId: "run-auto-1",
+      sessionId: "session-auto-1",
+      tools: [pausedTool],
+    });
+
+    return () => {
+      continueSpy.mockRestore();
+    };
+  }, [client, onContinueAttempt]);
+
+  return (
+    <div>
+      <div data-testid="auto-is-paused">{isPaused ? "true" : "false"}</div>
+      <div data-testid="auto-is-executing">
+        {isExecuting ? "true" : "false"}
+      </div>
+      <div data-testid="auto-error">{executionError || "none"}</div>
     </div>
   );
 };
@@ -160,8 +219,13 @@ describe("processToolResult", () => {
       const { uiComponent } = processToolResult(result, baseTool);
 
       expect(uiComponent?.type).toBe("custom");
-      expect(uiComponent?.renderKey).toBeDefined();
-      expect(uiComponent?.render).toBeUndefined(); // Function not stored
+
+      if (!(uiComponent && uiComponent.type === "custom")) {
+        throw new Error("Expected custom UI component");
+      }
+
+      expect(uiComponent.renderKey).toBeDefined();
+      expect("render" in uiComponent).toBe(false); // Function not stored
     });
   });
 });
@@ -211,7 +275,9 @@ describe("useAgnoToolExecution", () => {
 
   describe("team mode warning", () => {
     it("should log warning in team mode", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
 
       render(
         <AgnoProvider config={teamConfig}>
@@ -271,6 +337,34 @@ describe("useAgnoToolExecution", () => {
 
       // Handlers should not be called on mount
       expect(handlers.test_tool).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("auto-execute error handling", () => {
+    it("should stop retrying after continueRun failure", async () => {
+      let continueAttempts = 0;
+
+      render(
+        <AgnoProvider config={defaultConfig}>
+          <AutoExecuteFailureComponent
+            onContinueAttempt={() => {
+              continueAttempts += 1;
+            }}
+          />
+        </AgnoProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("auto-error").textContent).toBe(
+          "Run is not paused"
+        );
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      expect(continueAttempts).toBe(1);
+      expect(screen.getByTestId("auto-is-paused").textContent).toBe("true");
+      expect(screen.getByTestId("auto-is-executing").textContent).toBe("false");
     });
   });
 });

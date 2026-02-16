@@ -83,13 +83,19 @@ describe("useAgnoSession", () => {
       );
 
       expect(hookResult).not.toBeNull();
-      expect(typeof hookResult!.sessions).toBe("object");
-      expect(Array.isArray(hookResult!.sessions)).toBe(true);
-      expect(hookResult!.currentSessionId).toBeUndefined();
-      expect(typeof hookResult!.isLoading).toBe("boolean");
-      expect(typeof hookResult!.fetchSessions).toBe("function");
-      expect(typeof hookResult!.loadSession).toBe("function");
-      expect(hookResult!.error).toBeUndefined();
+
+      if (!hookResult) {
+        throw new Error("Expected hook result to be available");
+      }
+
+      const result = hookResult as ReturnType<typeof useAgnoSession>;
+      expect(typeof result.sessions).toBe("object");
+      expect(Array.isArray(result.sessions)).toBe(true);
+      expect(result.currentSessionId).toBeUndefined();
+      expect(typeof result.isLoading).toBe("boolean");
+      expect(typeof result.fetchSessions).toBe("function");
+      expect(typeof result.loadSession).toBe("function");
+      expect(result.error).toBeUndefined();
     });
   });
 
@@ -119,7 +125,15 @@ describe("useAgnoSession", () => {
       expect(capturedFunctions.length).toBeGreaterThanOrEqual(2);
       // Compare first and last to ensure stability across all renders
       const first = capturedFunctions[0];
-      const last = capturedFunctions.at(-1)!;
+      const last = capturedFunctions.at(-1);
+
+      expect(first).toBeDefined();
+      expect(last).toBeDefined();
+
+      if (!(first && last)) {
+        return;
+      }
+
       expect(first.loadSession).toBe(last.loadSession);
       expect(first.fetchSessions).toBe(last.fetchSessions);
     });

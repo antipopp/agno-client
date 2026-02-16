@@ -47,8 +47,13 @@ export function MessageItem({ message }: MessageItemProps) {
         <>
           <Separator className="my-2" />
           <div className="space-y-2 pl-6">
-            {message.tool_calls.map((tool: any, idx: number) => (
-              <Tool defaultOpen={false} key={tool.tool_call_id || idx}>
+            {message.tool_calls.map((tool) => (
+              <Tool
+                defaultOpen={false}
+                key={
+                  tool.tool_call_id || `${tool.tool_name}-${tool.created_at}`
+                }
+              >
                 <ToolHeader
                   state={
                     tool.tool_call_error ? "output-error" : "output-available"
