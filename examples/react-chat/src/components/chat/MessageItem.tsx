@@ -288,7 +288,9 @@ export function MessageItem({ message }: MessageItemProps) {
                     <img
                       alt={img.revised_prompt || "Generated image"}
                       className="h-auto max-h-80 w-full rounded border bg-muted/20 object-contain"
+                      height={1024}
                       src={img.url}
+                      width={1024}
                     />
                     {img.revised_prompt && (
                       <p className="text-muted-foreground text-xs italic">
