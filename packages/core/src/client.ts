@@ -1,14 +1,18 @@
 import type {
   AgentDetails,
   AgnoClientConfig,
+  AudioData,
   ChatMessage,
   ClientState,
+  FileData,
+  ImageData,
   RunResponse,
   SendMessageOptions,
   SessionEntry,
   TeamDetails,
   ToolCall,
   UIComponentSpec,
+  VideoData,
 } from "@antipopp/agno-types";
 import { RunEvent } from "@antipopp/agno-types";
 import EventEmitter from "eventemitter3";
@@ -41,6 +45,118 @@ function toSafeISOString(timestamp: number | undefined): string {
   return new Date(ts).toISOString();
 }
 
+function isFileLike(file: Blob | File): file is File {
+  return typeof File !== "undefined" && file instanceof File;
+}
+
+function getFileName(file: Blob | File, index: number): string {
+  if (isFileLike(file) && file.name) {
+    return file.name;
+  }
+
+  return `file-${index}`;
+}
+
+function getFileFormat(mimeType: string | undefined): string | undefined {
+  if (!mimeType) {
+    return undefined;
+  }
+
+  const [, subtype] = mimeType.split("/");
+  if (!subtype) {
+    return undefined;
+  }
+
+  return subtype.split(";")[0]?.trim().toLowerCase() || undefined;
+}
+
+function createPreviewUrl(file: Blob): string | undefined {
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    return undefined;
+  }
+
+  try {
+    return URL.createObjectURL(file);
+  } catch {
+    return undefined;
+  }
+}
+
+interface MessageMediaPayload {
+  images?: ImageData[];
+  videos?: VideoData[];
+  audio?: AudioData[];
+  files?: FileData[];
+  objectUrls: string[];
+}
+
+function buildMessageMediaPayload(
+  files: Array<Blob | File>
+): MessageMediaPayload {
+  const images: ImageData[] = [];
+  const videos: VideoData[] = [];
+  const audio: AudioData[] = [];
+  const fileAttachments: FileData[] = [];
+  const objectUrls: string[] = [];
+
+  files.forEach((file, index) => {
+    const filename = getFileName(file, index);
+    const mimeType = file.type || "application/octet-stream";
+    const format = getFileFormat(mimeType);
+    const previewUrl = createPreviewUrl(file);
+
+    if (previewUrl) {
+      objectUrls.push(previewUrl);
+    }
+
+    if (mimeType.startsWith("image/") && previewUrl) {
+      images.push({
+        url: previewUrl,
+        mime_type: mimeType,
+        format,
+      });
+      return;
+    }
+
+    if (mimeType.startsWith("video/")) {
+      videos.push({
+        url: previewUrl,
+        id: filename,
+        mime_type: mimeType,
+        format,
+      });
+      return;
+    }
+
+    if (mimeType.startsWith("audio/")) {
+      audio.push({
+        url: previewUrl,
+        id: filename,
+        mime_type: mimeType,
+        format,
+      });
+      return;
+    }
+
+    fileAttachments.push({
+      filename,
+      name: filename,
+      mime_type: mimeType,
+      format,
+      size: file.size,
+      url: previewUrl,
+    });
+  });
+
+  return {
+    images: images.length > 0 ? images : undefined,
+    videos: videos.length > 0 ? videos : undefined,
+    audio: audio.length > 0 ? audio : undefined,
+    files: fileAttachments.length > 0 ? fileAttachments : undefined,
+    objectUrls,
+  };
+}
+
 /**
  * Main Agno client class
  * Provides stateful management of agent/team interactions with streaming support
@@ -52,6 +168,7 @@ export class AgnoClient extends EventEmitter {
   private readonly eventProcessor: EventProcessor;
   private readonly state: ClientState;
   private readonly pendingUISpecs: Map<string, UIComponentSpec>; // toolCallId -> UIComponentSpec
+  private readonly localAttachmentUrls: Set<string>;
   private runCompletedSuccessfully = false;
   private currentRunId: string | undefined;
   private currentAbortController: AbortController | null = null;
@@ -63,6 +180,7 @@ export class AgnoClient extends EventEmitter {
     this.sessionManager = new SessionManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
+    this.localAttachmentUrls = new Set();
     this.state = {
       isStreaming: false,
       isRefreshing: false,
@@ -110,6 +228,8 @@ export class AgnoClient extends EventEmitter {
    * Clear all messages
    */
   clearMessages(): void {
+    this.revokeAttachmentUrlsFromMessages(this.messageStore.getMessages());
+    this.localAttachmentUrls.clear();
     this.messageStore.clear();
     this.configManager.setSessionId(undefined);
     this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
@@ -258,6 +378,24 @@ export class AgnoClient extends EventEmitter {
       formData.append("message", message);
     }
 
+    // Add file uploads (per-request)
+    if (options?.files) {
+      options.files.forEach((file, index) => {
+        formData.append("files", file, getFileName(file, index));
+      });
+    }
+
+    const requestFiles = formData
+      .getAll("files")
+      .filter(
+        (entry): entry is File =>
+          typeof File !== "undefined" && entry instanceof File
+      );
+
+    const userMessageMedia = buildMessageMediaPayload(requestFiles);
+    this.trackAttachmentUrls(userMessageMedia.objectUrls);
+    const userMessageContent = String(formData.get("message") ?? "");
+
     // Remove previous error messages if retrying
     const lastMessage = this.messageStore.getLastMessage();
     if (lastMessage?.streamingError) {
@@ -266,6 +404,7 @@ export class AgnoClient extends EventEmitter {
           this.messageStore.getMessages().length - 2
         ];
       if (secondLast?.role === "user") {
+        this.revokeAttachmentUrlsFromMessages([secondLast, lastMessage]);
         this.messageStore.removeLastMessages(2);
       }
     }
@@ -273,7 +412,11 @@ export class AgnoClient extends EventEmitter {
     // Add user message
     this.messageStore.addMessage({
       role: "user",
-      content: formData.get("message") as string,
+      content: userMessageContent,
+      images: userMessageMedia.images,
+      videos: userMessageMedia.videos,
+      audio: userMessageMedia.audio,
+      files: userMessageMedia.files,
       created_at: Math.floor(Date.now() / 1000),
     });
 
@@ -309,17 +452,6 @@ export class AgnoClient extends EventEmitter {
         formData.set("dependencies", JSON.stringify(dependencies));
       }
 
-      // Add file uploads (per-request)
-      if (options?.files) {
-        options.files.forEach((file, index) => {
-          const filename =
-            typeof File !== "undefined" && file instanceof File && file.name
-              ? file.name
-              : `file-${index}`;
-          formData.append("files", file, filename);
-        });
-      }
-
       const headers = this.configManager.buildRequestHeaders(options?.headers);
       const params = this.configManager.buildQueryString(options?.params);
 
@@ -332,11 +464,7 @@ export class AgnoClient extends EventEmitter {
         requestBody: formData,
         signal: this.currentAbortController.signal,
         onChunk: (chunk: RunResponse) => {
-          this.handleChunk(
-            chunk,
-            newSessionId,
-            formData.get("message") as string
-          );
+          this.handleChunk(chunk, newSessionId, userMessageContent);
 
           if (
             (chunk.event === RunEvent.RunStarted ||
@@ -513,6 +641,64 @@ export class AgnoClient extends EventEmitter {
     this.emit("state:change", this.getState());
   }
 
+  private trackAttachmentUrls(urls: string[]): void {
+    for (const url of urls) {
+      this.localAttachmentUrls.add(url);
+    }
+  }
+
+  private collectAttachmentUrls(message: ChatMessage): string[] {
+    const imageUrls = message.images?.map((image) => image.url) ?? [];
+    const videoUrls =
+      message.videos
+        ?.map((video) => video.url)
+        .filter((url): url is string => Boolean(url)) ?? [];
+    const audioUrls =
+      message.audio
+        ?.map((audio) => audio.url)
+        .filter((url): url is string => Boolean(url)) ?? [];
+    const fileUrls =
+      message.files
+        ?.map((file) => file.url)
+        .filter((url): url is string => Boolean(url)) ?? [];
+
+    return [...imageUrls, ...videoUrls, ...audioUrls, ...fileUrls];
+  }
+
+  private revokeAttachmentUrls(urls: string[]): void {
+    if (
+      typeof URL === "undefined" ||
+      typeof URL.revokeObjectURL !== "function"
+    ) {
+      return;
+    }
+
+    for (const url of urls) {
+      if (!this.localAttachmentUrls.has(url)) {
+        continue;
+      }
+
+      URL.revokeObjectURL(url);
+      this.localAttachmentUrls.delete(url);
+    }
+  }
+
+  private revokeAttachmentUrlsFromMessages(
+    messages: Array<ChatMessage | undefined>
+  ): void {
+    const urls: string[] = [];
+
+    for (const message of messages) {
+      if (!message) {
+        continue;
+      }
+
+      urls.push(...this.collectAttachmentUrls(message));
+    }
+
+    this.revokeAttachmentUrls(urls);
+  }
+
   private collectExistingUIComponents(): Map<string, UIComponentSpec> {
     const existingUIComponents = new Map<string, UIComponentSpec>();
 
@@ -614,6 +800,7 @@ export class AgnoClient extends EventEmitter {
       // Re-apply preserved ui_component properties to matching tool calls
       this.restoreUIComponents(messages, existingUIComponents);
 
+      this.revokeAttachmentUrlsFromMessages(this.messageStore.getMessages());
       this.messageStore.setMessages(messages);
 
       Logger.debug(
@@ -670,6 +857,7 @@ export class AgnoClient extends EventEmitter {
       "[AgnoClient] Setting messages to store:",
       `${messages.length} messages`
     );
+    this.revokeAttachmentUrlsFromMessages(this.messageStore.getMessages());
     this.messageStore.setMessages(messages);
     this.configManager.setSessionId(sessionId);
 
@@ -1190,6 +1378,8 @@ export class AgnoClient extends EventEmitter {
     this.removeAllListeners();
 
     // Clear message store
+    this.revokeAttachmentUrlsFromMessages(this.messageStore.getMessages());
+    this.localAttachmentUrls.clear();
     this.messageStore.clear();
 
     // Clear pending UI specs

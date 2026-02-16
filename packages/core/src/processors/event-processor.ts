@@ -128,11 +128,30 @@ export class EventProcessor {
     if (chunk.images) {
       updatedMessage.images = chunk.images;
     }
+
+    if (chunk.image) {
+      const existingImages = updatedMessage.images ?? lastMessage.images ?? [];
+      const hasImage = existingImages.some((image) => {
+        if (image.id && chunk.image?.id) {
+          return image.id === chunk.image.id;
+        }
+
+        return image.url === chunk.image?.url;
+      });
+
+      if (!hasImage) {
+        updatedMessage.images = [...existingImages, chunk.image];
+      }
+    }
+
     if (chunk.videos) {
       updatedMessage.videos = chunk.videos;
     }
     if (chunk.audio) {
       updatedMessage.audio = chunk.audio;
+    }
+    if (chunk.files) {
+      updatedMessage.files = chunk.files;
     }
 
     if (
@@ -169,8 +188,13 @@ export class EventProcessor {
       chunk,
       lastMessage.tool_calls
     );
-    updatedMessage.images = chunk.images ?? lastMessage.images;
+    const completedImages =
+      chunk.images ?? (chunk.image ? [chunk.image] : undefined);
+
+    updatedMessage.images = completedImages ?? lastMessage.images;
     updatedMessage.videos = chunk.videos ?? lastMessage.videos;
+    updatedMessage.audio = chunk.audio ?? lastMessage.audio;
+    updatedMessage.files = chunk.files ?? lastMessage.files;
     updatedMessage.response_audio = chunk.response_audio;
     updatedMessage.created_at = chunk.created_at ?? lastMessage.created_at;
     updatedMessage.extra_data = {

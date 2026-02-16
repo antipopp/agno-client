@@ -506,6 +506,31 @@ describe("EventProcessor", () => {
         expect(result?.videos).toHaveLength(1);
         expect(result?.audio).toHaveLength(1);
       });
+
+      it("should handle singular image payloads and files", () => {
+        const chunk: RunResponse = {
+          event: RunEvent.RunContent,
+          content: "Media content",
+          content_type: "text/plain",
+          image: { url: "http://example.com/img-single.jpg" },
+          files: [
+            {
+              filename: "report.pdf",
+              mime_type: "application/pdf",
+            },
+          ],
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, baseMessage);
+
+        expect(result?.images).toHaveLength(1);
+        expect(result?.images?.[0].url).toBe(
+          "http://example.com/img-single.jpg"
+        );
+        expect(result?.files).toHaveLength(1);
+        expect(result?.files?.[0].filename).toBe("report.pdf");
+      });
     });
 
     describe("TeamRunContent event", () => {
@@ -645,6 +670,22 @@ describe("EventProcessor", () => {
 
         expect(result?.content).toContain("result");
         expect(result?.content).toContain("success");
+      });
+
+      it("should retain files and singular image on completion", () => {
+        const chunk: RunResponse = {
+          event: RunEvent.RunCompleted,
+          content: "Final complete response",
+          content_type: "text/plain",
+          image: { url: "http://example.com/final.jpg" },
+          files: [{ filename: "summary.txt", mime_type: "text/plain" }],
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, baseMessage);
+
+        expect(result?.images?.[0].url).toBe("http://example.com/final.jpg");
+        expect(result?.files?.[0].filename).toBe("summary.txt");
       });
     });
 

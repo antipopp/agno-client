@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@antipopp/agno-types";
-import { Bot, User } from "lucide-react";
+import { Bot, Paperclip, User } from "lucide-react";
 import { Response } from "@/components/ai-elements/response";
 import {
   Tool,
@@ -76,6 +76,50 @@ export function MessageItem({ message }: MessageItemProps) {
                 </ToolContent>
               </Tool>
             ))}
+          </div>
+        </>
+      )}
+
+      {/* Files */}
+      {message.files && message.files.length > 0 && (
+        <>
+          <Separator className="my-2" />
+          <div className="space-y-2 pl-6">
+            <div className="flex items-center gap-2 text-xs">
+              <Paperclip className="h-3.5 w-3.5" />
+              <span>Files ({message.files.length})</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {message.files.map((file, index) => {
+                const label =
+                  file.filename || file.name || `Attachment ${index + 1}`;
+                const key = `${label}-${file.mime_type || "file"}-${index}`;
+
+                if (file.url) {
+                  return (
+                    <a
+                      className="rounded border bg-muted/40 px-3 py-1 text-xs transition-colors hover:bg-muted"
+                      download={label}
+                      href={file.url}
+                      key={key}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {label}
+                    </a>
+                  );
+                }
+
+                return (
+                  <div
+                    className="rounded border bg-muted/40 px-3 py-1 text-xs"
+                    key={key}
+                  >
+                    {label}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}

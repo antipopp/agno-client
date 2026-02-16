@@ -3,7 +3,7 @@ import {
   useAgnoChat,
   useAgnoToolExecution,
 } from "@antipopp/agno-react";
-import type { ChatStatus } from "ai";
+import type { ChatStatus, FileUIPart } from "ai";
 import { Loader2, MessageSquare, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -14,9 +14,56 @@ import {
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { EXAMPLE_GENERATIVE_TOOLS } from "@/tools/exampleGenerativeTools";
-import { ChatInput } from "./ChatInput";
+import { ChatInput, type ChatInputMessage } from "./ChatInput";
 import { MessageItem } from "./MessageItem";
 import { StreamingIndicator } from "./StreamingIndicator";
+
+function getAttachmentPrompt(fileCount: number): string {
+  if (fileCount === 1) {
+    return "Please analyze the attached file.";
+  }
+
+  return "Please analyze the attached files.";
+}
+
+function getExtensionFromMimeType(mediaType?: string): string {
+  if (!mediaType?.includes("/")) {
+    return "";
+  }
+
+  const subtype = mediaType.split("/")[1]?.split(";")[0]?.trim().toLowerCase();
+
+  if (!subtype) {
+    return "";
+  }
+
+  if (subtype === "jpeg") {
+    return ".jpg";
+  }
+
+  return `.${subtype}`;
+}
+
+async function filePartToFile(
+  filePart: FileUIPart,
+  index: number
+): Promise<File | null> {
+  if (!filePart.url) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(filePart.url);
+    const blob = await response.blob();
+    const type = filePart.mediaType || blob.type || "application/octet-stream";
+    const fallbackName = `attachment-${index + 1}${getExtensionFromMimeType(type)}`;
+    const filename = filePart.filename?.trim() || fallbackName;
+
+    return new File([blob], filename, { type });
+  } catch {
+    return null;
+  }
+}
 
 export function ChatInterface() {
   const {
@@ -54,16 +101,36 @@ export function ChatInterface() {
     },
 
     // Add all generative UI example tools
-    ...EXAMPLE_GENERATIVE_TOOLS,
+    ...(EXAMPLE_GENERATIVE_TOOLS as Record<string, ToolHandler>),
   };
 
   // Use tool execution hook with auto-execution enabled
   const { isPaused, isExecuting, pendingTools, executionError } =
     useAgnoToolExecution(toolHandlers, true);
 
-  const handleSend = async (message: string) => {
+  const handleSend = async (message: ChatInputMessage) => {
+    const files = message.files ?? [];
+    const preparedFiles = (
+      await Promise.all(files.map((file, index) => filePartToFile(file, index)))
+    ).filter((file): file is File => file !== null);
+
+    if (files.length > 0 && preparedFiles.length === 0) {
+      toast.error("Failed to prepare attachments for upload");
+      return;
+    }
+
+    if (preparedFiles.length > 0 && preparedFiles.length < files.length) {
+      toast.error("Some attachments could not be uploaded");
+    }
+
+    const text = message.text?.trim();
+    const finalMessage = text || getAttachmentPrompt(preparedFiles.length);
+
     try {
-      await sendMessage(message);
+      await sendMessage(
+        finalMessage,
+        preparedFiles.length > 0 ? { files: preparedFiles } : undefined
+      );
     } catch (err) {
       toast.error(`Failed to send message: ${error || err}`);
     }
@@ -154,7 +221,7 @@ export function ChatInterface() {
           disabled={isCancelling || isRefreshing}
           onCancel={handleCancel}
           onSend={handleSend}
-          placeholder="Type your message..."
+          placeholder="Type your message or attach files..."
           status={chatStatus}
         />
       </div>

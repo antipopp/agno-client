@@ -1,16 +1,44 @@
 import type { ChatStatus } from "ai";
+import { toast } from "sonner";
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 
+const SUPPORTED_ATTACHMENT_ACCEPT = [
+  "image/*",
+  "audio/*",
+  "video/*",
+  ".pdf",
+  ".txt",
+  ".csv",
+  ".json",
+  ".md",
+  ".docx",
+  ".html",
+  ".css",
+  ".xml",
+  ".rtf",
+  ".js",
+  ".py",
+].join(",");
+
+export type ChatInputMessage = PromptInputMessage;
+
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: ChatInputMessage) => void | Promise<void>;
   onCancel: () => void;
   status: ChatStatus;
   disabled?: boolean;
@@ -25,26 +53,41 @@ export function ChatInput({
   placeholder,
 }: ChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
-    if (status === "streaming") {
+    if (status === "streaming" && !disabled) {
       onCancel();
       return;
     }
 
-    // Extract text from the message
     const text = message.text?.trim();
+    const files = message.files ?? [];
 
-    if (text) {
-      onSend(text);
+    if (!text && files.length === 0) {
+      return;
     }
+
+    return onSend({
+      ...message,
+      text,
+    });
   };
 
   return (
     <PromptInput
-      accept="image/*"
+      accept={SUPPORTED_ATTACHMENT_ACCEPT}
       className="w-full"
+      maxFileSize={25 * 1024 * 1024}
+      maxFiles={8}
       multiple
+      onError={({ message }) => {
+        toast.error(message);
+      }}
       onSubmit={handleSubmit}
     >
+      <PromptInputHeader>
+        <PromptInputAttachments>
+          {(attachment) => <PromptInputAttachment data={attachment} />}
+        </PromptInputAttachments>
+      </PromptInputHeader>
       <PromptInputBody>
         <PromptInputTextarea
           disabled={disabled}
@@ -55,7 +98,14 @@ export function ChatInput({
         />
       </PromptInputBody>
       <PromptInputFooter>
-        <PromptInputTools />
+        <PromptInputTools>
+          <PromptInputActionMenu>
+            <PromptInputActionMenuTrigger />
+            <PromptInputActionMenuContent>
+              <PromptInputActionAddAttachments />
+            </PromptInputActionMenuContent>
+          </PromptInputActionMenu>
+        </PromptInputTools>
         <PromptInputSubmit disabled={disabled} status={status} />
       </PromptInputFooter>
     </PromptInput>
