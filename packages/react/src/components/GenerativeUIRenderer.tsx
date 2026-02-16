@@ -137,9 +137,11 @@ function renderCustomSpec(
 ): React.ReactElement {
   const renderFn = getCustomRender(spec.renderKey);
   if (renderFn) {
+    const renderedContent = renderFn(spec.props || {}) as React.ReactNode;
+
     return (
       <UIErrorBoundary onError={onError}>
-        <div className={className}>{renderFn(spec.props || {})}</div>
+        <div className={className}>{renderedContent}</div>
       </UIErrorBoundary>
     );
   }

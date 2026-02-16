@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   ClientState,
   RunResponse,
+  SendMessageOptions,
   SessionEntry,
   TeamDetails,
   ToolCall,
@@ -20,13 +21,6 @@ import {
 import { EventProcessor } from "./processors/event-processor";
 import { MessageStore } from "./stores/message-store";
 import { Logger } from "./utils/logger";
-
-interface SendMessageOptions {
-  headers?: Record<string, string>;
-  params?: Record<string, string>;
-  dependencies?: Record<string, unknown>;
-  files?: Array<File | Blob>;
-}
 
 /**
  * Safely converts a Unix timestamp to ISO string with validation
