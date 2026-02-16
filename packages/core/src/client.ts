@@ -12,7 +12,10 @@ import { RunEvent } from "@antipopp/agno-types";
 import EventEmitter from "eventemitter3";
 import { ConfigManager } from "./managers/config-manager";
 import { SessionManager } from "./managers/session-manager";
-import { streamResponse } from "./parsers/stream-parser";
+import {
+  StreamResponseHttpError,
+  streamResponse,
+} from "./parsers/stream-parser";
 import { EventProcessor } from "./processors/event-processor";
 import { MessageStore } from "./stores/message-store";
 import { Logger } from "./utils/logger";
@@ -799,13 +802,58 @@ export class AgnoClient extends EventEmitter {
       throw new Error("No agent or team selected");
     }
 
-    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
-    const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
+    const pausedRunId = this.state.pausedRunId;
 
-    this.state.isPaused = false;
+    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
+    const continueUrl = `${runUrl}/${pausedRunId}/continue`;
+
     this.state.isStreaming = true;
-    this.emit("run:continued", { runId: this.state.pausedRunId });
+    this.state.errorMessage = undefined;
     this.emit("state:change", this.getState());
+
+    let hasContinued = false;
+    let streamError: Error | undefined;
+
+    const markRunContinued = (runId?: string): void => {
+      if (hasContinued) {
+        return;
+      }
+
+      hasContinued = true;
+      this.state.isPaused = false;
+      this.state.toolsAwaitingExecution = undefined;
+
+      this.emit("run:continued", { runId: runId || pausedRunId });
+      this.emit("state:change", this.getState());
+    };
+
+    const handleContinueError = (error: Error): void => {
+      streamError = error;
+      this.state.isStreaming = false;
+      this.state.errorMessage = error.message;
+
+      const isConflictError =
+        error instanceof StreamResponseHttpError && error.status === 409;
+
+      // If continue request was not accepted (or explicitly rejected with 409),
+      // preserve paused state and pending tools so callers can retry.
+      if (isConflictError || !hasContinued) {
+        this.state.isPaused = true;
+      } else {
+        // Continue was acknowledged and failed afterwards. Treat as a streaming error.
+        this.state.isPaused = false;
+        this.state.pausedRunId = undefined;
+        this.state.toolsAwaitingExecution = undefined;
+        this.messageStore.updateLastMessage((msg) => ({
+          ...msg,
+          streamingError: true,
+        }));
+      }
+
+      this.emit("message:error", error.message);
+      this.emit("stream:end");
+      this.emit("state:change", this.getState());
+    };
 
     // Clean tools before sending to backend (remove UI-specific fields)
     const cleanedTools = tools.map((tool) => {
@@ -831,38 +879,51 @@ export class AgnoClient extends EventEmitter {
     const headers = this.configManager.buildRequestHeaders(options?.headers);
     const params = this.configManager.buildQueryString(options?.params);
 
-    try {
-      await streamResponse({
-        apiUrl: continueUrl,
-        headers,
-        params,
-        requestBody: formData,
-        onChunk: (chunk: RunResponse) => {
-          this.handleChunk(chunk, currentSessionId, "");
-        },
-        onError: (error) => {
-          this.handleError(error, currentSessionId);
-        },
-        onComplete: async () => {
-          this.state.isStreaming = false;
+    await streamResponse({
+      apiUrl: continueUrl,
+      headers,
+      params,
+      requestBody: formData,
+      onChunk: (chunk: RunResponse) => {
+        const event = chunk.event as RunEvent;
+
+        // Continue endpoint may emit RunContent directly without RunContinued.
+        if (!hasContinued && event !== RunEvent.RunPaused) {
+          markRunContinued(chunk.run_id);
+        }
+
+        this.handleChunk(chunk, currentSessionId, "");
+      },
+      onError: handleContinueError,
+      onComplete: async () => {
+        // If no explicit continuation event was sent, but stream completed
+        // without errors and without pausing again, treat it as continued.
+        if (!(hasContinued || this.state.isPaused)) {
+          markRunContinued(pausedRunId);
+        }
+
+        this.state.isStreaming = false;
+
+        // Preserve paused run context when a run pauses again during continue.
+        if (!this.state.isPaused) {
           this.state.pausedRunId = undefined;
           this.state.toolsAwaitingExecution = undefined;
-          this.emit("stream:end");
-          this.emit("message:complete", this.messageStore.getMessages());
-          this.emit("state:change", this.getState());
+        }
 
-          // Trigger refresh if run completed successfully
-          if (this.runCompletedSuccessfully) {
-            this.runCompletedSuccessfully = false;
-            await this.refreshSessionMessages();
-          }
-        },
-      });
-    } catch (error) {
-      this.handleError(
-        error instanceof Error ? error : new Error(String(error)),
-        currentSessionId
-      );
+        this.emit("stream:end");
+        this.emit("message:complete", this.messageStore.getMessages());
+        this.emit("state:change", this.getState());
+
+        // Trigger refresh if run completed successfully
+        if (this.runCompletedSuccessfully) {
+          this.runCompletedSuccessfully = false;
+          await this.refreshSessionMessages();
+        }
+      },
+    });
+
+    if (streamError) {
+      throw streamError;
     }
   }
 

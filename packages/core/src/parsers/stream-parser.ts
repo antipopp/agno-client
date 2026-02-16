@@ -1,5 +1,15 @@
 import type { RunResponseContent } from "@antipopp/agno-types";
 
+export class StreamResponseHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "StreamResponseHttpError";
+    this.status = status;
+  }
+}
+
 /**
  * Detects if the incoming data is in the legacy format (direct RunResponseContent)
  */
@@ -207,7 +217,7 @@ export async function streamResponse(options: {
         }
       }
 
-      throw new Error(errorMessage);
+      throw new StreamResponseHttpError(response.status, errorMessage);
     }
 
     if (!response.body) {
@@ -235,6 +245,11 @@ export async function streamResponse(options: {
   } catch (error) {
     // Handle abort gracefully without calling onError
     if (error instanceof Error && error.name === "AbortError") {
+      return;
+    }
+
+    if (error instanceof Error) {
+      onError(error);
       return;
     }
 
