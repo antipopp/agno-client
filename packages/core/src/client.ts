@@ -45,12 +45,8 @@ function toSafeISOString(timestamp: number | undefined): string {
   return new Date(ts).toISOString();
 }
 
-function isFileLike(file: Blob | File): file is File {
-  return typeof File !== "undefined" && file instanceof File;
-}
-
 function getFileName(file: Blob | File, index: number): string {
-  if (isFileLike(file) && file.name) {
+  if ("name" in file && typeof file.name === "string" && file.name) {
     return file.name;
   }
 
@@ -387,10 +383,7 @@ export class AgnoClient extends EventEmitter {
 
     const requestFiles = formData
       .getAll("files")
-      .filter(
-        (entry): entry is File =>
-          typeof File !== "undefined" && entry instanceof File
-      );
+      .filter((entry): entry is File => typeof entry !== "string");
 
     const userMessageMedia = buildMessageMediaPayload(requestFiles);
     this.trackAttachmentUrls(userMessageMedia.objectUrls);
