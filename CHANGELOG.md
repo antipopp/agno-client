@@ -5,6 +5,53 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-02-17
+
+### Added
+
+#### @antipopp/agno-types
+- **Global Dependencies**: Added `dependencies?: Record<string, unknown>` to `AgnoClientConfig`
+- **SendMessageOptions Type**: Added and exported `SendMessageOptions` to unify request options (`headers`, `params`, `dependencies`, `files`)
+- **Media/File Type Coverage**: Expanded media typing and added `FileData` for file attachments in chat messages and API responses
+
+#### @antipopp/agno-client
+- **Dependency Merge Support**: Added `getDependencies()`, `setDependencies()`, and `buildDependencies()` to `ConfigManager`
+- **Dependency-Aware Requests**: `sendMessage()` now merges global and per-request `dependencies` and sends them to run endpoints
+- **Per-Request File Uploads**: `sendMessage()` now accepts `files` in options and appends them as multipart `files`
+- **Client-Side Stream Abort**: Added `abortStream()` to stop active streaming without calling backend cancel
+
+### Fixed
+
+#### @antipopp/agno-client
+- **Streaming Resilience**: Wired `AbortController` into streaming flows so cancellation reliably ends active requests
+- **cancelRun Hardening**: Improved behavior when canceling before run ID availability and when backend cancel returns errors
+- **Continue Conflict Handling**: Preserved paused state and pending tools when continue requests are rejected (for example HTTP 409)
+- **HITL Field Preservation**: Prevented backend echo updates from overwriting frontend `result` and `ui_component` values on tool calls
+- **Media Attachment Persistence**: Preserved image/video/audio/file attachments across event processing and session hydration
+- **Optimistic Attachment Stability**: Kept optimistic attachment previews when runtime `File` constructor identity differs
+
+#### @antipopp/agno-react
+- **Tool Execution Robustness**: Improved session UI hydration and continue flow error handling in `useAgnoToolExecution`
+- **Declaration Build Compatibility**: Resolved React declaration build type issues
+
+### Changed
+
+#### Typing and Code Quality
+- Tightened TypeScript usage across packages (`unknown`-first patterns, reduced `any`) as non-breaking type-safety polish
+- Refactored parser/event handling paths to reduce complexity and improve lint compliance
+- Applied lint and formatting cleanup across core, react, and examples
+
+### Documentation
+- Updated package READMEs with dependency merge behavior and file upload examples
+- Added repository-level `AGENTS.md` with comprehensive guidance for agentic coding tools
+
+### Examples
+- Updated `react-chat` and `saas-app` examples for current tool typings and attachment rendering flow
+- Added explicit image dimensions in chat message rendering to reduce layout shift
+
+### Notes
+- No intentional runtime breaking API changes were introduced in this release.
+
 ## [0.9.0] - 2026-01-09
 
 ### Added
@@ -627,6 +674,8 @@ All endpoints now align with AgentOS OpenAPI specification:
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.11.0]: https://github.com/antipopp/agno-client/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/antipopp/agno-client/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/antipopp/agno-client/compare/v0.8.0...v0.9.0
 [0.7.0]: https://github.com/antipopp/agno-client/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/antipopp/agno-client/compare/v0.6.0...v0.6.1
