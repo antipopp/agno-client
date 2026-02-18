@@ -274,6 +274,51 @@ function InitComponent() {
 }
 ```
 
+### useAgnoToolExecution()
+
+Hook for Human-in-the-Loop (HITL) frontend tool execution.
+
+```tsx
+import {
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
+  type ToolHandler,
+  useAgnoToolExecution,
+} from '@antipopp/agno-react';
+import { z } from 'zod';
+
+const navigateSchema = z.object({
+  url: z.string().url(),
+});
+
+const navigateValidator = createToolArgsValidatorFromSafeParse((args) =>
+  navigateSchema.safeParse(args)
+);
+
+const toolHandlers: Record<string, ToolHandler> = {
+  navigate_to_page: createValidatedToolHandler(navigateValidator, (args) => {
+    window.location.href = args.url;
+    return { success: true, url: args.url };
+  }),
+};
+
+function ChatWithTools() {
+  const { isPaused, isExecuting, pendingTools, executionError } =
+    useAgnoToolExecution(toolHandlers, true);
+
+  return <div>{isExecuting ? `Executing ${pendingTools.length} tools...` : null}</div>;
+}
+```
+
+Scope of this hook:
+- Listens to paused run events and tracks execution state for your UI
+- Executes local/global tool handlers and continues paused runs
+- Supports auto execution or manual approval flows
+- Hydrates tool-call UI components when sessions are loaded
+
+Validation note:
+- Tool arguments are runtime input. Prefer `createValidatedToolHandler()` with schema validation to avoid repeating manual guards.
+
 ## Complete Example
 
 ```tsx

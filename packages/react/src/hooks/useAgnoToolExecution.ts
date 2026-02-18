@@ -10,6 +10,8 @@ import { useToolHandlers } from "../context/ToolHandlerContext";
 
 /**
  * Tool handler function type (now supports generative UI)
+ * - Receives normalized object arguments
+ * - Can return sync or async values
  */
 type MaybePromise<T> = T | Promise<T>;
 

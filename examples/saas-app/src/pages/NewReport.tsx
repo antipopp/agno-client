@@ -1,4 +1,9 @@
-import { type ToolHandler, useAgnoToolExecution } from "@antipopp/agno-react";
+import {
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
+  type ToolHandler,
+  useAgnoToolExecution,
+} from "@antipopp/agno-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, Sparkles } from "lucide-react";
@@ -43,35 +48,50 @@ const REPORT_CATEGORIES = [
   "product",
 ] as const;
 
-function isReportCategory(value: unknown): value is FormValues["category"] {
-  return (
-    typeof value === "string" &&
-    REPORT_CATEGORIES.includes(value as FormValues["category"])
-  );
-}
+const fillReportFormArgsSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  category: z.enum(REPORT_CATEGORIES).optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+});
+
+type FillReportFormArgs = z.infer<typeof fillReportFormArgsSchema>;
+
+const fillReportFormArgsValidator = createToolArgsValidatorFromSafeParse(
+  (args) => fillReportFormArgsSchema.safeParse(args),
+  {
+    getErrorMessage: () => "Invalid fill_report_form arguments",
+  }
+);
 
 function applyToolArgsToForm(
   form: UseFormReturn<FormValues>,
-  args: Record<string, unknown>
+  args: FillReportFormArgs
 ): string[] {
   const filledFields: string[] = [];
 
-  const stringFieldMap = [
-    { argKey: "name", formKey: "name" as const },
-    { argKey: "description", formKey: "description" as const },
-    { argKey: "start_date", formKey: "startDate" as const },
-    { argKey: "end_date", formKey: "endDate" as const },
-  ];
-
-  for (const { argKey, formKey } of stringFieldMap) {
-    const value = args[argKey];
-    if (typeof value === "string") {
-      form.setValue(formKey, value);
-      filledFields.push(argKey);
-    }
+  if (typeof args.name === "string") {
+    form.setValue("name", args.name);
+    filledFields.push("name");
   }
 
-  if (isReportCategory(args.category)) {
+  if (typeof args.description === "string") {
+    form.setValue("description", args.description);
+    filledFields.push("description");
+  }
+
+  if (typeof args.start_date === "string") {
+    form.setValue("startDate", args.start_date);
+    filledFields.push("start_date");
+  }
+
+  if (typeof args.end_date === "string") {
+    form.setValue("endDate", args.end_date);
+    filledFields.push("end_date");
+  }
+
+  if (args.category) {
     form.setValue("category", args.category);
     filledFields.push("category");
   }
@@ -121,23 +141,28 @@ export function NewReport() {
   const toolHandlers = useMemo(
     () =>
       ({
-        fill_report_form: (args: Record<string, unknown>) => {
-          try {
-            const filledFields = applyToolArgsToForm(form, args);
+        fill_report_form: createValidatedToolHandler(
+          fillReportFormArgsValidator,
+          (args) => {
+            try {
+              const filledFields = applyToolArgsToForm(form, args);
 
-            return {
-              success: true,
-              message: "Form filled successfully",
-              filled_fields: filledFields,
-            };
-          } catch (error) {
-            return {
-              success: false,
-              error:
-                error instanceof Error ? error.message : "Failed to fill form",
-            };
+              return {
+                success: true,
+                message: "Form filled successfully",
+                filled_fields: filledFields,
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to fill form",
+              };
+            }
           }
-        },
+        ),
       }) satisfies Record<string, ToolHandler>,
     [form]
   );

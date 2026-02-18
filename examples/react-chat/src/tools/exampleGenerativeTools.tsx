@@ -8,11 +8,14 @@
 import {
   createColumn,
   createTable,
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
   resultWithBarChart,
   resultWithCardGrid,
   resultWithSmartChart,
   type ToolHandler,
 } from "@antipopp/agno-react";
+import { z } from "zod";
 
 function getRecordArray(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) {
@@ -59,6 +62,73 @@ interface VisualizationArgs {
   query?: unknown;
   chartType?: unknown;
 }
+
+function createZodToolArgsValidator<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  errorMessage: string
+) {
+  return createToolArgsValidatorFromSafeParse<
+    z.infer<TSchema>,
+    z.ZodError<z.infer<TSchema>>
+  >((args) => schema.safeParse(args), {
+    getErrorMessage: () => errorMessage,
+  });
+}
+
+const recordSchema = z.record(z.string(), z.unknown());
+const recordArraySchema = z.array(recordSchema);
+
+const revenueChartArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  period: z.string().optional(),
+  chartType: z.string().optional(),
+});
+
+const rentalCarsArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  location: z.string().optional(),
+});
+
+const productComparisonArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  category: z.string().optional(),
+});
+
+const dashboardArgsSchema = z.object({
+  data: recordSchema.optional(),
+  userId: z.string().optional(),
+});
+
+const visualizationArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  query: z.string().optional(),
+  chartType: z.string().optional(),
+});
+
+const revenueChartArgsValidator = createZodToolArgsValidator(
+  revenueChartArgsSchema,
+  "Invalid render_revenue_chart arguments"
+);
+
+const rentalCarsArgsValidator = createZodToolArgsValidator(
+  rentalCarsArgsSchema,
+  "Invalid render_rental_cars arguments"
+);
+
+const productComparisonArgsValidator = createZodToolArgsValidator(
+  productComparisonArgsSchema,
+  "Invalid render_product_comparison arguments"
+);
+
+const dashboardArgsValidator = createZodToolArgsValidator(
+  dashboardArgsSchema,
+  "Invalid render_dashboard arguments"
+);
+
+const visualizationArgsValidator = createZodToolArgsValidator(
+  visualizationArgsSchema,
+  "Invalid render_visualization arguments"
+);
 
 /**
  * Example 1: Render a revenue chart
@@ -319,11 +389,26 @@ export function render_visualization(args: VisualizationArgs) {
  * Export all tool handlers as a map
  */
 export const EXAMPLE_GENERATIVE_TOOLS = {
-  render_revenue_chart,
-  render_rental_cars,
-  render_product_comparison,
-  render_dashboard,
-  render_visualization,
+  render_revenue_chart: createValidatedToolHandler(
+    revenueChartArgsValidator,
+    render_revenue_chart
+  ),
+  render_rental_cars: createValidatedToolHandler(
+    rentalCarsArgsValidator,
+    render_rental_cars
+  ),
+  render_product_comparison: createValidatedToolHandler(
+    productComparisonArgsValidator,
+    render_product_comparison
+  ),
+  render_dashboard: createValidatedToolHandler(
+    dashboardArgsValidator,
+    render_dashboard
+  ),
+  render_visualization: createValidatedToolHandler(
+    visualizationArgsValidator,
+    render_visualization
+  ),
 } satisfies Record<string, ToolHandler>;
 
 /**
