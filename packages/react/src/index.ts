@@ -48,6 +48,7 @@ export { useAgnoSession } from "./hooks/useAgnoSession";
 export type {
   ToolExecutionEvent,
   ToolHandler,
+  ToolHandlers,
 } from "./hooks/useAgnoToolExecution";
 export {
   clearCustomRenderRegistry,

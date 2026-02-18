@@ -79,30 +79,29 @@ export function ChatInterface() {
   const [chatStatus, setChatStatus] = useState<ChatStatus>("ready");
 
   // Combine example generative tools with other tool handlers
-  const toolHandlers: Record<string, ToolHandler> = {
+  const toolHandlers = {
     // Example: show alert (legacy tool)
-    show_alert: (args) => {
-      const payload = typeof args === "string" ? { content: args } : args;
+    show_alert: (args: { content?: unknown }) => {
       const content =
-        typeof payload.content === "string"
-          ? payload.content
-          : String(payload.content ?? "");
+        typeof args.content === "string"
+          ? args.content
+          : String(args.content ?? "");
 
       // Also show as toast notification
       toast.info("Alert from Agent", {
         description: content,
       });
 
-      return Promise.resolve({
+      return {
         success: true,
         message: "Alert displayed successfully",
         content,
-      });
+      };
     },
 
     // Add all generative UI example tools
-    ...(EXAMPLE_GENERATIVE_TOOLS as Record<string, ToolHandler>),
-  };
+    ...EXAMPLE_GENERATIVE_TOOLS,
+  } satisfies Record<string, ToolHandler>;
 
   // Use tool execution hook with auto-execution enabled
   const { isPaused, isExecuting, pendingTools, executionError } =

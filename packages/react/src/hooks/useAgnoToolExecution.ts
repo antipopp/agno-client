@@ -11,9 +11,16 @@ import { useToolHandlers } from "../context/ToolHandlerContext";
 /**
  * Tool handler function type (now supports generative UI)
  */
-export type ToolHandler = (
-  args: Record<string, unknown> | string
-) => Promise<unknown>;
+type MaybePromise<T> = T | Promise<T>;
+
+export type ToolHandler<
+  TArgs extends ToolCall["tool_args"] = ToolCall["tool_args"],
+  TResult = unknown,
+> = {
+  bivarianceHack(args: TArgs): MaybePromise<TResult>;
+}["bivarianceHack"];
+
+export type ToolHandlers = Record<string, ToolHandler>;
 
 interface ToolResultProcessing {
   resultData: string;
@@ -22,6 +29,27 @@ interface ToolResultProcessing {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function normalizeToolArgs(rawArgs: unknown): Record<string, unknown> {
+  if (isRecord(rawArgs)) {
+    return rawArgs;
+  }
+
+  if (typeof rawArgs !== "string") {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(rawArgs);
+    if (isRecord(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Fall through and preserve string payload as content.
+  }
+
+  return { content: rawArgs };
 }
 
 function getCustomRenderFunction(
@@ -72,7 +100,7 @@ function toSerializableUIComponent(spec: UIComponentSpec): UIComponentSpec {
 
 async function executeToolCall(
   tool: ToolCall,
-  handlers: Record<string, ToolHandler>
+  handlers: ToolHandlers
 ): Promise<ToolCall> {
   const handler = handlers[tool.tool_name];
   if (!handler) {
@@ -85,7 +113,7 @@ async function executeToolCall(
   }
 
   try {
-    const result = await handler(tool.tool_args);
+    const result = await handler(normalizeToolArgs(tool.tool_args));
     const { resultData, uiComponent } = processToolResult(result, tool);
 
     return {
@@ -105,7 +133,7 @@ async function executeToolCall(
 
 async function hydrateToolUIForSession(
   tools: ToolCall[],
-  handlers: Record<string, ToolHandler>,
+  handlers: ToolHandlers,
   onHydrate: (toolCallId: string, uiComponent: UIComponentSpec) => void
 ): Promise<void> {
   for (const tool of tools) {
@@ -119,7 +147,7 @@ async function hydrateToolUIForSession(
     }
 
     try {
-      const result = await handler(tool.tool_args);
+      const result = await handler(normalizeToolArgs(tool.tool_args));
       const { uiComponent } = processToolResult(result, tool);
 
       if (uiComponent) {
@@ -235,7 +263,7 @@ export interface ToolExecutionEvent {
  * ```
  */
 export function useAgnoToolExecution(
-  handlers: Record<string, ToolHandler> = {},
+  handlers: ToolHandlers = {},
   autoExecute = true
 ) {
   const client = useAgnoClient();

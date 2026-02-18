@@ -25,7 +25,7 @@ const TestToolExecutionComponent = ({
   handlers = {},
   autoExecute = false,
 }: {
-  handlers?: Record<string, (args: any) => Promise<any>>;
+  handlers?: Record<string, (args: Record<string, unknown>) => unknown>;
   autoExecute?: boolean;
 }) => {
   const {
@@ -319,6 +319,20 @@ describe("useAgnoToolExecution", () => {
       );
 
       // Should render without error
+      expect(screen.getByTestId("is-paused")).toBeDefined();
+    });
+
+    it("should accept synchronous handlers", () => {
+      const handlers = {
+        test_tool: vi.fn().mockReturnValue({ success: true }),
+      };
+
+      render(
+        <AgnoProvider config={defaultConfig}>
+          <TestToolExecutionComponent handlers={handlers} />
+        </AgnoProvider>
+      );
+
       expect(screen.getByTestId("is-paused")).toBeDefined();
     });
   });

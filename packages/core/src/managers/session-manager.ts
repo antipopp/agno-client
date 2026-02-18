@@ -482,7 +482,7 @@ export class SessionManager {
       content: (rawTool.content as string) ?? "",
       tool_call_id: (rawTool.tool_call_id as string) ?? "",
       tool_name: (rawTool.tool_name as string) ?? "",
-      tool_args: (rawTool.tool_args as Record<string, string>) ?? {},
+      tool_args: (rawTool.tool_args as Record<string, unknown>) ?? {},
       tool_call_error: (rawTool.tool_call_error as boolean) ?? false,
       metrics: (rawTool.metrics as ToolMetrics) ?? { time: 0 },
       created_at: (rawTool.created_at as number) ?? fallbackTimestamp,

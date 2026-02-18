@@ -43,12 +43,6 @@ const REPORT_CATEGORIES = [
   "product",
 ] as const;
 
-function toToolArgs(
-  args: Record<string, unknown> | string
-): Record<string, unknown> {
-  return typeof args === "string" ? {} : args;
-}
-
 function isReportCategory(value: unknown): value is FormValues["category"] {
   return (
     typeof value === "string" &&
@@ -124,28 +118,27 @@ export function NewReport() {
   }, [form]);
 
   // Define tool handler for filling the form (overrides global handler when on this page)
-  const toolHandlers: Record<string, ToolHandler> = useMemo(
-    () => ({
-      fill_report_form: (args: Record<string, unknown> | string) => {
-        const parsedArgs = toToolArgs(args);
+  const toolHandlers = useMemo(
+    () =>
+      ({
+        fill_report_form: (args: Record<string, unknown>) => {
+          try {
+            const filledFields = applyToolArgsToForm(form, args);
 
-        try {
-          const filledFields = applyToolArgsToForm(form, parsedArgs);
-
-          return Promise.resolve({
-            success: true,
-            message: "Form filled successfully",
-            filled_fields: filledFields,
-          });
-        } catch (error) {
-          return Promise.resolve({
-            success: false,
-            error:
-              error instanceof Error ? error.message : "Failed to fill form",
-          });
-        }
-      },
-    }),
+            return {
+              success: true,
+              message: "Form filled successfully",
+              filled_fields: filledFields,
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error:
+                error instanceof Error ? error.message : "Failed to fill form",
+            };
+          }
+        },
+      }) satisfies Record<string, ToolHandler>,
     [form]
   );
 

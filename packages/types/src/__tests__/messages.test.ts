@@ -177,9 +177,9 @@ describe("Message types", () => {
       expectTypeOf<ChatMessage["content"]>().toEqualTypeOf<string>();
     });
 
-    it("ToolCall.tool_args should be Record<string, string>", () => {
+    it("ToolCall.tool_args should be Record<string, unknown>", () => {
       expectTypeOf<ToolCall["tool_args"]>().toEqualTypeOf<
-        Record<string, string>
+        Record<string, unknown>
       >();
     });
 
