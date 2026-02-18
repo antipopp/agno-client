@@ -8,11 +8,14 @@
 import {
   createColumn,
   createTable,
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
   resultWithBarChart,
   resultWithCardGrid,
   resultWithSmartChart,
-  type ToolHandlerResult,
+  type ToolHandler,
 } from "@antipopp/agno-react";
+import { z } from "zod";
 
 function getRecordArray(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) {
@@ -33,70 +36,144 @@ function getRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
-function normalizeArgs(
-  args: string | Record<string, unknown>
-): Record<string, unknown> {
-  if (typeof args === "string") {
-    return { content: args };
-  }
-
-  return args;
+interface RevenueChartArgs {
+  data?: unknown;
+  period?: unknown;
+  chartType?: unknown;
 }
+
+interface RentalCarsArgs {
+  data?: unknown;
+  location?: unknown;
+}
+
+interface ProductComparisonArgs {
+  data?: unknown;
+  category?: unknown;
+}
+
+interface DashboardArgs {
+  data?: unknown;
+  userId?: unknown;
+}
+
+interface VisualizationArgs {
+  data?: unknown;
+  query?: unknown;
+  chartType?: unknown;
+}
+
+function createZodToolArgsValidator<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  errorMessage: string
+) {
+  return createToolArgsValidatorFromSafeParse<
+    z.infer<TSchema>,
+    z.ZodError<z.infer<TSchema>>
+  >((args) => schema.safeParse(args), {
+    getErrorMessage: () => errorMessage,
+  });
+}
+
+const recordSchema = z.record(z.string(), z.unknown());
+const recordArraySchema = z.array(recordSchema);
+
+const revenueChartArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  period: z.string().optional(),
+  chartType: z.string().optional(),
+});
+
+const rentalCarsArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  location: z.string().optional(),
+});
+
+const productComparisonArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  category: z.string().optional(),
+});
+
+const dashboardArgsSchema = z.object({
+  data: recordSchema.optional(),
+  userId: z.string().optional(),
+});
+
+const visualizationArgsSchema = z.object({
+  data: recordArraySchema.optional(),
+  query: z.string().optional(),
+  chartType: z.string().optional(),
+});
+
+const revenueChartArgsValidator = createZodToolArgsValidator(
+  revenueChartArgsSchema,
+  "Invalid render_revenue_chart arguments"
+);
+
+const rentalCarsArgsValidator = createZodToolArgsValidator(
+  rentalCarsArgsSchema,
+  "Invalid render_rental_cars arguments"
+);
+
+const productComparisonArgsValidator = createZodToolArgsValidator(
+  productComparisonArgsSchema,
+  "Invalid render_product_comparison arguments"
+);
+
+const dashboardArgsValidator = createZodToolArgsValidator(
+  dashboardArgsSchema,
+  "Invalid render_dashboard arguments"
+);
+
+const visualizationArgsValidator = createZodToolArgsValidator(
+  visualizationArgsSchema,
+  "Invalid render_visualization arguments"
+);
 
 /**
  * Example 1: Render a revenue chart
  * Backend fetches the data, frontend renders the chart
  */
-export function render_revenue_chart(args: string | Record<string, unknown>) {
-  const normalizedArgs = normalizeArgs(args);
-  const data = getRecordArray(normalizedArgs.data);
-  const period =
-    typeof normalizedArgs.period === "string"
-      ? normalizedArgs.period
-      : "monthly";
+export function render_revenue_chart(args: RevenueChartArgs) {
+  const data = getRecordArray(args.data);
+  const period = typeof args.period === "string" ? args.period : "monthly";
   const chartType =
-    typeof normalizedArgs.chartType === "string"
-      ? normalizedArgs.chartType
-      : "auto";
+    typeof args.chartType === "string" ? args.chartType : "auto";
 
   if (!data || data.length === 0) {
-    return Promise.resolve({
+    return {
       data: { error: "No data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No data available to display" },
       },
-    });
+    };
   }
 
   // Agent decides: line chart for trends, bar chart for comparisons
   if (chartType === "line" || chartType === "trend") {
-    return Promise.resolve(
-      resultWithSmartChart(data, {
-        title: `Revenue Trend - ${period}`,
-        description: "Revenue and expenses over time",
-        preferredType: "line",
-        layout: "artifact",
-      })
-    );
+    return resultWithSmartChart(data, {
+      title: `Revenue Trend - ${period}`,
+      description: "Revenue and expenses over time",
+      preferredType: "line",
+      layout: "artifact",
+    });
   }
 
   // Default to bar chart
-  return Promise.resolve(
-    resultWithBarChart(
-      data,
-      "month",
-      [
-        { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
-        { key: "expenses", label: "Expenses", color: "hsl(var(--chart-2))" },
-      ],
-      {
-        title: `Revenue Comparison - ${period}`,
-        description: "Compare revenue vs expenses",
-        layout: "artifact",
-        height: 400,
-      }
-    )
+  return resultWithBarChart(
+    data,
+    "month",
+    [
+      { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
+      { key: "expenses", label: "Expenses", color: "hsl(var(--chart-2))" },
+    ],
+    {
+      title: `Revenue Comparison - ${period}`,
+      description: "Compare revenue vs expenses",
+      layout: "artifact",
+      height: 400,
+    }
   );
 }
 
@@ -104,22 +181,19 @@ export function render_revenue_chart(args: string | Record<string, unknown>) {
  * Example 2: Render rental cars as a card grid
  * Backend fetches car data from MCP/database, frontend renders the cards
  */
-export function render_rental_cars(args: string | Record<string, unknown>) {
-  const normalizedArgs = normalizeArgs(args);
-  const data = getRecordArray(normalizedArgs.data);
+export function render_rental_cars(args: RentalCarsArgs) {
+  const data = getRecordArray(args.data);
   const location =
-    typeof normalizedArgs.location === "string"
-      ? normalizedArgs.location
-      : "Unknown";
+    typeof args.location === "string" ? args.location : "Unknown";
 
   if (!data || data.length === 0) {
-    return Promise.resolve({
+    return {
       data: { error: "No cars found" },
       ui: {
         type: "markdown",
         props: { content: "**No rental cars available** at this location." },
       },
-    });
+    };
   }
 
   // Transform backend data to card format
@@ -151,38 +225,31 @@ export function render_rental_cars(args: string | Record<string, unknown>) {
     ],
   }));
 
-  return Promise.resolve(
-    resultWithCardGrid(cards, {
-      title: `Available Cars in ${location}`,
-      description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
-      columns: { default: 1, md: 2, lg: 3 },
-      variant: "elevated",
-    })
-  );
+  return resultWithCardGrid(cards, {
+    title: `Available Cars in ${location}`,
+    description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
+    columns: { default: 1, md: 2, lg: 3 },
+    variant: "elevated",
+  });
 }
 
 /**
  * Example 3: Product comparison table
  * Backend fetches product data, frontend renders the comparison table
  */
-export function render_product_comparison(
-  args: string | Record<string, unknown>
-) {
-  const normalizedArgs = normalizeArgs(args);
-  const data = getRecordArray(normalizedArgs.data);
+export function render_product_comparison(args: ProductComparisonArgs) {
+  const data = getRecordArray(args.data);
   const category =
-    typeof normalizedArgs.category === "string"
-      ? normalizedArgs.category
-      : "products";
+    typeof args.category === "string" ? args.category : "products";
 
   if (!data || data.length === 0) {
-    return Promise.resolve({
+    return {
       data: { error: "No products provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No product data available to compare" },
       },
-    });
+    };
   }
 
   // Define columns based on the data structure
@@ -208,32 +275,28 @@ export function render_product_comparison(
     layout: "artifact",
   });
 
-  return Promise.resolve({
+  return {
     data,
     ui: tableSpec,
-  } as ToolHandlerResult);
+  };
 }
 
 /**
  * Example 4: Custom dashboard
  * Backend fetches dashboard metrics, frontend renders as cards
  */
-export function render_dashboard(args: string | Record<string, unknown>) {
-  const normalizedArgs = normalizeArgs(args);
-  const data = getRecord(normalizedArgs.data);
-  const userId =
-    typeof normalizedArgs.userId === "string"
-      ? normalizedArgs.userId
-      : undefined;
+export function render_dashboard(args: DashboardArgs) {
+  const data = getRecord(args.data);
+  const userId = typeof args.userId === "string" ? args.userId : undefined;
 
   if (Object.keys(data).length === 0) {
-    return Promise.resolve({
+    return {
       data: { error: "No dashboard data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No dashboard data available" },
       },
-    });
+    };
   }
 
   // Transform backend metrics into card format
@@ -258,40 +321,33 @@ export function render_dashboard(args: string | Record<string, unknown>) {
     },
   ];
 
-  return Promise.resolve(
-    resultWithCardGrid(cards, {
-      title: userId ? `Dashboard for ${userId}` : "Dashboard Overview",
-      description: "Key metrics and insights",
-      columns: { default: 1, md: 3 },
-      variant: "elevated",
-    })
-  );
+  return resultWithCardGrid(cards, {
+    title: userId ? `Dashboard for ${userId}` : "Dashboard Overview",
+    description: "Key metrics and insights",
+    columns: { default: 1, md: 3 },
+    variant: "elevated",
+  });
 }
 
 /**
  * Example 5: Smart chart with auto-detection
  * Backend provides data, frontend intelligently chooses the best visualization
  */
-export function render_visualization(args: string | Record<string, unknown>) {
-  const normalizedArgs = normalizeArgs(args);
-  const data = getRecordArray(normalizedArgs.data);
+export function render_visualization(args: VisualizationArgs) {
+  const data = getRecordArray(args.data);
   const query =
-    typeof normalizedArgs.query === "string"
-      ? normalizedArgs.query
-      : "Data Visualization";
+    typeof args.query === "string" ? args.query : "Data Visualization";
   const chartType =
-    typeof normalizedArgs.chartType === "string"
-      ? normalizedArgs.chartType
-      : undefined;
+    typeof args.chartType === "string" ? args.chartType : undefined;
 
   if (!data || data.length === 0) {
-    return Promise.resolve({
+    return {
       data: { error: "No data provided" },
       ui: {
         type: "markdown",
         props: { content: "**Error:** No data available to visualize" },
       },
-    });
+    };
   }
 
   // If chart type is explicitly requested, use it
@@ -319,28 +375,41 @@ export function render_visualization(args: string | Record<string, unknown>) {
   }
 
   // Smart chart auto-detects the best visualization based on data structure
-  return Promise.resolve(
-    resultWithSmartChart(data, {
-      title: `${query}`,
-      description: preferredType
-        ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization`
-        : "Automatically selected visualization type",
-      preferredType,
-      layout: "artifact",
-    })
-  );
+  return resultWithSmartChart(data, {
+    title: `${query}`,
+    description: preferredType
+      ? `${preferredType.charAt(0).toUpperCase() + preferredType.slice(1)} chart visualization`
+      : "Automatically selected visualization type",
+    preferredType,
+    layout: "artifact",
+  });
 }
 
 /**
  * Export all tool handlers as a map
  */
 export const EXAMPLE_GENERATIVE_TOOLS = {
-  render_revenue_chart,
-  render_rental_cars,
-  render_product_comparison,
-  render_dashboard,
-  render_visualization,
-};
+  render_revenue_chart: createValidatedToolHandler(
+    revenueChartArgsValidator,
+    render_revenue_chart
+  ),
+  render_rental_cars: createValidatedToolHandler(
+    rentalCarsArgsValidator,
+    render_rental_cars
+  ),
+  render_product_comparison: createValidatedToolHandler(
+    productComparisonArgsValidator,
+    render_product_comparison
+  ),
+  render_dashboard: createValidatedToolHandler(
+    dashboardArgsValidator,
+    render_dashboard
+  ),
+  render_visualization: createValidatedToolHandler(
+    visualizationArgsValidator,
+    render_visualization
+  ),
+} satisfies Record<string, ToolHandler>;
 
 /**
  * ============================================================================

@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { AgnoProvider, useAgnoClient } from "../../context/AgnoContext";
 import {
   processToolResult,
+  type ToolHandlers,
   useAgnoToolExecution,
 } from "../../hooks/useAgnoToolExecution";
+import { createValidatedToolHandler } from "../../utils/tool-handler-validation";
 
 const defaultConfig: AgnoClientConfig = {
   endpoint: "http://localhost:7777",
@@ -25,7 +27,7 @@ const TestToolExecutionComponent = ({
   handlers = {},
   autoExecute = false,
 }: {
-  handlers?: Record<string, (args: any) => Promise<any>>;
+  handlers?: ToolHandlers;
   autoExecute?: boolean;
 }) => {
   const {
@@ -319,6 +321,54 @@ describe("useAgnoToolExecution", () => {
       );
 
       // Should render without error
+      expect(screen.getByTestId("is-paused")).toBeDefined();
+    });
+
+    it("should accept synchronous handlers", () => {
+      const handlers = {
+        test_tool: vi.fn().mockReturnValue({ success: true }),
+      };
+
+      render(
+        <AgnoProvider config={defaultConfig}>
+          <TestToolExecutionComponent handlers={handlers} />
+        </AgnoProvider>
+      );
+
+      expect(screen.getByTestId("is-paused")).toBeDefined();
+    });
+
+    it("should accept validated tool handlers", () => {
+      const handlers = {
+        test_tool: createValidatedToolHandler(
+          (args) => {
+            if (typeof args.content !== "string") {
+              return {
+                success: false,
+                message: "content must be a string",
+              };
+            }
+
+            return {
+              success: true,
+              data: {
+                content: args.content,
+              },
+            };
+          },
+          (args) => ({
+            success: true,
+            content: args.content,
+          })
+        ),
+      } satisfies ToolHandlers;
+
+      render(
+        <AgnoProvider config={defaultConfig}>
+          <TestToolExecutionComponent handlers={handlers} />
+        </AgnoProvider>
+      );
+
       expect(screen.getByTestId("is-paused")).toBeDefined();
     });
   });

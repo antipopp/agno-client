@@ -192,6 +192,10 @@ function ChatComponent() {
 }
 ```
 
+Tips:
+- Handlers can return sync values or `Promise`s.
+- Use `createValidatedToolHandler()` and `createToolArgsValidatorFromSafeParse()` for runtime argument validation (for example with Zod).
+
 ## 📚 Documentation
 
 - [Core Client API](./packages/core/README.md)

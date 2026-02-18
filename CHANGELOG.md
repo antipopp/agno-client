@@ -5,6 +5,20 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### @antipopp/agno-react
+- **Tool Argument Validation Helpers**: Added validator-agnostic helpers for runtime tool arg validation
+  - `createToolArgsValidatorFromSafeParse()` to adapt schema `safeParse` APIs
+  - `createValidatedToolHandler()` to wrap handlers with validation before execution
+  - Structured default validation failures (`code: "INVALID_TOOL_ARGS"`) with optional issue payloads
+
+### Documentation
+- Added runtime validation guidance and Zod examples to frontend tool execution docs
+- Clarified `ToolHandler` behavior (normalized args + sync/async returns)
+
 ## [0.11.0] - 2026-02-17
 
 ### Added

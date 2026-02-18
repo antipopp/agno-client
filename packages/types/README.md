@@ -79,7 +79,7 @@ interface ToolCall {
   content: string | null;
   tool_call_id: string;
   tool_name: string;
-  tool_args: Record<string, string>;
+  tool_args: Record<string, unknown>;
   tool_call_error: boolean;
   metrics: ToolMetrics;
   created_at: number;

@@ -200,6 +200,11 @@ function ChatWithConfirmation() {
 - `handlers`: `Record<string, ToolHandler>` - Map of tool names to handler functions
 - `autoExecute`: `boolean` - Whether to automatically execute tools (default: `true`)
 
+`ToolHandler` behavior:
+- Receives normalized `Record<string, unknown>` arguments
+- Supports both sync and async return values
+- String payloads are normalized to `{ content: string }`
+
 **Returns:**
 - `isPaused`: `boolean` - Whether the run is paused awaiting execution
 - `isExecuting`: `boolean` - Whether tools are currently being executed
@@ -208,6 +213,50 @@ function ChatWithConfirmation() {
 - `executeTools`: `(tools: ToolCall[]) => Promise<ToolCall[]>` - Execute specific tools without continuing
 - `continueWithResults`: `(tools: ToolCall[]) => Promise<void>` - Continue run with manually provided results
 - `executionError`: `string | undefined` - Error message if execution failed
+
+## Runtime Validation (Recommended)
+
+Tool arguments are runtime input, so TypeScript types alone are not enough. Use
+`createValidatedToolHandler` with a schema validator.
+
+```tsx
+import {
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
+  type ToolHandler,
+} from '@antipopp/agno-react';
+import { z } from 'zod';
+
+const fillReportSchema = z.object({
+  name: z.string().min(1),
+  category: z.enum(['financial', 'sales', 'marketing', 'customer', 'product']).optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+});
+
+const fillReportValidator = createToolArgsValidatorFromSafeParse(
+  (args) => fillReportSchema.safeParse(args),
+  { getErrorMessage: () => 'Invalid fill_report_form arguments' }
+);
+
+const toolHandlers: Record<string, ToolHandler> = {
+  fill_report_form: createValidatedToolHandler(fillReportValidator, (args) => {
+    // args is now typed from the schema
+    return { success: true, filled: Object.keys(args) };
+  }),
+};
+```
+
+On validation failure, the helper returns a structured error result by default:
+
+```ts
+{
+  success: false,
+  code: 'INVALID_TOOL_ARGS',
+  error: 'Invalid tool arguments',
+  issues?: unknown,
+}
+```
 
 ## Global Tool Handlers
 
@@ -244,12 +293,7 @@ Local handlers (in `useAgnoToolExecution`) override global handlers when both de
    }
    ```
 
-2. **Validation**: Validate arguments before execution
-   ```tsx
-   if (!args.url || !args.url.startsWith('https://')) {
-     return { error: 'Invalid URL' };
-   }
-   ```
+2. **Validation**: Prefer `createValidatedToolHandler()` with schema validation to avoid repeating manual guards.
 
 3. **Security**: Only expose safe operations as frontend tools. Never trust user input blindly.
 
@@ -845,6 +889,8 @@ const toolHandlers = {
 - `createCard(id, title, description, options?)`
 - `createColumn(key, label, options?)`
 - `createToolResult(data, uiSpec)` - Wrap UI spec in result
+- `createToolArgsValidatorFromSafeParse(safeParse, options?)` - Adapt schema `safeParse` validators
+- `createValidatedToolHandler(validator, handler, options?)` - Add runtime validation for tool args
 - `getCustomRender(key)` - Retrieve custom render function
 
 ### TypeScript Types
@@ -858,6 +904,8 @@ import type {
   ToolHandlerResult,
   ChartHelperOptions,
   ToolHandler,
+  ToolArgsValidator,
+  ToolValidationError,
 } from '@antipopp/agno-react';
 ```
 

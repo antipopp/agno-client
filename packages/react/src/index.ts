@@ -48,6 +48,7 @@ export { useAgnoSession } from "./hooks/useAgnoSession";
 export type {
   ToolExecutionEvent,
   ToolHandler,
+  ToolHandlers,
 } from "./hooks/useAgnoToolExecution";
 export {
   clearCustomRenderRegistry,
@@ -61,6 +62,20 @@ export {
   getComponentRegistry,
   registerChartComponent,
 } from "./utils/component-registry";
+export type {
+  CreateValidatedToolHandlerOptions,
+  CreateValidatorFromSafeParseOptions,
+  SafeParseResult,
+  ToolArgsValidationFailure,
+  ToolArgsValidationResult,
+  ToolArgsValidationSuccess,
+  ToolArgsValidator,
+  ToolValidationError,
+} from "./utils/tool-handler-validation";
+export {
+  createToolArgsValidatorFromSafeParse,
+  createValidatedToolHandler,
+} from "./utils/tool-handler-validation";
 export type {
   CardGridHelperOptions,
   ChartHelperOptions,
