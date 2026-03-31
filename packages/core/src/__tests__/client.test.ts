@@ -366,6 +366,42 @@ describe("AgnoClient", () => {
 
       expect(requestedUserId).toBe("user-123");
     });
+
+    it("should omit empty-string user_id in session requests", async () => {
+      const unscopedClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        userId: "",
+      });
+      let hasUserId: boolean | null = null;
+
+      server.use(
+        http.get("http://localhost:7777/sessions", ({ request }) => {
+          hasUserId = new URL(request.url).searchParams.has("user_id");
+          return HttpResponse.json({
+            data: [
+              {
+                session_id: "session-1",
+                session_name: "Test Session",
+                created_at: "2024-01-01T00:00:00Z",
+              },
+            ],
+            meta: {
+              page: 1,
+              limit: 20,
+              total_pages: 1,
+              total_count: 1,
+              search_time_ms: 0,
+            },
+          });
+        })
+      );
+
+      await unscopedClient.fetchSessions();
+
+      expect(hasUserId).toBe(false);
+    });
   });
 
   describe("loadSession", () => {
@@ -384,6 +420,37 @@ describe("AgnoClient", () => {
       await client.loadSession("session-1");
 
       expect(handler).toHaveBeenCalledWith("session-1");
+    });
+
+    it("should omit empty-string user_id when loading sessions", async () => {
+      const unscopedClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        userId: "",
+      });
+      let hasUserId: boolean | null = null;
+
+      server.use(
+        http.get(
+          "http://localhost:7777/sessions/:sessionId/runs",
+          ({ request }) => {
+            hasUserId = new URL(request.url).searchParams.has("user_id");
+            return HttpResponse.json([
+              {
+                run_id: "run-1",
+                run_input: "Hello",
+                content: "Hi there!",
+                created_at: "2024-01-01T00:00:00Z",
+              },
+            ]);
+          }
+        )
+      );
+
+      await unscopedClient.loadSession("session-1");
+
+      expect(hasUserId).toBe(false);
     });
   });
 
@@ -431,6 +498,30 @@ describe("AgnoClient", () => {
       await scopedClient.deleteSession("session-1");
 
       expect(requestedUserId).toBe("user-123");
+    });
+
+    it("should omit empty-string user_id when deleting sessions", async () => {
+      const unscopedClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        userId: "",
+      });
+      let hasUserId: boolean | null = null;
+
+      server.use(
+        http.delete(
+          "http://localhost:7777/sessions/:sessionId",
+          ({ request }) => {
+            hasUserId = new URL(request.url).searchParams.has("user_id");
+            return new HttpResponse(null, { status: 204 });
+          }
+        )
+      );
+
+      await unscopedClient.deleteSession("session-1");
+
+      expect(hasUserId).toBe(false);
     });
   });
 

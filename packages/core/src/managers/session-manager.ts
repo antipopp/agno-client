@@ -35,7 +35,7 @@ export class SessionManager {
     url.searchParams.set("type", entityType);
     url.searchParams.set("component_id", entityId);
     url.searchParams.set("db_id", dbId);
-    if (userId !== undefined) {
+    if (userId) {
       url.searchParams.set("user_id", userId);
     }
 
@@ -77,7 +77,7 @@ export class SessionManager {
     if (dbId) {
       url.searchParams.set("db_id", dbId);
     }
-    if (userId !== undefined) {
+    if (userId) {
       url.searchParams.set("user_id", userId);
     }
 
@@ -112,7 +112,7 @@ export class SessionManager {
     if (dbId) {
       url.searchParams.set("db_id", dbId);
     }
-    if (userId !== undefined) {
+    if (userId) {
       url.searchParams.set("user_id", userId);
     }
 
@@ -494,6 +494,10 @@ export class SessionManager {
       tool_call_error: (rawTool.tool_call_error as boolean) ?? false,
       metrics: (rawTool.metrics as ToolMetrics) ?? { time: 0 },
       created_at: (rawTool.created_at as number) ?? fallbackTimestamp,
+      approval_id:
+        typeof rawTool.approval_id === "string"
+          ? rawTool.approval_id
+          : undefined,
     };
   }
 

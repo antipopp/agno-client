@@ -95,6 +95,29 @@ describe("SessionManager", () => {
       expect(messages[1].tool_calls?.[0].content).toBe("Search results");
     });
 
+    it("should preserve approval_id on tool calls", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "Should I continue?",
+          content: "Waiting for approval",
+          tools: [
+            {
+              tool_call_id: "call-1",
+              tool_name: "delete_file",
+              tool_args: { path: "/tmp/file.txt" },
+              approval_id: "approval-123",
+            },
+          ],
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[1].tool_calls?.[0].approval_id).toBe("approval-123");
+    });
+
     it("should extract tool calls from reasoning_messages", () => {
       const runs: RunSchema[] = [
         {

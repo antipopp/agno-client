@@ -101,10 +101,12 @@ describe("Message types", () => {
         requires_confirmation: true,
         requires_user_input: false,
         confirmed: false,
+        approval_id: "approval-123",
         result: undefined,
       };
       expect(toolCall.external_execution).toBe(true);
       expect(toolCall.requires_confirmation).toBe(true);
+      expect(toolCall.approval_id).toBe("approval-123");
     });
   });
 

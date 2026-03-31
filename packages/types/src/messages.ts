@@ -24,6 +24,7 @@ export interface ToolCall {
   requires_confirmation?: boolean;
   requires_user_input?: boolean;
   confirmed?: boolean;
+  approval_id?: string;
   result?: unknown;
   // Generative UI field (serializable component spec only)
   ui_component?: UIComponentSpec;
