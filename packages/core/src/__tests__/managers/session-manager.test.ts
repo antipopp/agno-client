@@ -187,6 +187,25 @@ describe("SessionManager", () => {
       expect(messages[1].extra_data?.references).toBeDefined();
     });
 
+    it("should include extra_data for followups", () => {
+      const runs: RunSchema[] = [
+        {
+          run_id: "run-1",
+          run_input: "What should I do next?",
+          content: "Here are some ideas.",
+          followups: ["Ask for an example", "Request a summary"],
+          created_at: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const messages = manager.convertSessionToMessages(runs);
+
+      expect(messages[1].extra_data?.followups).toEqual([
+        "Ask for an example",
+        "Request a summary",
+      ]);
+    });
+
     it("should handle multiple runs chronologically", () => {
       const runs: RunSchema[] = [
         {

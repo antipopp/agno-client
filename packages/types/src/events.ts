@@ -15,6 +15,8 @@ export enum RunEvent {
   ReasoningStarted = "ReasoningStarted",
   ReasoningStep = "ReasoningStep",
   ReasoningCompleted = "ReasoningCompleted",
+  FollowupsStarted = "FollowupsStarted",
+  FollowupsCompleted = "FollowupsCompleted",
   RunCancelled = "RunCancelled",
   RunPaused = "RunPaused",
   RunContinued = "RunContinued",
@@ -29,6 +31,8 @@ export enum RunEvent {
   TeamReasoningStarted = "TeamReasoningStarted",
   TeamReasoningStep = "TeamReasoningStep",
   TeamReasoningCompleted = "TeamReasoningCompleted",
+  TeamFollowupsStarted = "TeamFollowupsStarted",
+  TeamFollowupsCompleted = "TeamFollowupsCompleted",
   TeamMemoryUpdateStarted = "TeamMemoryUpdateStarted",
   TeamMemoryUpdateCompleted = "TeamMemoryUpdateCompleted",
 }

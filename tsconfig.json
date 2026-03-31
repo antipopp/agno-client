@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "ES2020",
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -14,6 +15,11 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": true,
+    "paths": {
+      "@antipopp/agno-client": ["packages/core/src/index.ts"],
+      "@antipopp/agno-react": ["packages/react/src/index.ts"],
+      "@antipopp/agno-types": ["packages/types/src/index.ts"]
+    },
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true

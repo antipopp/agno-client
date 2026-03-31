@@ -28,12 +28,16 @@ export class SessionManager {
     entityId: string,
     dbId: string,
     headers: Record<string, string>,
+    userId?: string,
     params?: URLSearchParams
   ): Promise<SessionEntry[]> {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set("type", entityType);
     url.searchParams.set("component_id", entityId);
     url.searchParams.set("db_id", dbId);
+    if (userId !== undefined) {
+      url.searchParams.set("user_id", userId);
+    }
 
     // Merge additional params if provided
     if (params) {
@@ -73,7 +77,7 @@ export class SessionManager {
     if (dbId) {
       url.searchParams.set("db_id", dbId);
     }
-    if (userId) {
+    if (userId !== undefined) {
       url.searchParams.set("user_id", userId);
     }
 
@@ -101,11 +105,15 @@ export class SessionManager {
     sessionId: string,
     dbId: string,
     headers: Record<string, string>,
+    userId?: string,
     params?: URLSearchParams
   ): Promise<void> {
     const url = new URL(`${endpoint}/sessions/${sessionId}`);
     if (dbId) {
       url.searchParams.set("db_id", dbId);
+    }
+    if (userId !== undefined) {
+      url.searchParams.set("user_id", userId);
     }
 
     // Merge additional params if provided
@@ -515,7 +523,14 @@ export class SessionManager {
   private buildExtraData(
     run: RunSchema | TeamRunSchema
   ): MessageExtraData | undefined {
-    if (!(run.reasoning_messages || run.reasoning_steps || run.references)) {
+    if (
+      !(
+        run.reasoning_messages ||
+        run.reasoning_steps ||
+        run.references ||
+        run.followups
+      )
+    ) {
       return undefined;
     }
 
@@ -525,6 +540,7 @@ export class SessionManager {
       reasoning_steps:
         run.reasoning_steps as MessageExtraData["reasoning_steps"],
       references: run.references as MessageExtraData["references"],
+      followups: run.followups ?? undefined,
     };
   }
 }

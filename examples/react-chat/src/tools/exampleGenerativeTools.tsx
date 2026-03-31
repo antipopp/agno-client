@@ -227,7 +227,7 @@ export function render_rental_cars(args: RentalCarsArgs) {
 
   return resultWithCardGrid(cards, {
     title: `Available Cars in ${location}`,
-    description: `${cards.length} vehicle${cards.length !== 1 ? "s" : ""} available for rent`,
+    description: `${cards.length} vehicle${cards.length === 1 ? "" : "s"} available for rent`,
     columns: { default: 1, md: 2, lg: 3 },
     variant: "elevated",
   });

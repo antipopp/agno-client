@@ -15,11 +15,11 @@ import {
 
 // Export renderers
 export {
-  BarChartRenderer,
-  LineChartRenderer,
   AreaChartRenderer,
-  PieChartRenderer,
+  BarChartRenderer,
   CardGridRenderer,
+  LineChartRenderer,
+  PieChartRenderer,
 };
 
 /**

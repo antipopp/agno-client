@@ -7,6 +7,7 @@
 export type {
   AgentDetails,
   AgnoClientConfig,
+  ApprovalStatusResponse,
   ArtifactComponentSpec,
   CardData,
   CardGridComponentSpec,

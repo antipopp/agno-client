@@ -187,7 +187,7 @@ export function ChatInterface() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>
                   Executing {pendingTools.length} tool
-                  {pendingTools.length !== 1 ? "s" : ""}...
+                  {pendingTools.length === 1 ? "" : "s"}...
                 </span>
               </>
             ) : (
@@ -195,7 +195,7 @@ export function ChatInterface() {
                 <Wrench className="h-4 w-4" />
                 <span>
                   Preparing to execute {pendingTools.length} tool
-                  {pendingTools.length !== 1 ? "s" : ""}...
+                  {pendingTools.length === 1 ? "" : "s"}...
                 </span>
               </>
             )}

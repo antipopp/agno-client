@@ -330,6 +330,42 @@ describe("AgnoClient", () => {
         "Entity ID must be configured"
       );
     });
+
+    it("should include configured user_id in session requests", async () => {
+      const scopedClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        userId: "user-123",
+      });
+      let requestedUserId: string | null = null;
+
+      server.use(
+        http.get("http://localhost:7777/sessions", ({ request }) => {
+          requestedUserId = new URL(request.url).searchParams.get("user_id");
+          return HttpResponse.json({
+            data: [
+              {
+                session_id: "session-1",
+                session_name: "Test Session",
+                created_at: "2024-01-01T00:00:00Z",
+              },
+            ],
+            meta: {
+              page: 1,
+              limit: 20,
+              total_pages: 1,
+              total_count: 1,
+              search_time_ms: 0,
+            },
+          });
+        })
+      );
+
+      await scopedClient.fetchSessions();
+
+      expect(requestedUserId).toBe("user-123");
+    });
   });
 
   describe("loadSession", () => {
@@ -371,6 +407,40 @@ describe("AgnoClient", () => {
       await client.deleteSession("session-1");
 
       expect(client.getMessages()).toEqual([]);
+    });
+
+    it("should include configured user_id when deleting sessions", async () => {
+      const scopedClient = new AgnoClient({
+        endpoint: "http://localhost:7777",
+        mode: "agent",
+        agentId: "agent-1",
+        userId: "user-123",
+      });
+      let requestedUserId: string | null = null;
+
+      server.use(
+        http.delete(
+          "http://localhost:7777/sessions/:sessionId",
+          ({ request }) => {
+            requestedUserId = new URL(request.url).searchParams.get("user_id");
+            return new HttpResponse(null, { status: 204 });
+          }
+        )
+      );
+
+      await scopedClient.deleteSession("session-1");
+
+      expect(requestedUserId).toBe("user-123");
+    });
+  });
+
+  describe("getApprovalStatus", () => {
+    it("should fetch approval status", async () => {
+      const status = await client.getApprovalStatus("approval-1");
+
+      expect(status.approval_id).toBe("approval-1");
+      expect(status.status).toBe("pending");
+      expect(status.run_id).toBe("run-123");
     });
   });
 

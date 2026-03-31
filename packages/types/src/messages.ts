@@ -152,6 +152,7 @@ export interface MessageExtraData {
   reasoning_steps?: ReasoningSteps[];
   reasoning_messages?: ReasoningMessage[];
   references?: ReferenceData[];
+  followups?: string[];
 }
 
 /**

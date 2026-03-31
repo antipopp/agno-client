@@ -67,6 +67,9 @@ export interface AgentDetails {
   model?: Model;
   db_id?: string;
   storage?: boolean;
+  is_component?: boolean;
+  current_version?: number | null;
+  stage?: string | null;
 }
 
 /**
@@ -79,6 +82,9 @@ export interface TeamDetails {
   model?: Model;
   db_id?: string;
   storage?: boolean;
+  is_component?: boolean;
+  current_version?: number | null;
+  stage?: string | null;
 }
 
 /**
@@ -128,6 +134,7 @@ export interface RunSchema {
   files?: FileData[] | null;
   response_audio?: ResponseAudioData | null;
   input_media?: Record<string, unknown> | null;
+  followups?: string[] | null;
 }
 
 /**
@@ -155,6 +162,18 @@ export interface TeamRunSchema {
   audio?: AudioData[] | null;
   files?: FileData[] | null;
   response_audio?: ResponseAudioData | null;
+  followups?: string[] | null;
+}
+
+/**
+ * Approval status response
+ */
+export interface ApprovalStatusResponse {
+  approval_id: string;
+  status: string;
+  run_id: string;
+  resolved_at?: number | null;
+  resolved_by?: string | null;
 }
 
 /**
@@ -232,6 +251,7 @@ export interface RunResponse {
   audio?: AudioData[];
   files?: FileData[];
   response_audio?: ResponseAudioData;
+  followups?: string[];
   // HITL fields
   is_paused?: boolean;
   tools_awaiting_external_execution?: ToolCall[];
@@ -264,6 +284,7 @@ export interface RunResponseContent {
   audio?: AudioData[];
   files?: FileData[];
   response_audio?: ResponseAudioData;
+  followups?: string[];
 }
 
 /**

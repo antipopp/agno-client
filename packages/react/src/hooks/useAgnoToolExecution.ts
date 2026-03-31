@@ -80,7 +80,7 @@ const customRenderRegistry = new Map<string, CustomRenderFunction>();
  * Store a custom render function and return its unique key
  */
 function registerCustomRender(renderFn: CustomRenderFunction): string {
-  const key = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   customRenderRegistry.set(key, renderFn);
   return key;
 }

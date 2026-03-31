@@ -1,6 +1,7 @@
 import type {
   AgentDetails,
   AgnoClientConfig,
+  ApprovalStatusResponse,
   AudioData,
   ChatMessage,
   ClientState,
@@ -873,6 +874,7 @@ export class AgnoClient extends EventEmitter {
     const entityType = this.configManager.getMode();
     const entityId = this.configManager.getCurrentEntityId();
     const dbId = this.configManager.getDbId() || "";
+    const userId = this.configManager.getUserId();
 
     if (!entityId) {
       throw new Error("Entity ID must be configured");
@@ -886,6 +888,7 @@ export class AgnoClient extends EventEmitter {
       entityId,
       dbId,
       headers,
+      userId,
       params
     );
 
@@ -904,6 +907,7 @@ export class AgnoClient extends EventEmitter {
   ): Promise<void> {
     const config = this.configManager.getConfig();
     const dbId = this.configManager.getDbId() || "";
+    const userId = this.configManager.getUserId();
 
     const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
@@ -912,6 +916,7 @@ export class AgnoClient extends EventEmitter {
       sessionId,
       dbId,
       headers,
+      userId,
       params
     );
 
@@ -1305,6 +1310,33 @@ export class AgnoClient extends EventEmitter {
     this.emit("state:change", this.getState());
 
     return teams;
+  }
+
+  /**
+   * Fetch approval status by ID
+   */
+  async getApprovalStatus(
+    approvalId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ApprovalStatusResponse> {
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(
+      `${this.configManager.getEndpoint()}/approvals/${approvalId}/status`
+    );
+
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), { headers });
+    if (!response.ok) {
+      throw new Error("Failed to fetch approval status");
+    }
+
+    return await response.json();
   }
 
   /**

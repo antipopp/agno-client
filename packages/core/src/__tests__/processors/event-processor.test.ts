@@ -487,6 +487,20 @@ describe("EventProcessor", () => {
         expect(result?.extra_data?.reasoning_steps).toHaveLength(1);
       });
 
+      it("should update extra_data with followups", () => {
+        const chunk: RunResponse = {
+          event: RunEvent.RunContent,
+          content: "Thinking...",
+          content_type: "text/plain",
+          followups: ["Ask another question"],
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, baseMessage);
+
+        expect(result?.extra_data?.followups).toEqual(["Ask another question"]);
+      });
+
       it("should update images, videos, and audio", () => {
         const chunk: RunResponse = {
           event: RunEvent.RunContent,
@@ -686,6 +700,59 @@ describe("EventProcessor", () => {
 
         expect(result?.images?.[0].url).toBe("http://example.com/final.jpg");
         expect(result?.files?.[0].filename).toBe("summary.txt");
+      });
+
+      it("should preserve followups from prior events on completion", () => {
+        const messageWithFollowups: ChatMessage = {
+          ...baseMessage,
+          extra_data: {
+            followups: ["Ask for a summary"],
+          },
+        };
+
+        const chunk: RunResponse = {
+          event: RunEvent.RunCompleted,
+          content: "Final complete response",
+          content_type: "text/plain",
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, messageWithFollowups);
+
+        expect(result?.extra_data?.followups).toEqual(["Ask for a summary"]);
+      });
+    });
+
+    describe("FollowupsCompleted event", () => {
+      it("should store followups on the last message", () => {
+        const chunk: RunResponse = {
+          event: RunEvent.FollowupsCompleted,
+          content_type: "application/json",
+          followups: ["Ask for more detail", "Show examples"],
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, baseMessage);
+
+        expect(result?.extra_data?.followups).toEqual([
+          "Ask for more detail",
+          "Show examples",
+        ]);
+      });
+
+      it("should handle team followups events", () => {
+        const chunk: RunResponse = {
+          event: RunEvent.TeamFollowupsCompleted,
+          content_type: "application/json",
+          followups: ["Delegate the next step"],
+          created_at: 1_700_000_000,
+        };
+
+        const result = processor.processChunk(chunk, baseMessage);
+
+        expect(result?.extra_data?.followups).toEqual([
+          "Delegate the next step",
+        ]);
       });
     });
 

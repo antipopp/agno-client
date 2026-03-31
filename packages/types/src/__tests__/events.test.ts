@@ -31,6 +31,11 @@ describe("RunEvent", () => {
       expect(RunEvent.ReasoningCompleted).toBe("ReasoningCompleted");
     });
 
+    it("should have correct followup events", () => {
+      expect(RunEvent.FollowupsStarted).toBe("FollowupsStarted");
+      expect(RunEvent.FollowupsCompleted).toBe("FollowupsCompleted");
+    });
+
     it("should have correct team run events", () => {
       expect(RunEvent.TeamRunStarted).toBe("TeamRunStarted");
       expect(RunEvent.TeamRunContent).toBe("TeamRunContent");
@@ -50,6 +55,11 @@ describe("RunEvent", () => {
       expect(RunEvent.TeamReasoningCompleted).toBe("TeamReasoningCompleted");
     });
 
+    it("should have correct team followup events", () => {
+      expect(RunEvent.TeamFollowupsStarted).toBe("TeamFollowupsStarted");
+      expect(RunEvent.TeamFollowupsCompleted).toBe("TeamFollowupsCompleted");
+    });
+
     it("should have correct team memory events", () => {
       expect(RunEvent.TeamMemoryUpdateStarted).toBe("TeamMemoryUpdateStarted");
       expect(RunEvent.TeamMemoryUpdateCompleted).toBe(
@@ -60,6 +70,6 @@ describe("RunEvent", () => {
 
   it("should have expected number of event types", () => {
     const eventCount = Object.keys(RunEvent).length;
-    expect(eventCount).toBe(28);
+    expect(eventCount).toBe(32);
   });
 });

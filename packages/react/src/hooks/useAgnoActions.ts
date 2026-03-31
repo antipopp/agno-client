@@ -1,4 +1,8 @@
-import type { AgentDetails, TeamDetails } from "@antipopp/agno-types";
+import type {
+  AgentDetails,
+  ApprovalStatusResponse,
+  TeamDetails,
+} from "@antipopp/agno-types";
 import { useCallback, useState } from "react";
 import { useAgnoClient } from "../context/AgnoContext";
 
@@ -92,6 +96,26 @@ export function useAgnoActions() {
   );
 
   /**
+   * Fetch approval status
+   */
+  const getApprovalStatus = useCallback(
+    async (
+      approvalId: string,
+      options?: { params?: Record<string, string> }
+    ): Promise<ApprovalStatusResponse> => {
+      setError(undefined);
+      try {
+        return await client.getApprovalStatus(approvalId, options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      }
+    },
+    [client]
+  );
+
+  /**
    * Update client configuration
    */
   const updateConfig = useCallback(
@@ -106,6 +130,7 @@ export function useAgnoActions() {
     checkStatus,
     fetchAgents,
     fetchTeams,
+    getApprovalStatus,
     updateConfig,
     isInitializing,
     error,

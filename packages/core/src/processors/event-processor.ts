@@ -123,6 +123,14 @@ export class EventProcessor {
       };
     }
 
+    const followups = chunk.extra_data?.followups ?? chunk.followups;
+    if (followups) {
+      updatedMessage.extra_data = {
+        ...updatedMessage.extra_data,
+        followups,
+      };
+    }
+
     updatedMessage.created_at = chunk.created_at ?? lastMessage.created_at;
 
     if (chunk.images) {
@@ -197,13 +205,24 @@ export class EventProcessor {
     updatedMessage.files = chunk.files ?? lastMessage.files;
     updatedMessage.response_audio = chunk.response_audio;
     updatedMessage.created_at = chunk.created_at ?? lastMessage.created_at;
-    updatedMessage.extra_data = {
-      reasoning_steps:
-        chunk.extra_data?.reasoning_steps ??
-        lastMessage.extra_data?.reasoning_steps,
-      references:
-        chunk.extra_data?.references ?? lastMessage.extra_data?.references,
-    };
+
+    const reasoningSteps =
+      chunk.extra_data?.reasoning_steps ??
+      lastMessage.extra_data?.reasoning_steps;
+    const references =
+      chunk.extra_data?.references ?? lastMessage.extra_data?.references;
+    const followups =
+      chunk.extra_data?.followups ??
+      chunk.followups ??
+      lastMessage.extra_data?.followups;
+
+    if (reasoningSteps || references || followups) {
+      updatedMessage.extra_data = {
+        reasoning_steps: reasoningSteps,
+        references,
+        followups,
+      };
+    }
   }
 
   private appendReasoningSteps(
@@ -238,6 +257,8 @@ export class EventProcessor {
       case RunEventEnum.TeamRunStarted:
       case RunEventEnum.ReasoningStarted:
       case RunEventEnum.TeamReasoningStarted:
+      case RunEventEnum.FollowupsStarted:
+      case RunEventEnum.TeamFollowupsStarted:
         // These events are handled at the client level for session management
         break;
 
@@ -268,6 +289,16 @@ export class EventProcessor {
           updatedMessage.extra_data = {
             ...updatedMessage.extra_data,
             reasoning_steps: chunk.extra_data.reasoning_steps,
+          };
+        }
+        break;
+
+      case RunEventEnum.FollowupsCompleted:
+      case RunEventEnum.TeamFollowupsCompleted:
+        if (chunk.followups || chunk.extra_data?.followups) {
+          updatedMessage.extra_data = {
+            ...updatedMessage.extra_data,
+            followups: chunk.extra_data?.followups ?? chunk.followups,
           };
         }
         break;

@@ -7,6 +7,7 @@
 export type {
   AgentDetails,
   AgentSessionDetailSchema,
+  ApprovalStatusResponse,
   MessageContext,
   Model,
   ModelMessage,

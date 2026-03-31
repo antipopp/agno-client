@@ -42,9 +42,18 @@ export const mockSessionRuns = [
     run_id: "run-1",
     run_input: "Hello",
     content: "Hi there!",
+    followups: ["Ask a follow-up question"],
     created_at: "2024-01-01T00:00:00Z",
   },
 ];
+
+export const mockApprovalStatus = {
+  approval_id: "approval-1",
+  status: "pending",
+  run_id: "run-123",
+  resolved_at: null,
+  resolved_by: null,
+};
 
 export const handlers = [
   // Health check
@@ -93,6 +102,11 @@ export const handlers = [
   // Delete session
   http.delete("http://localhost:7777/sessions/:sessionId", () => {
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Approval status
+  http.get("http://localhost:7777/approvals/:approvalId/status", () => {
+    return HttpResponse.json(mockApprovalStatus);
   }),
 
   // Agent run (streaming)

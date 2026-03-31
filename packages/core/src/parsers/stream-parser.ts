@@ -152,8 +152,7 @@ function logChunkParseError(
 
   console.error("Failed to parse JSON chunk:", {
     error,
-    chunk:
-      jsonString.substring(0, 100) + (jsonString.length > 100 ? "..." : ""),
+    chunk: jsonString.slice(0, 100) + (jsonString.length > 100 ? "..." : ""),
     position,
   });
 }

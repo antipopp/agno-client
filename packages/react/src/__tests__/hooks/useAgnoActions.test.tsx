@@ -95,6 +95,7 @@ describe("useAgnoActions", () => {
       expect(typeof result.checkStatus).toBe("function");
       expect(typeof result.fetchAgents).toBe("function");
       expect(typeof result.fetchTeams).toBe("function");
+      expect(typeof result.getApprovalStatus).toBe("function");
       expect(typeof result.updateConfig).toBe("function");
       expect(typeof result.isInitializing).toBe("boolean");
       expect(result.error).toBeUndefined();
@@ -163,6 +164,9 @@ describe("useAgnoActions", () => {
       );
       expect(capturedFunctions[0].fetchTeams).toBe(
         capturedFunctions[1].fetchTeams
+      );
+      expect(capturedFunctions[0].getApprovalStatus).toBe(
+        capturedFunctions[1].getApprovalStatus
       );
       expect(capturedFunctions[0].updateConfig).toBe(
         capturedFunctions[1].updateConfig

@@ -164,6 +164,15 @@ describe("Message types", () => {
       expect(extraData.references).toHaveLength(1);
       expect(extraData.references?.[0].references[0].name).toBe("doc.pdf");
     });
+
+    it("should support followups array", () => {
+      const extraData: MessageExtraData = {
+        followups: ["Ask for more detail", "Show examples"],
+      };
+
+      expect(extraData.followups).toHaveLength(2);
+      expect(extraData.followups?.[0]).toBe("Ask for more detail");
+    });
   });
 
   describe("Type validation with expectTypeOf", () => {
