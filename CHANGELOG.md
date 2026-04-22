@@ -5,6 +5,31 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-04-22
+
+### Fixed
+
+#### @antipopp/agno-client
+- **Session Pagination Metadata**: `fetchSessions()` now returns the full `{ data, meta }` payload so callers can access backend pagination details instead of losing them at the client boundary.
+- **Empty Session Responses**: 404 session-list responses now return a normalized empty `SessionsListResponse` with default pagination metadata instead of a bare array.
+
+#### @antipopp/agno-react
+- **Hook Session Fetch Parity**: `useAgnoSession().fetchSessions()` now mirrors the core client response shape while still keeping hook state synchronized with `response.data`.
+
+### Changed
+
+#### Public API
+- Re-exported `PaginationInfo` and `SessionsListResponse` from the core and React package entrypoints for direct consumer access.
+
+### Documentation
+- Updated core and React session-loading examples to show the paginated `fetchSessions()` response shape.
+
+### Infrastructure
+- Aligned the publish workflow with the repository's supported Node.js 20 release environment.
+
+### Notes
+- `fetchSessions()` is now a paginated response API and returns `{ data, meta }` instead of a raw `SessionEntry[]`.
+
 ## [0.12.0] - 2026-02-18
 
 ### Added
@@ -688,6 +713,7 @@ All endpoints now align with AgentOS OpenAPI specification:
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.13.0]: https://github.com/antipopp/agno-client/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/antipopp/agno-client/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/antipopp/agno-client/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/antipopp/agno-client/compare/v0.9.0...v0.10.0
