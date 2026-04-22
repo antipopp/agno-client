@@ -9,6 +9,7 @@ import type {
   RunResponse,
   SendMessageOptions,
   SessionEntry,
+  SessionsListResponse,
   TeamDetails,
   ToolCall,
   UIComponentSpec,
@@ -868,7 +869,7 @@ export class AgnoClient extends EventEmitter {
    */
   async fetchSessions(options?: {
     params?: Record<string, string>;
-  }): Promise<SessionEntry[]> {
+  }): Promise<SessionsListResponse> {
     const config = this.configManager.getConfig();
     const entityType = this.configManager.getMode();
     const entityId = this.configManager.getCurrentEntityId();
@@ -880,7 +881,7 @@ export class AgnoClient extends EventEmitter {
 
     const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
-    const sessions = await this.sessionManager.fetchSessions(
+    const response = await this.sessionManager.fetchSessions(
       config.endpoint,
       entityType,
       entityId,
@@ -889,10 +890,10 @@ export class AgnoClient extends EventEmitter {
       params
     );
 
-    this.state.sessions = sessions;
+    this.state.sessions = response.data;
     this.emit("state:change", this.getState());
 
-    return sessions;
+    return response;
   }
 
   /**

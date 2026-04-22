@@ -4,8 +4,8 @@ import type {
   FileData,
   ImageData,
   MessageExtraData,
+  PaginationInfo,
   RunSchema,
-  SessionEntry,
   SessionsListResponse,
   TeamRunSchema,
   ToolCall,
@@ -14,6 +14,14 @@ import type {
 } from "@antipopp/agno-types";
 
 type MessageMedia = Pick<ChatMessage, "images" | "videos" | "audio" | "files">;
+
+const EMPTY_PAGINATION_INFO: PaginationInfo = {
+  page: 1,
+  limit: 0,
+  total_pages: 0,
+  total_count: 0,
+  search_time_ms: 0,
+};
 
 /**
  * Manages session operations
@@ -29,7 +37,7 @@ export class SessionManager {
     dbId: string,
     headers: Record<string, string>,
     params?: URLSearchParams
-  ): Promise<SessionEntry[]> {
+  ): Promise<SessionsListResponse> {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set("type", entityType);
     url.searchParams.set("component_id", entityId);
@@ -46,13 +54,19 @@ export class SessionManager {
 
     if (!response.ok) {
       if (response.status === 404) {
-        return [];
+        return {
+          data: [],
+          meta: EMPTY_PAGINATION_INFO,
+        };
       }
       throw new Error(`Failed to fetch sessions: ${response.statusText}`);
     }
 
     const data: SessionsListResponse = await response.json();
-    return data.data ?? [];
+    return {
+      data: data.data ?? [],
+      meta: data.meta ?? EMPTY_PAGINATION_INFO,
+    };
   }
 
   /**

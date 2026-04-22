@@ -185,7 +185,7 @@ const {
   sessions,          // SessionEntry[] - Available sessions
   currentSessionId,  // string | undefined - Current session ID
   loadSession,       // (sessionId) => Promise<ChatMessage[]>
-  fetchSessions,     // () => Promise<SessionEntry[]>
+  fetchSessions,     // () => Promise<SessionsListResponse>
   isLoading,         // boolean - Is loading session
   error,             // string | undefined - Current error
 } = useAgnoSession();
@@ -199,7 +199,11 @@ function SessionList() {
 
   useEffect(() => {
     // Fetch sessions with optional query params
-    fetchSessions({ params: { limit: '50', status: 'active' } });
+    fetchSessions({ params: { limit: '50', status: 'active' } }).then(
+      ({ meta }) => {
+        console.log(`Fetched page ${meta.page} of ${meta.total_pages}`);
+      }
+    );
   }, [fetchSessions]);
 
   const handleLoadSession = (sessionId: string) => {
