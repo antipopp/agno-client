@@ -11,7 +11,7 @@ describe("SessionManager", () => {
 
   describe("fetchSessions", () => {
     it("should fetch sessions with correct URL params", async () => {
-      const sessions = await manager.fetchSessions(
+      const response = await manager.fetchSessions(
         "http://localhost:7777",
         "agent",
         "agent-1",
@@ -19,8 +19,9 @@ describe("SessionManager", () => {
         {}
       );
 
-      expect(sessions).toBeDefined();
-      expect(Array.isArray(sessions)).toBe(true);
+      expect(response.data).toBeDefined();
+      expect(Array.isArray(response.data)).toBe(true);
+      expect(response.meta.total_count).toBe(2);
     });
 
     it("should return empty array on 404", async () => {

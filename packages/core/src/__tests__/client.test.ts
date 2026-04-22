@@ -315,10 +315,12 @@ describe("AgnoClient", () => {
 
   describe("fetchSessions", () => {
     it("should fetch sessions for current entity", async () => {
-      const sessions = await client.fetchSessions();
+      const response = await client.fetchSessions();
 
-      expect(sessions).toHaveLength(2);
-      expect(sessions[0].session_id).toBe("session-1");
+      expect(response.data).toHaveLength(2);
+      expect(response.data[0].session_id).toBe("session-1");
+      expect(response.meta.total_count).toBe(2);
+      expect(client.getState().sessions).toHaveLength(2);
     });
 
     it("should throw if no entity configured", async () => {

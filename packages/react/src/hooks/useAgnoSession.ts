@@ -1,4 +1,8 @@
-import type { ChatMessage, SessionEntry } from "@antipopp/agno-types";
+import type {
+  ChatMessage,
+  SessionEntry,
+  SessionsListResponse,
+} from "@antipopp/agno-types";
 import { useCallback, useEffect, useState } from "react";
 import { useAgnoClient } from "../context/AgnoContext";
 
@@ -77,13 +81,13 @@ export function useAgnoSession() {
   const fetchSessions = useCallback(
     async (options?: {
       params?: Record<string, string>;
-    }): Promise<SessionEntry[]> => {
+    }): Promise<SessionsListResponse> => {
       setIsLoading(true);
       setError(undefined);
       try {
-        const fetchedSessions = await client.fetchSessions(options);
-        setSessions(fetchedSessions);
-        return fetchedSessions;
+        const response = await client.fetchSessions(options);
+        setSessions(response.data);
+        return response;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);

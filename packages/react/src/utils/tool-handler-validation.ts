@@ -61,7 +61,7 @@ function toDefaultValidationError<TIssues>(
     success: false,
     code: "INVALID_TOOL_ARGS",
     error: failure.message ?? options?.errorMessage ?? "Invalid tool arguments",
-    ...(failure.issues !== undefined ? { issues: failure.issues } : {}),
+    ...(failure.issues === undefined ? {} : { issues: failure.issues }),
   };
 }
 

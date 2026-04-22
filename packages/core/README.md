@@ -157,7 +157,7 @@ const messages = await client.loadSession('session-id');
 Fetch all sessions for current agent/team.
 
 ```typescript
-const sessions = await client.fetchSessions();
+const { data, meta } = await client.fetchSessions();
 ```
 
 #### `initialize()`
@@ -245,7 +245,9 @@ Logger.debug('Config loaded', {
 
 ```typescript
 // Fetch all sessions
-const sessions = await client.fetchSessions();
+const { data: sessions, meta } = await client.fetchSessions();
+
+console.log(`Loaded ${meta.total_count} sessions across ${meta.total_pages} pages`);
 
 // Load a specific session
 const messages = await client.loadSession(sessions[0].session_id);

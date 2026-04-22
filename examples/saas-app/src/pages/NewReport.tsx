@@ -198,7 +198,7 @@ export function NewReport() {
                     <p className="font-medium">AI is filling the form</p>
                     <p className="text-muted-foreground text-sm">
                       Processing {pendingTools.length} tool
-                      {pendingTools.length !== 1 ? "s" : ""}...
+                      {pendingTools.length === 1 ? "" : "s"}...
                     </p>
                   </div>
                 </>
