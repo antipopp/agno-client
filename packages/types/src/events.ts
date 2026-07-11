@@ -18,6 +18,8 @@ export enum RunEvent {
   RunCancelled = "RunCancelled",
   RunPaused = "RunPaused",
   RunContinued = "RunContinued",
+  TeamRunPaused = "TeamRunPaused",
+  TeamRunContinued = "TeamRunContinued",
   // Team Events
   TeamRunStarted = "TeamRunStarted",
   TeamRunContent = "TeamRunContent",
@@ -31,6 +33,10 @@ export enum RunEvent {
   TeamReasoningCompleted = "TeamReasoningCompleted",
   TeamMemoryUpdateStarted = "TeamMemoryUpdateStarted",
   TeamMemoryUpdateCompleted = "TeamMemoryUpdateCompleted",
+  TeamPreHookStarted = "TeamPreHookStarted",
+  TeamPreHookCompleted = "TeamPreHookCompleted",
+  TeamPostHookStarted = "TeamPostHookStarted",
+  TeamPostHookCompleted = "TeamPostHookCompleted",
 }
 
 /**

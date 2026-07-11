@@ -6,6 +6,7 @@
 // API
 export type {
   AgentDetails,
+  AgentOSInfo,
   AgentSessionDetailSchema,
   MessageContext,
   Model,
@@ -27,6 +28,7 @@ export type {
 export type {
   AgnoClientConfig,
   ClientState,
+  ContinueRunOptions,
   SendMessageOptions,
   StreamOptions,
 } from "./config";

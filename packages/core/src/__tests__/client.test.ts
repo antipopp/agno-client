@@ -878,29 +878,33 @@ describe("AgnoClient", () => {
   });
 
   describe("continueRun", () => {
-    it("should throw if in team mode", async () => {
+    it("should continue a paused team run with requirements", async () => {
       const teamClient = new AgnoClient({
         endpoint: "http://localhost:7777",
         mode: "team",
         teamId: "team-1",
       });
 
-      await expect(
-        teamClient.continueRun([
-          {
-            role: "tool",
-            content: "result",
-            tool_call_id: "call-1",
-            tool_name: "test",
-            tool_args: {},
-            tool_call_error: false,
-            metrics: { time: 100 },
-            created_at: 1_700_000_000,
-            result: "done",
-          },
-        ])
-      ).rejects.toThrow(
-        "HITL (Human-in-the-Loop) frontend tool execution is not supported for teams"
+      let requestBody: FormData | undefined;
+      server.use(
+        http.post(
+          "http://localhost:7777/teams/:teamId/runs/:runId/continue",
+          async ({ request }) => {
+            requestBody = await request.formData();
+            return new HttpResponse(createSimpleSuccessStream(), {
+              headers: { "Content-Type": "text/event-stream" },
+            });
+          }
+        )
+      );
+
+      await teamClient.continueRun([], {
+        runId: "team-run-1",
+        requirements: [{ requirement_id: "requirement-1", confirmed: true }],
+      });
+
+      expect(requestBody?.get("requirements")).toBe(
+        JSON.stringify([{ requirement_id: "requirement-1", confirmed: true }])
       );
     });
 
@@ -919,7 +923,7 @@ describe("AgnoClient", () => {
             result: "done",
           },
         ])
-      ).rejects.toThrow("No paused run to continue");
+      ).rejects.toThrow("No run ID to continue");
     });
 
     it("should preserve paused state when continue returns 409", async () => {

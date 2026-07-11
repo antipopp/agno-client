@@ -67,6 +67,8 @@ export interface AgentDetails {
   model?: Model;
   db_id?: string;
   storage?: boolean;
+  is_factory?: boolean;
+  factory_input_schema?: Record<string, unknown> | null;
 }
 
 /**
@@ -79,6 +81,8 @@ export interface TeamDetails {
   model?: Model;
   db_id?: string;
   storage?: boolean;
+  is_factory?: boolean;
+  factory_input_schema?: Record<string, unknown> | null;
 }
 
 /**
@@ -89,6 +93,7 @@ export interface SessionEntry {
   session_name: string;
   created_at: string | null;
   updated_at?: string | null;
+  session_type?: "agent" | "team" | "workflow" | string;
 }
 
 /**
@@ -128,6 +133,12 @@ export interface RunSchema {
   files?: FileData[] | null;
   response_audio?: ResponseAudioData | null;
   input_media?: Record<string, unknown> | null;
+  status?: string | null;
+  forked_from_run_id?: string | null;
+  forked_from_message_index?: number | null;
+  forked_from_session_id?: string | null;
+  regenerated_from?: string | null;
+  last_checkpoint_at_message_index?: number | null;
 }
 
 /**
@@ -155,6 +166,12 @@ export interface TeamRunSchema {
   audio?: AudioData[] | null;
   files?: FileData[] | null;
   response_audio?: ResponseAudioData | null;
+  status?: string | null;
+  forked_from_run_id?: string | null;
+  forked_from_message_index?: number | null;
+  forked_from_session_id?: string | null;
+  regenerated_from?: string | null;
+  last_checkpoint_at_message_index?: number | null;
 }
 
 /**
@@ -237,6 +254,26 @@ export interface RunResponse {
   tools_awaiting_external_execution?: ToolCall[];
   tools_requiring_confirmation?: ToolCall[];
   tools_requiring_user_input?: ToolCall[];
+  requirements?: Record<string, unknown>[];
+  event_index?: number;
+}
+
+export interface AgentOSInfo {
+  os_id: string;
+  name?: string | null;
+  agno_version: string;
+  agent_count: number;
+  team_count: number;
+  workflow_count: number;
+  mcp: {
+    enabled: boolean;
+    path?: string | null;
+    oauth?: {
+      authorization_servers?: string[] | null;
+      resource?: string | null;
+    } | null;
+  };
+  auth_mode: "none" | "security_key" | "jwt";
 }
 
 /**

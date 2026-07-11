@@ -5,6 +5,18 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-07-11
+
+### Added
+
+- Agno 2.7.2 discovery types and `fetchInfo()` support for `/info`.
+- Agent and team factory inputs, background streaming, team continuation requirements, and unified run fork/regeneration options.
+
+### Fixed
+
+- Team pause/continue events are recognized instead of being ignored.
+- Run cancellation now includes `session_id` for scoped AgentOS authorization.
+
 ## [0.13.0] - 2026-04-22
 
 ### Fixed
@@ -713,6 +725,7 @@ All endpoints now align with AgentOS OpenAPI specification:
 - Tool execution with HITL pattern
 - pnpm workspace monorepo structure
 
+[0.14.0]: https://github.com/antipopp/agno-client/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/antipopp/agno-client/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/antipopp/agno-client/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/antipopp/agno-client/compare/v0.10.0...v0.11.0

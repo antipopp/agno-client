@@ -123,7 +123,7 @@ For small changes, run a targeted single test first, then the full suite.
 ## Streaming And API Constraints
 - Preserve support for both legacy and new streaming event formats.
 - Keep merge precedence logic intact for headers, params, and dependencies.
-- HITL continue flow is agent-only; teams do not support `/continue`.
+- Agent and team runs support `/continue`; teams send `requirements` instead of agent `tools`.
 - Maintain compatibility with official Agno event/type contracts.
 
 ## Testing Conventions

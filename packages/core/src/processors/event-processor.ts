@@ -226,7 +226,7 @@ export class EventProcessor {
     chunk: RunResponse,
     lastMessage: ChatMessage | undefined
   ): ChatMessage | undefined {
-    if (!lastMessage || lastMessage.role !== "agent") {
+    if (lastMessage?.role !== "agent") {
       return lastMessage;
     }
 

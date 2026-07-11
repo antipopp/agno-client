@@ -60,6 +60,6 @@ describe("RunEvent", () => {
 
   it("should have expected number of event types", () => {
     const eventCount = Object.keys(RunEvent).length;
-    expect(eventCount).toBe(28);
+    expect(eventCount).toBe(34);
   });
 });

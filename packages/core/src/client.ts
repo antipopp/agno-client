@@ -1,9 +1,11 @@
 import type {
   AgentDetails,
+  AgentOSInfo,
   AgnoClientConfig,
   AudioData,
   ChatMessage,
   ClientState,
+  ContinueRunOptions,
   FileData,
   ImageData,
   RunResponse,
@@ -293,11 +295,15 @@ export class AgnoClient extends EventEmitter {
       return message;
     }
 
-    const cancelUrl = `${runUrl}/${runId}/cancel`;
+    const cancelUrl = new URL(`${runUrl}/${runId}/cancel`);
+    const sessionId = this.configManager.getSessionId();
+    if (sessionId) {
+      cancelUrl.searchParams.set("session_id", sessionId);
+    }
     const headers = this.configManager.buildRequestHeaders();
 
     try {
-      const response = await fetch(cancelUrl, {
+      const response = await fetch(cancelUrl.toString(), {
         method: "POST",
         headers,
       });
@@ -445,6 +451,12 @@ export class AgnoClient extends EventEmitter {
       if (dependencies) {
         formData.set("dependencies", JSON.stringify(dependencies));
       }
+      if (options?.background) {
+        formData.set("background", "true");
+      }
+      if (options?.factoryInput) {
+        formData.set("factory_input", JSON.stringify(options.factoryInput));
+      }
 
       const headers = this.configManager.buildRequestHeaders(options?.headers);
       const params = this.configManager.buildQueryString(options?.params);
@@ -543,7 +555,9 @@ export class AgnoClient extends EventEmitter {
     }
 
     // Handle pause for HITL
-    if (event === RunEvent.RunPaused) {
+    const isPausedEvent =
+      event === RunEvent.RunPaused || event === RunEvent.TeamRunPaused;
+    if (isPausedEvent) {
       this.state.isStreaming = false;
       this.state.isPaused = true;
       this.state.pausedRunId = chunk.run_id;
@@ -935,7 +949,7 @@ export class AgnoClient extends EventEmitter {
    */
   addToolCallsToLastMessage(toolCalls: ToolCall[]): void {
     const lastMessage = this.messageStore.getLastMessage();
-    if (!lastMessage || lastMessage.role !== "agent") {
+    if (lastMessage?.role !== "agent") {
       return;
     }
 
@@ -1060,34 +1074,14 @@ export class AgnoClient extends EventEmitter {
     }
   }
 
-  /**
-   * Continue a paused run with tool execution results.
-   *
-   * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
-   * Teams do not support the continue endpoint.
-   *
-   * @param tools - Array of tool calls with execution results
-   * @param options - Optional request headers and query parameters
-   * @throws Error if no paused run exists
-   * @throws Error if called with team mode (teams don't support HITL)
-   */
+  /** Continue, regenerate, or fork an agent or team run. */
   async continueRun(
-    tools: ToolCall[],
-    options?: {
-      headers?: Record<string, string>;
-      params?: Record<string, string>;
-    }
+    tools: ToolCall[] = [],
+    options?: ContinueRunOptions
   ): Promise<void> {
-    // Validate that we're not in team mode (teams don't support continue endpoint)
-    if (this.configManager.getMode() === "team") {
-      throw new Error(
-        "HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. " +
-          "Only agents support the continue endpoint."
-      );
-    }
-
-    if (!(this.state.isPaused && this.state.pausedRunId)) {
-      throw new Error("No paused run to continue");
+    const targetRunId = options?.runId || this.state.pausedRunId;
+    if (!targetRunId) {
+      throw new Error("No run ID to continue");
     }
 
     const runUrl = this.configManager.getRunUrl();
@@ -1095,7 +1089,7 @@ export class AgnoClient extends EventEmitter {
       throw new Error("No agent or team selected");
     }
 
-    const pausedRunId = this.state.pausedRunId;
+    const pausedRunId = targetRunId;
 
     // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
     const continueUrl = `${runUrl}/${pausedRunId}/continue`;
@@ -1156,8 +1150,38 @@ export class AgnoClient extends EventEmitter {
     );
 
     const formData = new FormData();
-    formData.append("tools", JSON.stringify(cleanedTools));
+    if (this.configManager.getMode() === "team") {
+      if (options?.requirements) {
+        formData.append("requirements", JSON.stringify(options.requirements));
+      }
+    } else if (cleanedTools.length > 0) {
+      formData.append("tools", JSON.stringify(cleanedTools));
+    }
     formData.append("stream", "true");
+    if (options?.input !== undefined) {
+      formData.append("input", options.input);
+    }
+    if (options?.continueFrom !== undefined) {
+      formData.append("continue_from", String(options.continueFrom));
+    }
+    if (options?.fork) {
+      formData.append("fork", "true");
+    }
+    if (options?.regenerate) {
+      formData.append("regenerate", "true");
+    }
+    if (options?.replaceOriginal !== undefined) {
+      formData.append("replace_original", String(options.replaceOriginal));
+    }
+    if (options?.additionalInstructions !== undefined) {
+      formData.append(
+        "additional_instructions",
+        options.additionalInstructions
+      );
+    }
+    if (options?.background) {
+      formData.append("background", "true");
+    }
 
     const currentSessionId = this.configManager.getSessionId();
     if (currentSessionId) {
@@ -1185,7 +1209,11 @@ export class AgnoClient extends EventEmitter {
         const event = chunk.event as RunEvent;
 
         // Continue endpoint may emit RunContent directly without RunContinued.
-        if (!hasContinued && event !== RunEvent.RunPaused) {
+        if (
+          !hasContinued &&
+          event !== RunEvent.RunPaused &&
+          event !== RunEvent.TeamRunPaused
+        ) {
           markRunContinued(chunk.run_id);
         }
 
@@ -1254,6 +1282,23 @@ export class AgnoClient extends EventEmitter {
       this.emit("state:change", this.getState());
       return false;
     }
+  }
+
+  /** Discover AgentOS version, authentication, and MCP capabilities. */
+  async fetchInfo(options?: {
+    params?: Record<string, string>;
+  }): Promise<AgentOSInfo> {
+    const headers = this.configManager.buildRequestHeaders();
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(`${this.configManager.getEndpoint()}/info`);
+    params.forEach((value, key) => {
+      url.searchParams.set(key, value);
+    });
+    const response = await fetch(url.toString(), { headers });
+    if (!response.ok) {
+      throw new Error("Failed to fetch AgentOS info");
+    }
+    return response.json() as Promise<AgentOSInfo>;
   }
 
   /**

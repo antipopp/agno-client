@@ -160,7 +160,7 @@ The `SessionManager` converts the API's session format (with nested `message`/`r
 
 The library supports **Human-in-the-Loop (HITL)** frontend tool execution through the `useAgnoToolExecution` hook in the React package. This allows agents to delegate specific tools to the frontend for execution.
 
-**⚠️ Important:** HITL is only supported for agents, not teams. Teams do not have a `/continue` endpoint in the AgentOS API.
+AgentOS 2.6.19+ supports `/continue` for both agents and teams. Agent frontend tools use `tools`; team HITL uses `requirements`.
 
 **How it works:**
 
@@ -170,7 +170,7 @@ The library supports **Human-in-the-Loop (HITL)** frontend tool execution throug
 4. Client emits `run:paused` event with tool details
 5. React hook (`useAgnoToolExecution`) listens to `run:paused` event
 6. Hook executes tools using user-defined handlers
-7. Hook calls `client.continueRun(toolResults)` to resume the agent (will throw error if mode is 'team')
+7. Hook calls `client.continueRun(toolResults)` to resume the agent
 8. Backend continues processing with the results
 
 **Event flow for paused runs:**

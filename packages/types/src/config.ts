@@ -90,6 +90,29 @@ export interface SendMessageOptions {
    * Files are appended to multipart form data using the `files` field.
    */
   files?: Array<File | Blob>;
+
+  /** Run the request in the background while retaining the SSE stream. */
+  background?: boolean;
+
+  /** Input for an AgentOS agent or team factory. */
+  factoryInput?: Record<string, unknown>;
+}
+
+/** Options for continuing, regenerating, or forking an existing run. */
+export interface ContinueRunOptions {
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+  /** Required when continuing a run that is no longer paused in client state. */
+  runId?: string;
+  /** Team HITL requirements returned by a TeamRunPaused event. */
+  requirements?: Record<string, unknown>[];
+  input?: string;
+  continueFrom?: "end" | "last_user" | number;
+  fork?: boolean;
+  regenerate?: boolean;
+  replaceOriginal?: boolean;
+  additionalInstructions?: string;
+  background?: boolean;
 }
 
 /**
