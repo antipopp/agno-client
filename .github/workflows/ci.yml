@@ -33,6 +33,9 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
+      - name: Run example smoke checks
+        run: pnpm examples:smoke
+
       - name: Lint
         run: pnpm ultracite check
 

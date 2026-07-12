@@ -431,6 +431,40 @@ describe("EventProcessor", () => {
         expect(result2?.content).toBe("Hello, World!");
       });
 
+      it("should preserve repeated text in an incremental chunk", () => {
+        // Given
+        const initialChunk: RunResponse = {
+          event: RunEvent.RunContent,
+          content: "Hello",
+          content_type: "text/plain",
+          created_at: 1_700_000_000,
+        };
+        const initialMessage = processor.processChunk(
+          initialChunk,
+          baseMessage
+        );
+
+        if (!initialMessage) {
+          throw new Error("Expected RunContent to produce an updated message");
+        }
+
+        const repeatedTextChunk: RunResponse = {
+          event: RunEvent.RunContent,
+          content: ", Hello",
+          content_type: "text/plain",
+          created_at: 1_700_000_001,
+        };
+
+        // When
+        const result = processor.processChunk(
+          repeatedTextChunk,
+          initialMessage
+        );
+
+        // Then
+        expect(result?.content).toBe("Hello, Hello");
+      });
+
       it("should handle object content as JSON markdown", () => {
         const chunk: RunResponse = {
           event: RunEvent.RunContent,

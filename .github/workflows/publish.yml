@@ -27,18 +27,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build all packages
-        run: pnpm build
+      - name: Check release metadata
+        run: pnpm release:check
+
+      - name: Lint
+        run: pnpm ultracite check
 
       - name: Type check
         run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build all packages
+        run: pnpm build
 
       - name: Publish @antipopp/agno-types
         if: ${{ !inputs.dry_run }}
@@ -54,4 +63,4 @@ jobs:
 
       - name: Dry run notice
         if: ${{ inputs.dry_run }}
-        run: echo "Dry run completed. Build and typecheck passed. No packages were published."
+        run: echo "Dry run completed. Release readiness checks passed. No packages were published."

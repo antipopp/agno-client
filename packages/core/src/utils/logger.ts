@@ -34,7 +34,7 @@ function sanitizeObject(obj: unknown): unknown {
         key.toLowerCase().includes(sensitiveKey.toLowerCase())
       )
     ) {
-      sanitized[key] = value ? "[REDACTED]" : undefined;
+      sanitized[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null) {
       sanitized[key] = sanitizeObject(value);
     } else {

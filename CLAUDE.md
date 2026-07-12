@@ -359,7 +359,11 @@ If Agno's API changes, update `packages/types/` first, then propagate changes to
 Packages are published independently to npm under the `@antipopp` scope:
 
 ```bash
-# Build all packages first
+# Required release checklist before publishing
+pnpm release:check
+pnpm ultracite check
+pnpm typecheck
+pnpm test
 pnpm build
 
 # Publish in dependency order
@@ -369,6 +373,18 @@ cd ../react && pnpm publish
 ```
 
 Version updates should be coordinated across packages when breaking changes occur.
+
+## v1 Release Policy
+
+v1 stability covers package entrypoint exports, documented core client behavior, React hooks, event/type contracts, cancellation through `abortStream()`, `cancelRun()`, and `dispose()`, plus headers, params, dependencies, and file uploads. Public changes follow SemVer and need a changelog entry.
+
+Experimental v1 surfaces are frontend tool execution, custom tool handlers, tool argument validation helpers, and generative UI rendering. They are opt-in and may gain compatible helper APIs in minor releases. Deferred surfaces are a feature flag service, remote rollout engine, SDK-side flag registry, release automation framework, and counting examples in coverage metrics.
+
+Feature flags are caller-owned request data. Use `params` for backend query flags and `dependencies` for run-scoped values read by the backend agent. Do not add a feature flag platform or hidden SDK behavior for v1.
+
+Roadmap split: v1 stabilizes the existing packages, release checks, public docs, and known correctness regressions. Post-v1 work can expand AgentOS coverage, generative UI helpers, example smoke automation, and release tooling if the lightweight gates stop being enough.
+
+Agent-assisted maintenance is limited to drafting changelog notes, API-diff reports, release-risk summaries, and check results. Agents may run verification and flag SemVer risk, but humans approve SemVer breaks, publish packages, finalize release notes, and decide rollback or deprecation plans.
 
 ## Testing Against Agno
 

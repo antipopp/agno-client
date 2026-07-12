@@ -11,9 +11,11 @@
   ],
   "scripts": {
     "build": "pnpm -r --filter './packages/*' build",
+    "examples:smoke": "pnpm --filter @antipopp/agno-react-example typecheck && pnpm --filter @antipopp/agno-react-example build && pnpm --filter @antipopp/agno-saas-example typecheck && pnpm --filter @antipopp/agno-saas-example build",
     "dev": "pnpm -r --parallel --filter './packages/*' dev",
     "clean": "pnpm -r exec rm -rf dist node_modules",
     "lint": "pnpm ultracite fix",
+    "release:check": "node scripts/release-check.mjs",
     "typecheck": "pnpm -r --filter './packages/*' typecheck",
     "test": "vitest run",
     "test:watch": "vitest",

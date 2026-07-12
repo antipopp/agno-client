@@ -83,7 +83,9 @@ export class EventProcessor {
     updatedMessage: ChatMessage
   ): void {
     if (typeof chunk.content === "string") {
-      const uniqueContent = chunk.content.replace(this.lastContent, "");
+      const uniqueContent = chunk.content.startsWith(this.lastContent)
+        ? chunk.content.slice(this.lastContent.length)
+        : chunk.content;
       updatedMessage.content =
         (updatedMessage.content as string) + uniqueContent;
       this.lastContent = chunk.content;

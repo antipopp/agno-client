@@ -373,56 +373,57 @@ await client.sendMessage('Hello!', {
 - Debugging: `{ debug: 'true', trace_id: 'xyz' }`
 - Pagination: `{ page: '1', limit: '50' }`
 
+### v1 Feature Flag Policy
+
+The core client does not include a feature flag platform. For v1, feature flags stay explicit and caller-owned:
+
+- Use `params` for backend query flags such as `{ enable_streaming: 'true' }`.
+- Use `dependencies` for run-scoped values that the backend agent reads during `sendMessage`.
+- Set defaults in `AgnoClient` config, then override or extend them per request.
+- Avoid hidden SDK defaults for experimental behavior. If a flag changes behavior, pass it visibly at construction or call time.
+
 ### Request Cancellation
 
-Use `AbortController` to cancel ongoing requests. This is essential for preventing memory leaks when components unmount or users navigate away during streaming:
+`sendMessage` does not accept an `AbortSignal`. Use the client cancellation methods instead:
+
+- `abortStream()` stops the active stream locally without calling the backend cancel endpoint.
+- `await cancelRun()` stops an active or paused run locally and requests backend cancellation when a run ID is available.
+- `dispose()` aborts active work and releases client resources. Do not reuse a disposed client.
 
 ```typescript
-const controller = new AbortController();
+const sendPromise = client.sendMessage('Hello!');
 
-// Pass signal to sendMessage options
-await client.sendMessage('Hello!', {
-  signal: controller.signal
-});
+// Stop only the local SSE stream
+client.abortStream();
+await sendPromise;
 
-// Cancel the request (e.g., on component unmount)
-controller.abort();
+// Or cancel the run locally and request backend cancellation
+const cancellableSend = client.sendMessage('Hello!');
+await client.cancelRun();
+await cancellableSend;
 ```
 
 **React Example:**
 
 ```typescript
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AgnoClient } from '@antipopp/agno-client';
 
 function ChatComponent() {
-  const client = new AgnoClient(config);
+  const client = useMemo(() => new AgnoClient(config), []);
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    // Send message with abort signal
-    client.sendMessage('Hello!', {
-      signal: controller.signal
-    });
-
-    // Cleanup: cancel request on unmount
-    return () => {
-      controller.abort();
-    };
-  }, []);
+    return () => client.dispose();
+  }, [client]);
 
   return <div>Chat</div>;
 }
 ```
 
 **Use Cases:**
-- **Component unmounting** - Cancel requests when user navigates away
-- **Request timeouts** - Implement custom timeout logic
-- **User cancellation** - Allow users to cancel long-running requests
-- **Preventing memory leaks** - Ensure streaming stops when components are destroyed
-
-**Note:** Aborted requests will not trigger the `onError` callback - they complete silently.
+- **Component unmounting** - Call `dispose()` to stop streams and release resources
+- **User cancellation** - Call `cancelRun()` to request backend cancellation
+- **Local stream control** - Call `abortStream()` when no backend cancellation is needed
 
 ## License
 

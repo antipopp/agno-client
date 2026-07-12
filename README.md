@@ -203,6 +203,50 @@ Tips:
 - [Type Definitions](./packages/types/README.md)
 - [Frontend Tool Execution & Generative UI](./FRONTEND_TOOL_EXECUTION.md)
 
+## v1 Stability Policy
+
+v1 is the public contract for the package APIs, runtime behavior, and documented release process. Stable surfaces follow SemVer and require a changelog entry for user-visible changes.
+
+Stable for v1:
+- Package entrypoint exports from `@antipopp/agno-types`, `@antipopp/agno-client`, and `@antipopp/agno-react`.
+- Core client construction, streaming, sessions, cancellation through `abortStream()`, `cancelRun()`, and `dispose()`, plus headers, params, dependencies, and file uploads.
+- React provider and hooks that wrap the core client without changing package layering.
+
+Experimental for v1:
+- Frontend tool execution, custom tool handlers, and generative UI rendering. These remain opt-in and may gain new helper APIs in minor releases.
+- App-specific tool argument validation. The SDK provides helpers, but each app owns its schemas and approval rules.
+
+Deferred beyond v1:
+- A feature flag service, remote rollout engine, SDK-side flag registry, or hidden default behavior.
+- A release automation framework such as Changesets or semantic-release.
+- Treating examples as coverage gates. Examples are smoke checks only.
+
+## Feature Flags
+
+Feature flags are passed through existing request data, not through a platform owned by this SDK. Use `params` for backend-readable query flags and `dependencies` for run-scoped values merged into `sendMessage` requests. Global config sets defaults, and per-request options override or extend those defaults.
+
+## Release Checklist
+
+The release checklist is intentionally small and repo-local.
+
+Before publishing a v1 release, run:
+
+1. `pnpm release:check`
+2. `pnpm ultracite check`
+3. `pnpm typecheck`
+4. `pnpm test`
+5. `pnpm build`
+
+Publish remains a manual, human-approved action. Humans approve SemVer breaks, final release notes, npm publish, and any rollback or deprecation plan.
+
+## Roadmap
+
+v1 stabilization work focuses on truthful coverage, regression tests for known blockers, release gates, and docs that match the shipped API. Post-v1 work can add broader AgentOS API coverage, richer generative UI helpers, example smoke automation, and release tooling only when the current lightweight gates stop being enough.
+
+## Agent-assisted Maintenance
+
+Agents may draft changelog entries, API-diff notes, release-risk reports, and checklist results. Agents may also run checks and point out SemVer risk. Agents must not approve SemVer breaks, publish packages, create npm releases, or finalize release notes without human review.
+
 ## 🤝 Contributing
 
 Contributions are welcome! This is an independent open-source project.

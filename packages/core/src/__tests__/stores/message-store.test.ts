@@ -187,6 +187,28 @@ describe("MessageStore", () => {
       store.removeLastMessages(10);
       expect(store.getMessages()).toHaveLength(0);
     });
+
+    it("should preserve messages when count is zero", () => {
+      // Given
+      const messagesBeforeRemoval = store.getMessages();
+
+      // When
+      store.removeLastMessages(0);
+
+      // Then
+      expect(store.getMessages()).toEqual(messagesBeforeRemoval);
+    });
+
+    it("should preserve messages when count is negative", () => {
+      // Given
+      const messagesBeforeRemoval = store.getMessages();
+
+      // When
+      store.removeLastMessages(-1);
+
+      // Then
+      expect(store.getMessages()).toEqual(messagesBeforeRemoval);
+    });
   });
 
   describe("clear", () => {
