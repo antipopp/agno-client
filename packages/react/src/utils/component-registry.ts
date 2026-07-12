@@ -16,7 +16,7 @@ export type ComponentRenderer = (props: Record<string, unknown>) => ReactNode;
  * Component registry class
  */
 export class ComponentRegistry {
-  private static instance: ComponentRegistry;
+  private static instance: ComponentRegistry | undefined;
   private readonly components: Map<string, ComponentRenderer> = new Map();
 
   private constructor() {
@@ -90,10 +90,8 @@ export class ComponentRegistry {
    * After calling this, getInstance() will create a fresh instance.
    */
   static resetInstance(): void {
-    if (ComponentRegistry.instance) {
-      ComponentRegistry.instance.clear();
-      ComponentRegistry.instance = undefined as unknown as ComponentRegistry;
-    }
+    ComponentRegistry.instance?.clear();
+    ComponentRegistry.instance = undefined;
   }
 }
 

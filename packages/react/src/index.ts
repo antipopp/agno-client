@@ -18,7 +18,6 @@ export type {
   GenerativeUIData,
   MarkdownComponentSpec,
   PaginationInfo,
-  RunEvent,
   SessionEntry,
   SessionsListResponse,
   TableColumn,
@@ -29,6 +28,7 @@ export type {
   // Generative UI types
   UIComponentSpec,
 } from "@antipopp/agno-types";
+export { RunEvent } from "@antipopp/agno-types";
 export type { GenerativeUIRendererProps } from "./components/GenerativeUIRenderer";
 // Generative UI Components
 export { GenerativeUIRenderer } from "./components/GenerativeUIRenderer";
