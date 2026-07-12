@@ -145,3 +145,11 @@ For small changes, run a targeted single test first, then the full suite.
 - Preserve public API compatibility unless a breaking change is explicitly requested.
 - Update docs/examples when public behavior changes.
 - Report exactly which verification commands were run.
+
+## v1 Maintenance Boundaries
+- Treat v1 as a stability contract for package exports, documented core behavior, React hooks, and shared event/type contracts.
+- Keep experimental surfaces opt-in: frontend tool execution, tool argument validation helpers, and generative UI rendering.
+- Use `params` and `dependencies` for feature flags. Do not add a flag platform, remote rollout service, SDK-side registry, or hidden default behavior.
+- Release checklist: `pnpm release:check`, `pnpm ultracite check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` before any publish attempt.
+- Roadmap split: v1 is stabilization and truthful release signal; post-v1 is broader API coverage, richer UI helpers, example smoke automation, or release tooling if needed.
+- agent-assisted work may draft changelog notes, API-diff reports, release-risk summaries, and verification evidence. Humans approve SemVer breaks, final release notes, npm publish, rollback, and deprecation plans.
