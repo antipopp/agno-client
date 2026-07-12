@@ -75,6 +75,10 @@ export class MessageStore {
    * Remove last N messages
    */
   removeLastMessages(count: number): void {
+    if (count <= 0) {
+      return;
+    }
+
     this.messages = this.messages.slice(0, -count);
   }
 
