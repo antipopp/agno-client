@@ -14,6 +14,7 @@
     "dev": "pnpm -r --parallel --filter './packages/*' dev",
     "clean": "pnpm -r exec rm -rf dist node_modules",
     "lint": "pnpm ultracite fix",
+    "release:check": "node scripts/release-check.mjs",
     "typecheck": "pnpm -r --filter './packages/*' typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
